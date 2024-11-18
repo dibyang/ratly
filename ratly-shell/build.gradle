@@ -1,0 +1,55 @@
+
+
+dependencies {
+    api 'commons-cli:commons-cli:1.5.0'
+    implementation project(':ratly-client')
+    implementation project(':ratly-common')
+    implementation project(':ratly-proto')
+    implementation project(':ratly-tools')
+    implementation project(':ratly-server')
+    implementation project(':ratly-metrics-default')
+    implementation project(':ratly-grpc')
+    implementation project(':ratly-netty')
+    implementation("org.slf4j:slf4j-api:${slf4j_version}")
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('cleanDist', Delete) {
+    group 'build'
+    delete "$buildDir/dist/ratly-shell"
+}
+
+tasks.register('copyJars', Copy) {
+    group 'build'
+    from configurations.runtimeClasspath
+    from "$buildDir/libs"
+    into "$buildDir/dist/ratly-shell/lib"
+    exclude '*-sources.jar', '*-javadoc.jar'
+}
+
+tasks.register('copyConf', Copy) {
+    dependsOn build, cleanDist, copyJars
+    group 'build'
+    from "$projectDir/src/main/conf"
+    into "$buildDir/dist/ratly-shell/conf"
+}
+
+tasks.register('copyLibexec', Copy) {
+    dependsOn build, cleanDist, copyJars
+    group 'build'
+    from "$projectDir/src/main/libexec"
+    into "$buildDir/dist/ratly-shell/libexec"
+}
+
+tasks.register('buildShellDist', Copy) {
+    dependsOn build, cleanDist, copyJars, copyConf, copyLibexec
+    group 'build'
+    from "$projectDir/src/main/bin/"
+    into "$buildDir/dist/ratly-shell/bin"
+
+}

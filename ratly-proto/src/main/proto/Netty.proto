@@ -1,0 +1,43 @@
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto.netty";
+option java_outer_classname = "NettyProtos";
+option java_generate_equals_and_hash = true;
+
+package ratly.netty;
+
+import "Raft.proto";
+
+message RaftNettyExceptionReplyProto {
+  ratly.common.RaftRpcReplyProto rpcReply = 1;
+  bytes exception = 2;
+}
+
+message RaftNettyServerRequestProto {
+  oneof raftNettyServerRequest {
+    ratly.common.RequestVoteRequestProto requestVoteRequest = 1;
+    ratly.common.AppendEntriesRequestProto appendEntriesRequest = 2;
+    ratly.common.InstallSnapshotRequestProto installSnapshotRequest = 3;
+    ratly.common.RaftClientRequestProto raftClientRequest = 4;
+    ratly.common.SetConfigurationRequestProto setConfigurationRequest = 5;
+    ratly.common.GroupManagementRequestProto groupManagementRequest = 6;
+    ratly.common.GroupListRequestProto groupListRequest = 7;
+    ratly.common.GroupInfoRequestProto groupInfoRequest = 8;
+    ratly.common.TransferLeadershipRequestProto transferLeadershipRequest = 9;
+    ratly.common.StartLeaderElectionRequestProto startLeaderElectionRequest = 10;
+    ratly.common.SnapshotManagementRequestProto snapshotManagementRequest = 11;
+    ratly.common.LeaderElectionManagementRequestProto leaderElectionManagementRequest = 12;
+  }
+}
+
+message RaftNettyServerReplyProto {
+  oneof raftNettyServerReply {
+    ratly.common.RequestVoteReplyProto requestVoteReply = 1;
+    ratly.common.AppendEntriesReplyProto appendEntriesReply = 2;
+    ratly.common.InstallSnapshotReplyProto installSnapshotReply = 3;
+    ratly.common.RaftClientReplyProto raftClientReply = 4;
+    ratly.common.GroupListReplyProto groupListReply = 5;
+    ratly.common.GroupInfoReplyProto groupInfoReply = 6;
+    RaftNettyExceptionReplyProto exceptionReply = 7;
+    ratly.common.StartLeaderElectionReplyProto startLeaderElectionReply = 8;
+  }
+}

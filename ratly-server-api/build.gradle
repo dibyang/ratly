@@ -1,0 +1,10 @@
+
+dependencies {
+    api project(':ratly-proto')
+    api project(':ratly-common')
+    api project(':ratly-client')
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -1,0 +1,20 @@
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto";
+option java_outer_classname = "ExperimentsProtos";
+option java_generate_equals_and_hash = true;
+
+package ratly.experiments;
+
+message TransferMsgProto {
+    uint32 partId = 1;
+    bytes data = 2;
+}
+
+message TransferReplyProto {
+    uint32 partId = 1;
+    string message = 2;
+}
+
+service FileTransferExampleService {
+    rpc sendData(stream TransferMsgProto) returns (stream TransferReplyProto);
+}

@@ -1,0 +1,40 @@
+
+
+dependencies {
+    api project(':ratly-proto')
+    api project(':ratly-tools')
+    api project(':ratly-common')
+    api project(':ratly-client')
+    api project(':ratly-server')
+    api project(':ratly-metrics-default')
+    api project(':ratly-grpc')
+    api project(':ratly-netty')
+    api 'com.beust:jcommander:1.82'
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('cleanDist', Delete) {
+    group 'build'
+    delete "$buildDir/dist/ratly-examples"
+}
+
+tasks.register('copyJars', Copy) {
+    group 'build'
+    from configurations.runtimeClasspath
+    from "$buildDir/libs"
+    into "$buildDir/dist/ratly-examples/lib"
+    exclude '*-sources.jar', '*-javadoc.jar'
+}
+
+tasks.register('buildDist', Copy) {
+    dependsOn build, cleanDist, copyJars
+    group 'build'
+    from "$projectDir/src/main/bin/"
+    into "$buildDir/dist/ratly-examples/bin"
+
+}

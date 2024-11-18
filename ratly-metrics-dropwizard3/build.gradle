@@ -1,0 +1,16 @@
+
+
+dependencies {
+    api project(':ratly-metrics-api')
+    api project(':ratly-proto')
+    api project(':ratly-common')
+    api 'io.dropwizard.metrics:metrics-core:3.2.5'
+    api 'io.dropwizard.metrics:metrics-jvm:3.2.5'
+    api 'io.dropwizard.metrics:metrics-ganglia:3.2.5'
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}

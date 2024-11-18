@@ -1,0 +1,188 @@
+package net.xdob.ratly.netty;
+
+import net.xdob.ratly.client.RaftClientConfigKeys;
+import net.xdob.ratly.conf.RaftProperties;
+import net.xdob.ratly.protocol.RaftPeer;
+import net.xdob.ratly.protocol.exceptions.TimeoutIOException;
+import io.netty.channel.*;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import net.xdob.ratly.proto.RaftProtos.RaftRpcRequestProto;
+import net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerReplyProto;
+import net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerRequestProto;
+import net.xdob.ratly.util.IOUtils;
+import net.xdob.ratly.util.PeerProxyMap;
+import net.xdob.ratly.util.ProtoUtils;
+import net.xdob.ratly.util.TimeDuration;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerReplyProto.RaftNettyServerReplyCase.EXCEPTIONREPLY;
+
+public class NettyRpcProxy implements Closeable {
+  public static class PeerMap extends PeerProxyMap<NettyRpcProxy> {
+    private final EventLoopGroup group;
+
+    public PeerMap(String name, RaftProperties properties) {
+      this(name, properties, NettyUtils.newEventLoopGroup(name, 0,
+          NettyConfigKeys.Client.useEpoll(properties)));
+    }
+
+    private PeerMap(String name, RaftProperties properties, EventLoopGroup group) {
+      super(name, peer -> {
+        try {
+          return new NettyRpcProxy(peer, properties, group);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw IOUtils.toInterruptedIOException("Failed connecting to " + peer, e);
+        }
+      });
+      this.group = group;
+    }
+
+    @Override
+    public void close() {
+      super.close();
+      group.shutdownGracefully();
+    }
+  }
+
+  public static long getCallId(RaftNettyServerReplyProto proto) {
+    switch (proto.getRaftNettyServerReplyCase()) {
+      case REQUESTVOTEREPLY:
+        return proto.getRequestVoteReply().getServerReply().getCallId();
+      case STARTLEADERELECTIONREPLY:
+        return proto.getStartLeaderElectionReply().getServerReply().getCallId();
+      case APPENDENTRIESREPLY:
+        return proto.getAppendEntriesReply().getServerReply().getCallId();
+      case INSTALLSNAPSHOTREPLY:
+        return proto.getInstallSnapshotReply().getServerReply().getCallId();
+      case RAFTCLIENTREPLY:
+        return proto.getRaftClientReply().getRpcReply().getCallId();
+      case EXCEPTIONREPLY:
+        return proto.getExceptionReply().getRpcReply().getCallId();
+      case RAFTNETTYSERVERREPLY_NOT_SET:
+        throw new IllegalArgumentException("Reply case not set in proto: "
+            + proto.getRaftNettyServerReplyCase());
+      default:
+        throw new UnsupportedOperationException("Reply case not supported: "
+            + proto.getRaftNettyServerReplyCase());
+    }
+  }
+
+
+  class Connection implements Closeable {
+    private final NettyClient client = new NettyClient(peer.getAddress());
+    private final Queue<CompletableFuture<RaftNettyServerReplyProto>> replies
+        = new LinkedList<>();
+
+    Connection(EventLoopGroup group) throws InterruptedException {
+      final ChannelInboundHandler inboundHandler
+          = new SimpleChannelInboundHandler<RaftNettyServerReplyProto>() {
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx,
+                                    RaftNettyServerReplyProto proto) {
+          final CompletableFuture<RaftNettyServerReplyProto> future = pollReply();
+          if (future == null) {
+            throw new IllegalStateException("Request #" + getCallId(proto)
+                + " not found");
+          }
+          if (proto.getRaftNettyServerReplyCase() == EXCEPTIONREPLY) {
+            final Object ioe = ProtoUtils.toObject(proto.getExceptionReply().getException());
+            future.completeExceptionally((IOException)ioe);
+          } else {
+            future.complete(proto);
+          }
+        }
+      };
+      final ChannelInitializer<SocketChannel> initializer
+          = new ChannelInitializer<SocketChannel>() {
+        @Override
+        protected void initChannel(SocketChannel ch) throws Exception {
+          final ChannelPipeline p = ch.pipeline();
+
+          p.addLast(new ProtobufVarint32FrameDecoder());
+          p.addLast(new ProtobufDecoder(RaftNettyServerReplyProto.getDefaultInstance()));
+          p.addLast(new ProtobufVarint32LengthFieldPrepender());
+          p.addLast(new ProtobufEncoder());
+
+          p.addLast(inboundHandler);
+        }
+      };
+
+      client.connect(group, initializer);
+    }
+
+    synchronized ChannelFuture offer(RaftNettyServerRequestProto request,
+        CompletableFuture<RaftNettyServerReplyProto> reply) {
+      replies.offer(reply);
+      return client.writeAndFlush(request);
+    }
+
+    synchronized CompletableFuture<RaftNettyServerReplyProto> pollReply() {
+      return replies.poll();
+    }
+
+    @Override
+    public synchronized void close() {
+      client.close();
+      if (!replies.isEmpty()) {
+        final IOException e = new IOException("Connection to " + peer + " is closed.");
+        replies.stream().forEach(f -> f.completeExceptionally(e));
+        replies.clear();
+      }
+    }
+  }
+
+  private final RaftPeer peer;
+  private final Connection connection;
+  private final TimeDuration requestTimeoutDuration;
+
+  public NettyRpcProxy(RaftPeer peer, RaftProperties properties, EventLoopGroup group) throws InterruptedException {
+    this.peer = peer;
+    this.connection = new Connection(group);
+    this.requestTimeoutDuration = RaftClientConfigKeys.Rpc.requestTimeout(properties);
+  }
+
+  @Override
+  public void close() {
+    connection.close();
+  }
+
+  public CompletableFuture<RaftNettyServerReplyProto> sendAsync(RaftNettyServerRequestProto proto) {
+    final CompletableFuture<RaftNettyServerReplyProto> reply = new CompletableFuture<>();
+    connection.offer(proto, reply);
+    return reply;
+  }
+
+  public RaftNettyServerReplyProto send(
+      RaftRpcRequestProto request, RaftNettyServerRequestProto proto)
+      throws IOException {
+    final CompletableFuture<RaftNettyServerReplyProto> reply = new CompletableFuture<>();
+    final ChannelFuture channelFuture = connection.offer(proto, reply);
+
+    try {
+      channelFuture.sync();
+      TimeDuration newDuration = requestTimeoutDuration.add(request.getTimeoutMs(), TimeUnit.MILLISECONDS);
+      return reply.get(newDuration.getDuration(), newDuration.getUnit());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw IOUtils.toInterruptedIOException(ProtoUtils.toString(request)
+          + " sending from " + peer + " is interrupted.", e);
+    } catch (ExecutionException e) {
+      throw IOUtils.toIOException(e);
+    } catch (TimeoutException e) {
+      throw new TimeoutIOException(e.getMessage(), e);
+    }
+  }
+}

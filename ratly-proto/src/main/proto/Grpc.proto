@@ -1,0 +1,61 @@
+
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto.grpc";
+option java_outer_classname = "GrpcProtos";
+option java_generate_equals_and_hash = true;
+
+package ratly.grpc;
+
+import "Raft.proto";
+
+service RaftClientProtocolService {
+  // A client-to-server stream RPC to ordered async requests
+  rpc ordered(stream ratly.common.RaftClientRequestProto)
+      returns (stream ratly.common.RaftClientReplyProto) {}
+
+  // A client-to-server stream RPC for unordered async requests
+  rpc unordered(stream ratly.common.RaftClientRequestProto)
+      returns (stream ratly.common.RaftClientReplyProto) {}
+}
+
+service RaftServerProtocolService {
+  rpc requestVote(ratly.common.RequestVoteRequestProto)
+      returns(ratly.common.RequestVoteReplyProto) {}
+
+  rpc startLeaderElection(ratly.common.StartLeaderElectionRequestProto)
+      returns(ratly.common.StartLeaderElectionReplyProto) {}
+
+  rpc appendEntries(stream ratly.common.AppendEntriesRequestProto)
+      returns(stream ratly.common.AppendEntriesReplyProto) {}
+
+  rpc installSnapshot(stream ratly.common.InstallSnapshotRequestProto)
+      returns(stream ratly.common.InstallSnapshotReplyProto) {}
+
+  rpc readIndex(ratly.common.ReadIndexRequestProto)
+      returns(ratly.common.ReadIndexReplyProto) {}
+}
+
+service AdminProtocolService {
+  // A client-to-server RPC to set new raft configuration
+  rpc setConfiguration(ratly.common.SetConfigurationRequestProto)
+      returns(ratly.common.RaftClientReplyProto) {}
+
+  rpc transferLeadership(ratly.common.TransferLeadershipRequestProto)
+      returns(ratly.common.RaftClientReplyProto) {}
+
+  // A client-to-server RPC to add a new group
+  rpc groupManagement(ratly.common.GroupManagementRequestProto)
+      returns(ratly.common.RaftClientReplyProto) {}
+
+  rpc snapshotManagement(ratly.common.SnapshotManagementRequestProto)
+      returns(ratly.common.RaftClientReplyProto) {}
+
+  rpc leaderElectionManagement(ratly.common.LeaderElectionManagementRequestProto)
+      returns(ratly.common.RaftClientReplyProto) {}
+
+  rpc groupList(ratly.common.GroupListRequestProto)
+      returns(ratly.common.GroupListReplyProto) {}
+
+  rpc groupInfo(ratly.common.GroupInfoRequestProto)
+      returns(ratly.common.GroupInfoReplyProto) {}
+}
