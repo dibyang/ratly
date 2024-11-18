@@ -1,0 +1,21 @@
+
+
+dependencies {
+    //implementation("org.apache.commons:commons-lang3:${lang3_version}")
+//    implementation "com.google.code.gson:gson:${gson_version}"
+    api "com.google.guava:guava:${guava_version}"
+    api "com.google.protobuf:protobuf-java:${protobuf_version}"
+    api "com.google.protobuf:protobuf-java-util:${protobuf_version}"
+    api "io.grpc:grpc-netty:${grpc_version}"
+    api "io.grpc:grpc-protobuf:${grpc_version}"
+//    implementation "io.grpc:grpc-stub:${grpc_version}"
+//    implementation "io.grpc:grpc-context:${grpc_version}"
+    implementation platform("io.netty:netty-bom:${netty_version}")
+//    implementation "io.opencensus:opencensus-api:${opencensus_version}"
+//    implementation "io.opencensus:opencensus-contrib-grpc-metrics:${opencensus_version}"
+//    implementation "io.dropwizard.metrics:metrics-core:${dropwizard_version}"
+//    implementation "io.dropwizard.metrics:metrics-jvm:${dropwizard_version}"
+//    implementation "io.dropwizard.metrics:metrics-jmx:${dropwizard_version}"
+    api project(':raftx-proto')
+
+}

@@ -1,0 +1,10 @@
+
+dependencies {
+    api project(':raftx-proto')
+    api project(':raftx-common')
+    api project(':raftx-client')
+}
+
+test {
+    useJUnitPlatform()
+}

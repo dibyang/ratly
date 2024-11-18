@@ -1,0 +1,44 @@
+plugins {
+    id "com.google.protobuf" version "0.9.4"
+}
+
+
+dependencies {
+    api "com.google.protobuf:protobuf-java:$protobuf_version" // 你需要的 Protobuf Java 库版本
+    implementation "io.grpc:grpc-netty:${grpc_version}" // 或 grpc-okhttp，根据需要选择传输层实现
+    implementation "io.grpc:grpc-protobuf:${grpc_version}"
+    implementation "io.grpc:grpc-stub:${grpc_version}"
+    //implementation "io.grpc:grpc-services:${grpc_version}"
+    //implementation "io.grpc:protoc-gen-grpc-java:${grpc_version}"
+    implementation "io.netty:netty-common:${netty_version}"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:$protobuf_version" // 你可以根据需要指定版本
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpc_version}"
+        }
+    }
+    generateProtoTasks {
+        all().configureEach { task ->
+            task.builtins {
+                java {}
+            }
+            task.plugins {
+                // Add grpc output without any option.  grpc must have been defined in the
+                // protobuf.plugins block.
+                // This yields
+                // "--grpc_out=/path/to/output" on the protoc commandline.
+                grpc { } // 启用 gRPC 插件
+            }
+        }
+    }
+}
+

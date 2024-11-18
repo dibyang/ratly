@@ -1,0 +1,200 @@
+import net.researchgate.release.GitAdapter
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+    }
+    dependencies {
+        classpath 'net.researchgate:gradle-release:2.6.0'
+    }
+    //skip Test tasks
+    gradle.taskGraph.whenReady {
+        tasks.each { task ->
+            if (task.name.contains("test")) {
+                task.enabled = false
+            }
+        }
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+apply plugin: 'net.researchgate.release'
+
+
+/**
+ * signing.properties 文件内容示例如下
+ * signing.keyId=xx
+ * signing.password=xxx
+ * signing.secretKeyRingFile=C:/Users/admin/.gnupg/**_SECRET.gpg
+ *
+ * ossrhUsername=xx
+ * ossrhPassword=xxx
+ */
+File signing_cfg = new File("$project.rootDir/signing.properties")
+if(signing_cfg.exists()) {
+    Properties props = new Properties()
+    props.load(new FileInputStream(signing_cfg))
+    props.each { prop ->
+        project.ext.set(prop.key, prop.value)
+    }
+
+    // 将构建的包签名
+    signing {
+        sign configurations.archives
+    }
+}
+
+
+release {
+    failOnUnversionedFiles = true
+    failOnCommitNeeded = true
+    failOnPublishNeeded = true
+    failOnSnapshotDependencies = false
+    failOnUpdateNeeded = true
+    revertOnFail = true
+    tagTemplate = 'v${version}'
+    scmAdapters = [
+            GitAdapter
+    ]
+
+    git {
+        requireBranch = 'master'
+        pushToRemote = 'origin'
+        pushToBranchPrefix = ''
+        commitVersionFileOnly = false
+        signTag = false
+    }
+
+}
+
+
+subprojects {
+
+    buildscript {
+        repositories {
+            mavenLocal()
+            mavenCentral()
+            maven { url 'https://maven.aliyun.com/repository/public/' }
+        }
+    }
+
+    apply plugin: 'java'
+    apply plugin: "java-library"
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+
+
+    configurations.configureEach {
+        resolutionStrategy {
+            // cache dynamic versions for 10 seconds
+            cacheDynamicVersionsFor 10, 'seconds'
+            // don't cache changing modules at all
+            cacheChangingModulesFor 0, 'seconds'
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+    }
+
+    version = project.rootProject.version
+
+
+    sourceCompatibility = project.rootProject.jdkVersion
+    targetCompatibility = project.rootProject.jdkVersion
+
+
+    repositories {
+        mavenLocal()
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        mavenCentral()
+    }
+
+    dependencies {
+        //implementation("com.google.guava:guava:31.0-jre")
+        //implementation("com.google.code.gson:gson:2.8.6")
+        //implementation("org.apache.commons:commons-lang3:3.9")
+        compileOnly("org.slf4j:slf4j-api:${slf4j_version}")
+        testImplementation("junit:junit:4.12")
+    }
+
+
+    //对于典型的 Java 项目，您可以添加一个javadocJar以及一个 sourceJar任务
+    tasks.register('javadocJar', Jar) {
+        archiveClassifier = 'javadoc'
+        from javadoc
+    }
+
+    tasks.register('sourceJar', Jar) {
+        archiveClassifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    // javadoc 配置，这里是自定义了 java doc 的一些配置
+    javadoc {
+        description = "Generates project-level javadoc for use in -javadoc jar"
+
+        options.memberLevel = JavadocMemberLevel.PROTECTED
+        options.author = true
+        options.version = true
+        options.header = project.name
+        options.addStringOption('Xdoclint:none', '-quiet')
+
+        // suppress warnings due to cross-module @see and @link references;
+        // note that global 'api' task does display all warnings.
+        logging.captureStandardError LogLevel.INFO
+        logging.captureStandardOutput LogLevel.INFO // suppress "## warnings" message
+        options.encoding = "UTF-8"  //编码一定要配置否则直接出错
+    }
+
+    // 并将它们与项目 jar 本身一起连接到 artifacts 集合中：
+    artifacts {
+        archives javadocJar, sourceJar
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                groupId = project.group
+                artifactId = project.name
+                version = project.version
+                //如果不定义，则会按照以上默认值执行
+                // 指定要发布的模块
+                from components.java
+                // 添加源码jar
+                artifact sourceJar
+                // 添加javadocjar
+                artifact javadocJar
+            }
+        }
+        repositories {
+            maven {
+                // 发布仓库配置，这里基于version后缀是否为SNAPSHOT来区分发布到release库还是snapshots库
+                def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+                //认证用户和密码，在配置文件gradle.properties中配置
+                //oss-sonatype的登录用户名和密码
+                credentials {
+                    username = findProperty("ossrhUsername")?:""
+                    password = findProperty("ossrhPassword")?:""
+                }
+            }
+        }
+    }
+
+    // 将构建的包签名
+    signing {
+        sign publishing.publications.maven
+    }
+
+    afterReleaseBuild.dependsOn publishMavenPublicationToMavenRepository
+
+
+}
