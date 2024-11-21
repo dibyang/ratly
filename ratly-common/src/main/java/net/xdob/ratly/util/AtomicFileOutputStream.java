@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 文件原子读写支持类
  * A {@link FilterOutputStream} that writes to a file atomically.
  * The output file will not show up until it has been entirely written and sync'ed to disk.
  * It uses a temporary file when it is being written.

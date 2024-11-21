@@ -200,7 +200,7 @@ public final class TimeDuration implements Comparable<TimeDuration> {
   /** @return (this + that) in the minimum unit among them. */
   public TimeDuration add(TimeDuration that) {
     Objects.requireNonNull(that, "that == null");
-    final TimeUnit minUnit = CollectionUtils.min(this.unit, that.unit);
+    final TimeUnit minUnit = Collections3.min(this.unit, that.unit);
     return valueOf(this.toLong(minUnit) + that.toLong(minUnit), minUnit);
   }
 
@@ -212,7 +212,7 @@ public final class TimeDuration implements Comparable<TimeDuration> {
   /** @return (this - that) in the minimum unit among them. */
   public TimeDuration subtract(TimeDuration that) {
     Objects.requireNonNull(that, "that == null");
-    final TimeUnit minUnit = CollectionUtils.min(this.unit, that.unit);
+    final TimeUnit minUnit = Collections3.min(this.unit, that.unit);
     return valueOf(this.toLong(minUnit) - that.toLong(minUnit), minUnit);
   }
 

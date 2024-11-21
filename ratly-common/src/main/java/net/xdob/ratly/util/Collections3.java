@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import java.util.*;
@@ -10,7 +9,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public interface CollectionUtils {
+public interface Collections3 {
   static <T> T min(T left, T right, Comparator<T> comparator) {
     return comparator.compare(left, right) < 0? left: right;
   }

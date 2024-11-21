@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.util;
 
 /**

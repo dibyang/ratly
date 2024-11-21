@@ -1,12 +1,10 @@
-
 package net.xdob.ratly.io;
 
 import java.io.File;
 
 /**
- * Encapsulate a {@link File} with a starting position and a byte count.
- *
- * The class is immutable.
+ * 封装一个对象，标识文件、起始位置和数据大小(字节数)
+ * <p>
  */
 public final class FilePositionCount {
   public static FilePositionCount valueOf(File file, long position, long count) {

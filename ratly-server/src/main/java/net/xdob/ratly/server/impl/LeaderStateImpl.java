@@ -35,7 +35,7 @@ import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.statemachine.TransactionContext;
 import net.xdob.ratly.util.CodeInjectionForTesting;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.Daemon;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.MemoizedSupplier;
@@ -196,8 +196,8 @@ class LeaderStateImpl implements LeaderState {
       }
 
       Preconditions.assertUnique(
-          CollectionUtils.as(senders, LogAppender::getFollowerId),
-          CollectionUtils.as(newSenders, LogAppender::getFollowerId));
+          Collections3.as(senders, LogAppender::getFollowerId),
+          Collections3.as(newSenders, LogAppender::getFollowerId));
 
       final boolean changed = senders.addAll(newSenders);
       Preconditions.assertTrue(changed);

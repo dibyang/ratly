@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.datastream.impl;
 
 import net.xdob.ratly.io.FilePositionCount;

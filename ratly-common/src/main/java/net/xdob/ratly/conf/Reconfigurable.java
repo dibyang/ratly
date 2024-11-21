@@ -5,6 +5,7 @@ package net.xdob.ratly.conf;
 import java.util.Collection;
 
 /**
+ * 运行时修改配置支持
  * To reconfigure {@link RaftProperties} in runtime.
  */
 public interface Reconfigurable {

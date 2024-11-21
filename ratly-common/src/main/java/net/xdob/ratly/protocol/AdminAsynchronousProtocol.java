@@ -3,7 +3,9 @@ package net.xdob.ratly.protocol;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-/** Asynchronous version of {@link AdminProtocol}. */
+/**
+ * 异步版的 {@link AdminProtocol}.
+ */
 public interface AdminAsynchronousProtocol {
   CompletableFuture<GroupListReply> getGroupListAsync(GroupListRequest request);
 

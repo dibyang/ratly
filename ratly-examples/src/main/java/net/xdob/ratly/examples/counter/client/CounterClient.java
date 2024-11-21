@@ -8,7 +8,7 @@ import net.xdob.ratly.examples.counter.CounterCommand;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.TimeDuration;
@@ -130,7 +130,7 @@ public final class CounterClient implements Closeable {
     System.out.printf("Sending %d %s command(s) in %s mode with %d client(s) ...%n",
         increment, CounterCommand.INCREMENT, mode, numClients);
     final Timestamp sendStarted = Timestamp.currentTime();
-    ConcurrentUtils.parallelForEachAsync(numClients, i -> send(i, increment, mode), executor).get();
+    Concurrents3.parallelForEachAsync(numClients, i -> send(i, increment, mode), executor).get();
     final TimeDuration sendElapsed = sendStarted.elapsedTime();
     final long numOp = numClients * (long)increment;
     System.out.println("******************************************************");

@@ -153,7 +153,7 @@ public class PeerProxyMap<PROXY extends Closeable> implements RaftPeer.Add, Clos
     }
 
     final List<IOException> exceptions = Collections.synchronizedList(new ArrayList<>());
-    ConcurrentUtils.parallelForEachAsync(peers.values(),
+    Concurrents3.parallelForEachAsync(peers.values(),
         pp -> pp.setNullProxyAndClose().map(proxy -> closeProxy(proxy, pp)).ifPresent(exceptions::add),
         r -> new Thread(r).start()
     ).join();

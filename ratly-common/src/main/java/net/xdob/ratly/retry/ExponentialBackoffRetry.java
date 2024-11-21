@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.retry;
 
 import net.xdob.ratly.util.Preconditions;

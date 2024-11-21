@@ -1,14 +1,20 @@
-
 package net.xdob.ratly.io;
 
+/**
+ * 标准写选项
+ */
 public enum StandardWriteOption implements WriteOption {
   /**
-   * Sync the data to the underlying storage.
+   * Sync时刷到底层存储
    * Note that SYNC does not imply {@link #FLUSH}.
    */
   SYNC,
-  /** Close the data to the underlying storage. */
+  /**
+   * Close时刷到底层存储
+   */
   CLOSE,
-  /** Flush the data out from the buffer. */
+  /**
+   * Flush时清空缓存数据
+   */
   FLUSH,
 }

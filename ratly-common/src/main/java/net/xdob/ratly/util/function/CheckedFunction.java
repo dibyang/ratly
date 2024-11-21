@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 /** Function with a throws-clause. */

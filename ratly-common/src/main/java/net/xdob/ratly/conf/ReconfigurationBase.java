@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
+ * 运行时修改配置支持的基类
  * Base class for implementing the {@link Reconfigurable} interface.
  * Subclasses must override
  * (1) {@link #getReconfigurableProperties()} to return all properties that can be reconfigurable at runtime,

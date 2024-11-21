@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import org.slf4j.Logger;

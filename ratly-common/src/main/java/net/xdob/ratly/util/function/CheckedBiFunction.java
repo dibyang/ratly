@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 /** BiFunction with a throws-clause. */

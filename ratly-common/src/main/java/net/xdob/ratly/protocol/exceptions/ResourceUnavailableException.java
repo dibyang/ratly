@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.protocol.exceptions;
 
 /**

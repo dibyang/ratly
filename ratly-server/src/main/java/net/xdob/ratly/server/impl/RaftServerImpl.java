@@ -84,8 +84,8 @@ import net.xdob.ratly.statemachine.impl.TransactionContextImpl;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.util.CodeInjectionForTesting;
-import net.xdob.ratly.util.CollectionUtils;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Collections3;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.JavaUtils;
@@ -268,11 +268,11 @@ class RaftServerImpl implements RaftServer.Division,
     this.snapshotRequestHandler = new SnapshotManagementRequestHandler(this);
     this.snapshotInstallationHandler = new SnapshotInstallationHandler(this, properties);
 
-    this.serverExecutor = ConcurrentUtils.newThreadPoolWithMax(
+    this.serverExecutor = Concurrents3.newThreadPoolWithMax(
         RaftServerConfigKeys.ThreadPool.serverCached(properties),
         RaftServerConfigKeys.ThreadPool.serverSize(properties),
         id + "-server");
-    this.clientExecutor = ConcurrentUtils.newThreadPoolWithMax(
+    this.clientExecutor = Concurrents3.newThreadPoolWithMax(
         RaftServerConfigKeys.ThreadPool.clientCached(properties),
         RaftServerConfigKeys.ThreadPool.clientSize(properties),
         id + "-client");
@@ -529,12 +529,12 @@ class RaftServerImpl implements RaftServer.Division,
         LOG.warn("{}: Failed to unregister metric", getMemberId(), e);
       }
       try {
-        ConcurrentUtils.shutdownAndWait(clientExecutor);
+        Concurrents3.shutdownAndWait(clientExecutor);
       } catch (Exception e) {
         LOG.warn(getMemberId() + ": Failed to shutdown clientExecutor", e);
       }
       try {
-        ConcurrentUtils.shutdownAndWait(serverExecutor);
+        Concurrents3.shutdownAndWait(serverExecutor);
       } catch (Exception e) {
         LOG.warn(getMemberId() + ": Failed to shutdown serverExecutor", e);
       }
@@ -1355,9 +1355,9 @@ class RaftServerImpl implements RaftServer.Division,
       } else if (arguments.getMode() == SetConfigurationRequest.Mode.COMPARE_AND_SET) {
         final Comparator<RaftPeer> comparator = Comparator.comparing(RaftPeer::getId,
             Comparator.comparing(RaftPeerId::toString));
-        if (CollectionUtils.equalsIgnoreOrder(arguments.getServersInCurrentConf(),
+        if (Collections3.equalsIgnoreOrder(arguments.getServersInCurrentConf(),
             current.getAllPeers(RaftPeerRole.FOLLOWER), comparator)
-            && CollectionUtils.equalsIgnoreOrder(arguments.getListenersInCurrentConf(),
+            && Collections3.equalsIgnoreOrder(arguments.getListenersInCurrentConf(),
             current.getAllPeers(RaftPeerRole.LISTENER), comparator)) {
           serversInNewConf = arguments.getPeersInNewConf(RaftPeerRole.FOLLOWER);
           listenersInNewConf = arguments.getPeersInNewConf(RaftPeerRole.LISTENER);

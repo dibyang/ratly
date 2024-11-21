@@ -188,7 +188,7 @@ class SegmentedRaftLogWorker {
 
     this.stateMachineDataPolicy = new StateMachineDataPolicy(properties, metricRegistry);
 
-    this.workerThreadExecutor = ConcurrentUtils.newSingleThreadExecutor(name);
+    this.workerThreadExecutor = Concurrents3.newSingleThreadExecutor(name);
 
     // Server Id can be null in unit tests
     metricRegistry.addDataQueueSizeGauge(queue::getNumElements);
@@ -212,7 +212,7 @@ class SegmentedRaftLogWorker {
           " and " + RaftServerConfigKeys.Log.ASYNC_FLUSH_ENABLED_KEY);
     }
     this.flushExecutor = (!asyncFlush && !unsafeFlush)? null
-        : ConcurrentUtils.newSingleThreadExecutor(name + "-flush");
+        : Concurrents3.newSingleThreadExecutor(name + "-flush");
   }
 
   void start(long latestIndex, long evictIndex, File openSegmentFile) throws IOException {
@@ -230,7 +230,7 @@ class SegmentedRaftLogWorker {
   void close() {
     queue.close();
     this.running = false;
-    ConcurrentUtils.shutdownAndWait(TimeDuration.ONE_MINUTE, workerThreadExecutor,
+    Concurrents3.shutdownAndWait(TimeDuration.ONE_MINUTE, workerThreadExecutor,
         timeout -> LOG.warn("{}: shutdown timeout in {}", name, timeout));
     Optional.ofNullable(flushExecutor).ifPresent(ExecutorService::shutdown);
     IOUtils.cleanup(LOG, out);

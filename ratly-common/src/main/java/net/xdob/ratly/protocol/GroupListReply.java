@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.protocol;
 
 import java.util.Collections;

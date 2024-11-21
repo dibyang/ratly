@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.conf;
 
 import net.xdob.ratly.util.Daemon;
@@ -8,7 +6,10 @@ import net.xdob.ratly.util.Timestamp;
 import java.util.Map;
 import java.util.Objects;
 
-/** The status of a reconfiguration task. */
+
+/**
+ * 重配置任务的状态
+ */
 public class ReconfigurationStatus {
   private static String quote(String value) {
     return value == null? "<default>": "\"" + value + "\"";

@@ -2,7 +2,7 @@ package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.util.AtomicFileOutputStream;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.JavaUtils;
 
@@ -35,12 +35,12 @@ class RaftStorageMetadataFileImpl implements RaftStorageMetadataFile {
 
   @Override
   public RaftStorageMetadata getMetadata() throws IOException {
-    return ConcurrentUtils.updateAndGet(metadata, value -> value != null? value: load(file));
+    return Concurrents3.updateAndGet(metadata, value -> value != null? value: load(file));
   }
 
   @Override
   public void persist(RaftStorageMetadata newMetadata) throws IOException {
-    ConcurrentUtils.updateAndGet(metadata,
+    Concurrents3.updateAndGet(metadata,
         old -> Objects.equals(old, newMetadata)? old: atomicWrite(newMetadata, file));
   }
 

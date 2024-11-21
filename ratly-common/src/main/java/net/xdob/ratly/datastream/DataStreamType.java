@@ -4,7 +4,10 @@ import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.ReflectionUtils;
 
-/** The type of data stream implementations. */
+
+/**
+ * DataStream类型
+ */
 public interface DataStreamType {
   /**
    * Parse the given string as a {@link SupportedDataStreamType}

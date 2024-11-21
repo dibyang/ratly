@@ -16,7 +16,7 @@ import io.grpc.stub.StreamObserver;
 import net.xdob.ratly.proto.RaftProtos.RaftClientReplyProto;
 import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto;
 import net.xdob.ratly.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceImplBase;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.ReferenceCountedObject;
@@ -110,11 +110,11 @@ class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase {
     private final Map<Integer, OrderedRequestStreamObserver> map = new ConcurrentHashMap<>();
 
     void putNew(OrderedRequestStreamObserver so) {
-      CollectionUtils.putNew(so.getId(), so, map, () -> JavaUtils.getClassSimpleName(getClass()));
+      Collections3.putNew(so.getId(), so, map, () -> JavaUtils.getClassSimpleName(getClass()));
     }
 
     void removeExisting(OrderedRequestStreamObserver so) {
-      CollectionUtils.removeExisting(so.getId(), so, map, () -> JavaUtils.getClassSimpleName(getClass()));
+      Collections3.removeExisting(so.getId(), so, map, () -> JavaUtils.getClassSimpleName(getClass()));
     }
 
     void closeAllExisting(RaftGroupId groupId) {

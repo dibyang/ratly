@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.retry;
 
 import net.xdob.ratly.util.JavaUtils;
@@ -11,8 +9,8 @@ import java.util.TreeMap;
 import java.util.function.Supplier;
 
 /**
- * Exception dependent retry policy.
- *
+ * 依赖异常的重试策略
+ * <p>
  * If exception is defined in policyMap, will use the retry policy
  * configured to that exception or else will use the default policy.
  */

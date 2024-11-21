@@ -1,9 +1,10 @@
-
-
 package net.xdob.ratly.conf;
 
 import static net.xdob.ratly.conf.ReconfigurationStatus.propertyString;
 
+/**
+ * 重配置异常
+ */
 public class ReconfigurationException extends Exception {
   private static final long serialVersionUID = 1L;
 

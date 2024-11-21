@@ -4,14 +4,23 @@ package net.xdob.ratly.io;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-/** Support the {@link CloseAsync#closeAsync()} method. */
+
+
+/**
+ * 异步关闭支持接口，close方法会将异步关闭变成同步关闭
+ * Support the {@link CloseAsync#closeAsync()} method.
+ * <p>
+ * @param <REPLY>
+ */
 public interface CloseAsync<REPLY> extends AutoCloseable {
-  /** Close asynchronously. */
+  /**
+   * 异步关闭
+   */
   CompletableFuture<REPLY> closeAsync();
 
   /**
-   * The same as {@link AutoCloseable#close()}.
-   *
+   * 重写{@link AutoCloseable#close()}将异步关闭变成同步关闭
+   * <p>
    * The default implementation simply calls {@link CloseAsync#closeAsync()}
    * and then waits for the returned future to complete.
    */

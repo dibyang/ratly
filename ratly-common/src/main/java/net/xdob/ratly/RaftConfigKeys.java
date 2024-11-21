@@ -9,6 +9,9 @@ import java.util.function.Consumer;
 
 import static net.xdob.ratly.conf.ConfUtils.*;
 
+/**
+ * RaftConfig支持的工具类
+ */
 public interface RaftConfigKeys {
   String PREFIX = "raft";
 

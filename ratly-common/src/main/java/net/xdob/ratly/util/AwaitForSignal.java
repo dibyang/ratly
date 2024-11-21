@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import java.util.concurrent.TimeUnit;

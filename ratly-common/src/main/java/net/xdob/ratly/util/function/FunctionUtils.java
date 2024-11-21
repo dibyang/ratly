@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 import java.util.function.Consumer;

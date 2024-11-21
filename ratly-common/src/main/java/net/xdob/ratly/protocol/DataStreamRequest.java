@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.protocol;
 
 import net.xdob.ratly.io.WriteOption;

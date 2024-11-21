@@ -37,7 +37,7 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.PeerProxyMap;
 import net.xdob.ratly.util.Preconditions;
@@ -302,9 +302,9 @@ public class NettyServerStreamRpc implements DataStreamServerRpc {
       channelFuture.channel().close().sync();
       bossGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS);
       workerGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS);
-      ConcurrentUtils.shutdownAndWait(TimeDuration.ONE_SECOND, bossGroup,
+      Concurrents3.shutdownAndWait(TimeDuration.ONE_SECOND, bossGroup,
           timeout -> LOG.warn("{}: bossGroup shutdown timeout in {}", this, timeout));
-      ConcurrentUtils.shutdownAndWait(TimeDuration.ONE_SECOND, workerGroup,
+      Concurrents3.shutdownAndWait(TimeDuration.ONE_SECOND, workerGroup,
           timeout -> LOG.warn("{}: workerGroup shutdown timeout in {}", this, timeout));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

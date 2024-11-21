@@ -1,10 +1,9 @@
-
 package net.xdob.ratly.retry;
 
 import net.xdob.ratly.util.TimeDuration;
 
 /**
- * Policy abstract for retrying.
+ * 重试策略接口
  */
 @FunctionalInterface
 public interface RetryPolicy {

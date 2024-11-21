@@ -25,7 +25,7 @@ import net.xdob.ratly.server.DataStreamServerRpc;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.ServerFactory;
 import net.xdob.ratly.server.storage.RaftStorage.StartupOption;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JvmPauseMonitor;
 import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.RaftServerRpc;
@@ -104,7 +104,7 @@ class RaftServerProxy implements RaftServer {
         return;
       }
       isClosed = true;
-      ConcurrentUtils.parallelForEachAsync(map.entrySet(),
+      Concurrents3.parallelForEachAsync(map.entrySet(),
           entry -> close(entry.getKey(), entry.getValue()),
           executor.get());
     }
@@ -201,8 +201,8 @@ class RaftServerProxy implements RaftServer {
     this.dataStreamServerRpc = new DataStreamServerImpl(this, parameters).getServerRpc();
 
     this.implExecutor = MemoizedSupplier.valueOf(
-        () -> ConcurrentUtils.newSingleThreadExecutor(id + "-groupManagement"));
-    this.executor = MemoizedSupplier.valueOf(() -> ConcurrentUtils.newThreadPoolWithMax(
+        () -> Concurrents3.newSingleThreadExecutor(id + "-groupManagement"));
+    this.executor = MemoizedSupplier.valueOf(() -> Concurrents3.newThreadPoolWithMax(
         RaftServerConfigKeys.ThreadPool.proxyCached(properties),
         RaftServerConfigKeys.ThreadPool.proxySize(properties),
         id + "-impl"));
@@ -236,7 +236,7 @@ class RaftServerProxy implements RaftServer {
     final RaftGroupId raftGroupId = raftGroup.map(RaftGroup::getGroupId).orElse(null);
     final Predicate<RaftGroupId> shouldAdd = gid -> gid != null && !gid.equals(raftGroupId);
 
-    ConcurrentUtils.parallelForEachAsync(RaftServerConfigKeys.storageDir(properties),
+    Concurrents3.parallelForEachAsync(RaftServerConfigKeys.storageDir(properties),
         dir -> Optional.ofNullable(dir.listFiles())
             .map(Arrays::stream).orElse(Stream.empty())
             .filter(File::isDirectory)
@@ -387,7 +387,7 @@ class RaftServerProxy implements RaftServer {
   }
 
   private void startImpl() throws IOException {
-    ConcurrentUtils.parallelForEachAsync(getImpls(), RaftServerImpl::start, executor.get()).join();
+    Concurrents3.parallelForEachAsync(getImpls(), RaftServerImpl::start, executor.get()).join();
 
     LOG.info("{}: start RPC server", getId());
     getServerRpc().start();
@@ -415,13 +415,13 @@ class RaftServerProxy implements RaftServer {
       }
 
       try {
-        ConcurrentUtils.shutdownAndWait(implExecutor.get());
+        Concurrents3.shutdownAndWait(implExecutor.get());
       } catch (Exception ignored) {
         LOG.warn(getId() + ": Failed to shutdown implExecutor", ignored);
       }
 
       try {
-        ConcurrentUtils.shutdownAndWait(executor.get());
+        Concurrents3.shutdownAndWait(executor.get());
       } catch (Exception ignored) {
         LOG.warn(getId() + ": Failed to shutdown executor", ignored);
       }

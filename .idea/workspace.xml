@@ -4,452 +4,156 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="458b9310-ef8c-48b6-a80e-eea210a80cd1" name="Changes" comment="包名重构">
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+    <list default="true" id="458b9310-ef8c-48b6-a80e-eea210a80cd1" name="Changes" comment="common重构">
+      <change afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/NoRetry.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryForeverNoSleep.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryForeverWithSleep.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryLimited.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/h2db/H2dbStateMachine.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/AsyncRpcApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/ClientFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DataStreamClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DataStreamClientFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DataStreamClientRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DataStreamOutputRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DataStreamRpcApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/DisabledDataStreamClientFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/RaftClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/RaftClientConfigKeys.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/RaftClientRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/AdminApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/AsyncApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/BlockingApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/DataStreamApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/DataStreamOutput.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/GroupManagementApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/LeaderElectionManagementApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/MessageOutputStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/MessageStreamApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/api/SnapshotManagementApi.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/AdminImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/AsyncImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/BlockingImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/ClientImplUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/ClientProtoUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/DataStreamClientImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/GroupManagementImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/LeaderElectionManagementImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/MessageStreamImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/OrderedAsync.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/OrderedStreamAsync.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/RaftClientImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/RaftClientRpcWithProxy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/RaftOutputStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/SnapshotManagementImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/impl/UnorderedAsync.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/retry/ClientRetryEvent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/raftx/client/retry/RequestTypeDependentRetryPolicy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/RaftConfigKeys.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/ConfUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/Parameters.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/RaftProperties.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/Reconfigurable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/ReconfigurationBase.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/ReconfigurationException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/conf/ReconfigurationStatus.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/DataStreamFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/DataStreamType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/SupportedDataStreamType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamPacketByteBuffer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamPacketImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamReplyByteBuffer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamRequestByteBuf.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamRequestByteBuffer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/datastream/impl/DataStreamRequestFilePositionCount.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/CloseAsync.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/CorruptedFileException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/FilePositionCount.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/MD5Hash.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/StandardWriteOption.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/io/WriteOption.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/AdminAsynchronousProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/AdminProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/ClientId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/ClientInvocationId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamPacket.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamPacketHeader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamReply.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamReplyHeader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/DataStreamRequestHeader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/GroupInfoReply.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/GroupInfoRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/GroupListReply.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/GroupListRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/GroupManagementRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/LeaderElectionManagementRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/Message.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftClientAsynchronousProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftClientMessage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftClientProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftClientReply.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftClientRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftGroup.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftGroupId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftGroupMemberId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftPeer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftPeerId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RaftRpcMessage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/RoutingTable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/SetConfigurationRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/SnapshotManagementRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/TransferLeadershipRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/AlreadyClosedException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/AlreadyExistsException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ChecksumException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/DataStreamException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/GroupMismatchException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/LeaderNotReadyException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/LeaderSteppingDownException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/NotLeaderException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/NotReplicatedException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/RaftException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/RaftRetryFailureException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ReadException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ReadIndexException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ReconfigurationInProgressException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ReconfigurationTimeoutException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ResourceUnavailableException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/ServerNotReadyException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/SetConfigurationException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/StaleReadException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/StateMachineException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/StreamException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/TimeoutIOException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/protocol/exceptions/TransferLeadershipException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/retry/ExceptionDependentRetry.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/retry/ExponentialBackoffRetry.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/retry/MultipleLinearRandomRetry.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/retry/RetryPolicies.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/retry/RetryPolicy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/rpc/CallId.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/rpc/RpcFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/rpc/RpcType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/rpc/SupportedRpcType.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/security/TlsConf.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/AtomicFileOutputStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/AutoCloseableLock.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/AutoCloseableReadWriteLock.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/AwaitForSignal.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/AwaitToRun.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/BatchLogger.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/CodeInjectionForTesting.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/CollectionUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ConcurrentUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/Daemon.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/DataBlockingQueue.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/DataQueue.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ExitUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/FileUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/IOUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/JavaUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/JmxRegister.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/JvmPauseMonitor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/LeakDetector.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/LifeCycle.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/LogUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/LongMinMax.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/MD5FileUtil.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/MemoizedCheckedSupplier.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/MemoizedSupplier.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/NetUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/OpenCloseState.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/PeerProxyMap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/PlatformUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/Preconditions.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ProtoUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/PureJavaCrc32C.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/RefCountingMap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ReferenceCountedLeakDetector.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ReferenceCountedObject.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ReflectionUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/ResourceSemaphore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/SizeInBytes.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/SlidingWindow.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/StringUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TaskQueue.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TimeDuration.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TimeoutExecutor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TimeoutScheduler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TimeoutTimer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/Timestamp.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/TraditionalBinaryPrefix.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/UncheckedAutoCloseable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedBiConsumer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedBiFunction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedConsumer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedFunction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedFunctionWithTimeout.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedRunnable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/CheckedSupplier.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/FunctionUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/StringSupplier.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/TriConsumer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/raftx/util/function/UncheckedAutoCloseableSupplier.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/ratly/client/impl/RaftClientImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-client/src/main/java/net/xdob/ratly/client/impl/RaftClientImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/RaftConfigKeys.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/RaftConfigKeys.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ConfUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ConfUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/Parameters.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/Parameters.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/RaftProperties.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/RaftProperties.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/Reconfigurable.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/Reconfigurable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationBase.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationBase.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationStatus.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/conf/ReconfigurationStatus.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/DataStreamFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/DataStreamFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/DataStreamType.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/DataStreamType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/SupportedDataStreamType.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/SupportedDataStreamType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamPacketByteBuffer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamPacketByteBuffer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamPacketImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamPacketImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamReplyByteBuffer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamReplyByteBuffer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestByteBuf.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestByteBuf.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestByteBuffer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestByteBuffer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestFilePositionCount.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/datastream/impl/DataStreamRequestFilePositionCount.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/CloseAsync.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/CloseAsync.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/FilePositionCount.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/FilePositionCount.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/MD5Hash.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/MD5Hash.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/StandardWriteOption.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/StandardWriteOption.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/WriteOption.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/io/WriteOption.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/AdminAsynchronousProtocol.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/AdminAsynchronousProtocol.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/AdminProtocol.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/AdminProtocol.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/ClientId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/ClientId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/ClientInvocationId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/ClientInvocationId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamPacket.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamPacket.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamPacketHeader.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamPacketHeader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamReply.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamReply.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamReplyHeader.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamReplyHeader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamRequestHeader.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/DataStreamRequestHeader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupInfoReply.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupInfoReply.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupInfoRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupInfoRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupListReply.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupListReply.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupListRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupListRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupManagementRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/GroupManagementRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/LeaderElectionManagementRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/LeaderElectionManagementRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/Message.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientAsynchronousProtocol.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientAsynchronousProtocol.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientMessage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientReply.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientReply.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftClientRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroup.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroup.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroupId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroupId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroupMemberId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftGroupMemberId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeerId.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeerId.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RoutingTable.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RoutingTable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/SetConfigurationRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/SetConfigurationRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/SnapshotManagementRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/SnapshotManagementRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/TransferLeadershipRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/TransferLeadershipRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/AlreadyClosedException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/AlreadyClosedException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ChecksumException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ChecksumException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/DataStreamException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/DataStreamException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/LeaderNotReadyException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/LeaderNotReadyException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/LeaderSteppingDownException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/LeaderSteppingDownException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/NotLeaderException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/NotLeaderException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/NotReplicatedException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/NotReplicatedException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/RaftRetryFailureException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/RaftRetryFailureException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ReadIndexException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ReadIndexException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ResourceUnavailableException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/ResourceUnavailableException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/SetConfigurationException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/SetConfigurationException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/StreamException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/StreamException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/TimeoutIOException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/TimeoutIOException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/TransferLeadershipException.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/exceptions/TransferLeadershipException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/ExceptionDependentRetry.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/ExceptionDependentRetry.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/ExponentialBackoffRetry.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/ExponentialBackoffRetry.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/MultipleLinearRandomRetry.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/MultipleLinearRandomRetry.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryPolicies.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryPolicies.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryPolicy.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/retry/RetryPolicy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/rpc/SupportedRpcType.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/rpc/SupportedRpcType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/security/TlsConf.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/security/TlsConf.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AtomicFileOutputStream.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AtomicFileOutputStream.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AutoCloseableLock.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AutoCloseableLock.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AutoCloseableReadWriteLock.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AutoCloseableReadWriteLock.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AwaitForSignal.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AwaitForSignal.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AwaitToRun.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/AwaitToRun.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/BatchLogger.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/BatchLogger.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/CollectionUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Collections3.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ConcurrentUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Concurrents3.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Daemon.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Daemon.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/DataBlockingQueue.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/DataBlockingQueue.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/DataQueue.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/DataQueue.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ExitUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ExitUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/FileUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/FileUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/IOUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/IOUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JavaUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JavaUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JmxRegister.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JmxRegister.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JvmPauseMonitor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/JvmPauseMonitor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LeakDetector.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LeakDetector.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LifeCycle.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LifeCycle.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LogUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/LogUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/MD5FileUtil.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/MD5FileUtil.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/NetUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/NetUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/OpenCloseState.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/OpenCloseState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/PeerProxyMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/PeerProxyMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/PlatformUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/PlatformUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ProtoUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ProtoUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/RefCountingMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/RefCountingMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ReferenceCountedLeakDetector.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ReferenceCountedLeakDetector.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ReferenceCountedObject.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ReferenceCountedObject.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ResourceSemaphore.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/ResourceSemaphore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/SlidingWindow.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/SlidingWindow.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TaskQueue.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TaskQueue.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeDuration.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeDuration.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutExecutor.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutExecutor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutScheduler.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutScheduler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutTimer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/TimeoutTimer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Timestamp.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/Timestamp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/UncheckedAutoCloseable.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/UncheckedAutoCloseable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedBiConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedBiConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedBiFunction.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedBiFunction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedFunction.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedFunction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedFunctionWithTimeout.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedFunctionWithTimeout.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedRunnable.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedRunnable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedSupplier.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/CheckedSupplier.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/FunctionUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/FunctionUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/StringSupplier.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/StringSupplier.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/TriConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/TriConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/UncheckedAutoCloseableSupplier.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/util/function/UncheckedAutoCloseableSupplier.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ratly-examples/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/bin/client.sh" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/bin/client.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/bin/server.sh" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/bin/server.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/bin/start-all.sh" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/bin/start-all.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/bin/stop-all.sh" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/bin/stop-all.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/docker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/docker/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/docker/docker-compose.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/docker/docker-compose.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/ArithmeticLogDump.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/ArithmeticStateMachine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/AssignmentMessage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/Evaluable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/cli/Arithmetic.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/cli/Assign.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/cli/Client.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/cli/Get.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/cli/Server.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/BinaryExpression.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/DoubleValue.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/Expression.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/NullValue.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/UnaryExpression.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/arithmetic/expression/Variable.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/common/Constants.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/common/RaftxRunner.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/common/SubCommandBase.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/counter/CounterCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/counter/client/CounterClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/counter/server/CounterServer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/counter/server/CounterStateMachine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/debug/server/Server.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/FileInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/FileStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/FileStoreClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/FileStoreCommon.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/FileStoreStateMachine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/cli/Client.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/cli/DataStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/cli/FileStore.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/cli/LoadGen.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/filestore/cli/Server.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/membership/server/CServer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/membership/server/Console.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/raftx/examples/membership/server/RaftCluster.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/resources/log4j.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/resources/log4j.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/GrpcConfigKeys.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/GrpcFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/GrpcTlsConfig.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/GrpcUtil.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/client/GrpcClientProtocolClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/client/GrpcClientProtocolProxy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/client/GrpcClientRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/GrpcServerMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/MessageMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/ZeroCopyMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/intercept/client/MetricClientCall.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/intercept/client/MetricClientCallListener.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/intercept/client/MetricClientInterceptor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/intercept/server/MetricServerCall.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/metrics/intercept/server/MetricServerInterceptor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcAdminProtocolService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcClientProtocolService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcLogAppender.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcServerProtocolClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcServerProtocolService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcServices.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/server/GrpcServicesImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/util/ResponseNotifyClientInterceptor.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/util/StreamObserverWithTimeout.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/raftx/grpc/util/ZeroCopyMessageMarshaller.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/LongCounter.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/MetricRegistries.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/MetricRegistriesLoader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/MetricRegistryFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/MetricRegistryInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/RaftxMetricRegistry.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/RaftxMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-api/src/main/java/net/xdob/raftx/metrics/Timekeeper.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/DefaultTimekeeperImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/JvmMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/MetricRegistriesImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/MetricRegistryFactoryImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/MetricsReporting.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/RaftxMetricRegistryImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/java/net/xdob/raftx/metrics/impl/RaftxObjectNameFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-default/src/main/resources/META-INF/services/net.xdob.raftx.metrics.MetricRegistries" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3JvmMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3MetricRegistriesImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3MetricRegistryFactoryImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3MetricsReporting.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3RaftxMetricRegistryImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3RaftxObjectNameFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/java/net/xdob/raftx/metrics/dropwizard3/Dm3TimekeeperImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-metrics-dropwizard3/src/main/resources/META-INF/services/net.xdob.raftx.metrics.MetricRegistries" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyClient.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyConfigKeys.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyDataStreamFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyDataStreamUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyRpcProxy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/NettyUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/client/NettyClientReplies.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/client/NettyClientRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/client/NettyClientStreamRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/metrics/NettyServerStreamRpcMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/server/ChannelMap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/server/DataStreamManagement.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/server/NettyRpcService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/server/NettyServerStreamRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/raftx/netty/server/StreamMap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Examples.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Examples.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Experiments.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Experiments.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Grpc.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Grpc.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Netty.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Netty.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/RMap.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/RMap.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Raft.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Raft.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Test.proto" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-proto/src/main/proto/Test.proto" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DataStreamMap.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DataStreamServer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DataStreamServerFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DataStreamServerRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DivisionInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/DivisionProperties.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftConfiguration.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftServer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftServerConfigKeys.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftServerMXBean.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftServerRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RaftServerRpcWithProxy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/RetryCache.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/ServerFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/ServerRpc.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/leader/FollowerInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/leader/LeaderState.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/leader/LogAppender.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/metrics/RaftLogMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/metrics/RaftServerMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/protocol/RaftServerAsynchronousProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/protocol/RaftServerProtocol.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/protocol/TermIndex.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/raftlog/LogEntryHeader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/raftlog/RaftLog.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/raftlog/RaftLogIOException.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/raftlog/RaftLogIndex.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/raftlog/RaftLogSequentialOps.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/storage/FileInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/storage/RaftStorage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/storage/RaftStorageDirectory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/storage/RaftStorageMetadata.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/server/storage/RaftStorageMetadataFile.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/statemachine/SnapshotInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/statemachine/SnapshotRetentionPolicy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/statemachine/StateMachine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/statemachine/StateMachineStorage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/raftx/statemachine/TransactionContext.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/DisabledDataStreamServerFactory.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/CommitInfoCache.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ConfigurationManager.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/DataStreamMapImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/DataStreamServerImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/DivisionPropertiesImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/FollowerInfoImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/FollowerState.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/LeaderElection.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/LeaderLease.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/LeaderStateImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/MessageStreamRequests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/PeerConfiguration.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/PendingRequest.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/PendingRequests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/PendingStepDown.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RaftConfigurationImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RaftServerImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RaftServerJmxAdapter.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RaftServerProxy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ReadIndexHeartbeats.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ReadRequests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RetryCacheImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/RoleInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ServerImplUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ServerProtoUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/ServerState.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/SnapshotInstallationHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/SnapshotManagementRequestHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/StateMachineMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/StateMachineUpdater.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/TransactionManager.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/TransferLeadership.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/VoteContext.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/WatchRequests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/impl/WriteIndexCache.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/leader/InstallSnapshotRequests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/leader/LeaderProtoUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/leader/LogAppenderBase.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/leader/LogAppenderDaemon.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/leader/LogAppenderDefault.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/metrics/LeaderElectionMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/metrics/LogAppenderMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/metrics/RaftLogMetricsBase.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/metrics/RaftServerMetricsImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/metrics/SegmentedRaftLogMetrics.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/LogProtoUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/RaftLogBase.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/memory/MemoryRaftLog.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/BufferedWriteChannel.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/CacheInvalidationPolicy.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/LogSegment.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/LogSegmentPath.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/LogSegmentStartEnd.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLog.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogCache.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogFormat.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogInputStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogOutputStream.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogReader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/raftlog/segmented/SegmentedRaftLogWorker.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/FileChunkReader.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/RaftStorageDirectoryImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/RaftStorageImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/RaftStorageMetadataFileImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/SnapshotManager.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/storage/StorageImplUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/server/util/ServerStringUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/statemachine/impl/BaseStateMachine.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/statemachine/impl/FileListSnapshotInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/statemachine/impl/SimpleStateMachineStorage.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/statemachine/impl/SingleFileSnapshotInfo.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/raftx/statemachine/impl/TransactionContextImpl.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/bin/raftx" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-shell/src/main/bin/ratly" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/conf/log4j.properties" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-shell/src/main/conf/log4j.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/AbstractShell.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/CliUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/Command.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/RaftxShell.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/AbstractCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/AbstractParentCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/AbstractRaftxCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/Context.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/ElectionCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/GroupCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/LocalCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/PeerCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/command/SnapshotCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/election/PauseCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/election/ResumeCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/election/StepDownCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/election/TransferCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/group/GroupInfoCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/group/GroupListCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/local/RaftMetaConfCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/peer/AddCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/peer/RemoveCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/peer/SetPriorityCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/java/net/xdob/raftx/shell/cli/sh/snapshot/TakeSnapshotCommand.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-shell/src/main/libexec/raftx-shell-config.sh" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-shell/src/main/libexec/raftx-shell-config.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-tools/src/main/java/net/xdob/raftx/tools/DefaultLogDump.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ratly-tools/src/main/java/net/xdob/raftx/tools/ParseRaftxLog.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/counter/client/CounterClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/counter/client/CounterClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/filestore/FileInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/filestore/FileInfo.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/filestore/FileStore.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-examples/src/main/java/net/xdob/ratly/examples/filestore/FileStore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/client/GrpcClientProtocolClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/client/GrpcClientProtocolClient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcClientProtocolService.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcClientProtocolService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcLogAppender.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcLogAppender.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcServicesImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcServicesImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/NettyUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/NettyUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/DataStreamManagement.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/DataStreamManagement.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/NettyServerStreamRpc.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/NettyServerStreamRpc.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/LeaderStateImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/LeaderStateImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerProxy.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerProxy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RetryCacheImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RetryCacheImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLogWorker.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLogWorker.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/storage/RaftStorageMetadataFileImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/storage/RaftStorageMetadataFileImpl.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -512,6 +216,9 @@
         <task path="$PROJECT_DIR$/ratly-common">
           <activation />
         </task>
+        <task path="$PROJECT_DIR$/ratly-examples">
+          <activation />
+        </task>
         <projects_view>
           <tree_state>
             <expand>
@@ -551,18 +258,18 @@
               <path>
                 <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
                 <item name="ratly" type="f1a62948:ProjectNode" />
-                <item name="ratly-proto" type="2d1252cf:ModuleNode" />
+                <item name="ratly-examples" type="2d1252cf:ModuleNode" />
               </path>
               <path>
                 <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
                 <item name="ratly" type="f1a62948:ProjectNode" />
-                <item name="ratly-proto" type="2d1252cf:ModuleNode" />
+                <item name="ratly-examples" type="2d1252cf:ModuleNode" />
                 <item name="Tasks" type="e4a08cd1:TasksNode" />
               </path>
               <path>
                 <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
                 <item name="ratly" type="f1a62948:ProjectNode" />
-                <item name="ratly-proto" type="2d1252cf:ModuleNode" />
+                <item name="ratly-examples" type="2d1252cf:ModuleNode" />
                 <item name="Tasks" type="e4a08cd1:TasksNode" />
                 <item name="build" type="c8890929:TasksNode$1" />
               </path>
@@ -572,6 +279,13 @@
         </projects_view>
       </state>
     </system>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -598,57 +312,59 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Gradle.Build raftx.executor": "Run",
-    "Gradle.raftx [buildDist].executor": "Run",
-    "Gradle.raftx [build].executor": "Run",
-    "Gradle.raftx [clean].executor": "Run",
-    "Gradle.raftx [generateProto].executor": "Run",
-    "Gradle.raftx [publishToMavenLocal].executor": "Run",
-    "Gradle.raftx:raftx-client [build].executor": "Run",
-    "Gradle.raftx:raftx-common [build].executor": "Run",
-    "Gradle.raftx:raftx-examples [buildDist].executor": "Run",
-    "Gradle.raftx:raftx-examples [buildNeeded].executor": "Run",
-    "Gradle.raftx:raftx-examples [build].executor": "Run",
-    "Gradle.raftx:raftx-examples [copyJars].executor": "Run",
-    "Gradle.raftx:raftx-grpc [build].executor": "Run",
-    "Gradle.raftx:raftx-metrics-api [build].executor": "Run",
-    "Gradle.raftx:raftx-metrics-default [build].executor": "Run",
-    "Gradle.raftx:raftx-metrics-dropwizard3 [build].executor": "Run",
-    "Gradle.raftx:raftx-netty [build].executor": "Run",
-    "Gradle.raftx:raftx-proto [build].executor": "Run",
-    "Gradle.raftx:raftx-proto [clean].executor": "Run",
-    "Gradle.raftx:raftx-proto [extractIncludeProto].executor": "Run",
-    "Gradle.raftx:raftx-proto [extractProto].executor": "Run",
-    "Gradle.raftx:raftx-proto [generateProto].executor": "Run",
-    "Gradle.raftx:raftx-proto [replaceTextInFiles].executor": "Run",
-    "Gradle.raftx:raftx-server [build].executor": "Run",
-    "Gradle.raftx:raftx-server-api [build].executor": "Run",
-    "Gradle.raftx:raftx-shell [buildShellDist].executor": "Run",
-    "Gradle.raftx:raftx-shell [build].executor": "Run",
-    "Gradle.raftx:raftx-tools [build].executor": "Run",
-    "Gradle.ratly [build].executor": "Run",
-    "Gradle.ratly [clean].executor": "Run",
-    "Gradle.ratly:ratly-common [build].executor": "Run",
-    "Gradle.ratly:ratly-proto [build].executor": "Run",
-    "JUnit.Whole project.executor": "Run",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "master",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/work/java/ratly",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "reference.settingsdialog.project.gradle",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.Build raftx.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx [buildDist].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx [generateProto].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx [publishToMavenLocal].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-client [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-common [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-examples [buildDist].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-examples [buildNeeded].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-examples [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-examples [copyJars].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-grpc [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-metrics-api [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-metrics-default [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-metrics-dropwizard3 [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-netty [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [extractIncludeProto].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [extractProto].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [generateProto].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-proto [replaceTextInFiles].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-server [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-server-api [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-shell [buildShellDist].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-shell [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.raftx:raftx-tools [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly [publishToMavenLocal].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly:ratly-common [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly:ratly-examples [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.ratly:ratly-proto [build].executor&quot;: &quot;Run&quot;,
+    &quot;JUnit.Whole project.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/work/java/ratly&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settingsdialog.project.gradle&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\work\java\raftx\raftx-examples\src" />
@@ -661,13 +377,16 @@
       <recent name="D:\work\java\raftx\raftx-proto\tools\protoc-gen-grpc-java" />
       <recent name="D:\work\java\raftx\raftx-proto\src\main" />
     </key>
+    <key name="MoveInnerDialog.RECENTS_KEY">
+      <recent name="net.xdob.ratly.retry" />
+    </key>
   </component>
   <component name="RunAnythingCache">
     <option name="myCommands">
       <command value="gradle generateProto --debug" />
     </option>
   </component>
-  <component name="RunManager" selected="Gradle.ratly [build]">
+  <component name="RunManager" selected="Gradle.ratly:ratly-common [build]">
     <configuration name="ratly [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -712,6 +431,28 @@
       <RunAsTest>false</RunAsTest>
       <method v="2" />
     </configuration>
+    <configuration name="ratly [publishToMavenLocal]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="publishToMavenLocal" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
     <configuration name="ratly:ratly-common [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -734,10 +475,10 @@
       <RunAsTest>false</RunAsTest>
       <method v="2" />
     </configuration>
-    <configuration name="ratly:ratly-proto [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+    <configuration name="ratly:ratly-examples [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/ratly-proto" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/ratly-examples" />
         <option name="externalSystemIdString" value="GRADLE" />
         <option name="scriptParameters" />
         <option name="taskDescriptions">
@@ -758,10 +499,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Gradle.ratly [build]" />
-        <item itemvalue="Gradle.ratly [clean]" />
         <item itemvalue="Gradle.ratly:ratly-common [build]" />
-        <item itemvalue="Gradle.ratly:ratly-proto [build]" />
+        <item itemvalue="Gradle.ratly [build]" />
+        <item itemvalue="Gradle.ratly:ratly-examples [build]" />
+        <item itemvalue="Gradle.ratly [publishToMavenLocal]" />
+        <item itemvalue="Gradle.ratly [clean]" />
       </list>
     </recent_temporary>
   </component>
@@ -790,7 +532,8 @@
       <workItem from="1731991120235" duration="12886000" />
       <workItem from="1732068600452" duration="8023000" />
       <workItem from="1732087412779" duration="2022000" />
-      <workItem from="1732092412320" duration="1889000" />
+      <workItem from="1732092412320" duration="4400000" />
+      <workItem from="1732097191092" duration="15590000" />
     </task>
     <task id="LOCAL-00001" summary="初始项目代码">
       <option name="closed" value="true" />
@@ -848,7 +591,15 @@
       <option name="project" value="LOCAL" />
       <updated>1732088468603</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="包名重构">
+      <option name="closed" value="true" />
+      <created>1732094643175</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1732094643175</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -927,6 +678,7 @@
     <MESSAGE value="初始项目代码" />
     <MESSAGE value="包名冲构" />
     <MESSAGE value="包名重构" />
-    <option name="LAST_COMMIT_MESSAGE" value="包名重构" />
+    <MESSAGE value="common重构" />
+    <option name="LAST_COMMIT_MESSAGE" value="common重构" />
   </component>
 </project>

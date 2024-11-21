@@ -14,15 +14,14 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
- * Provides access to configuration parameters. The current implementation is a
- * simplified version of hadoop's Configuration.
+ * 配置属性
  */
 public class RaftProperties {
   private static final Logger LOG = LoggerFactory.getLogger(RaftProperties.class);
 
   private final ConcurrentMap<String, String> properties = new ConcurrentHashMap<>();
 
-  /** A new configuration. */
+
   public RaftProperties() {
   }
 

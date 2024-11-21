@@ -37,7 +37,7 @@ import net.xdob.ratly.statemachine.StateMachine.DataChannel;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.MemoizedSupplier;
 import net.xdob.ratly.util.Preconditions;
@@ -214,10 +214,10 @@ public class DataStreamManagement {
     this.channels = new ChannelMap();
     final RaftProperties properties = server.getProperties();
     final boolean useCachedThreadPool = RaftServerConfigKeys.DataStream.asyncRequestThreadPoolCached(properties);
-    this.requestExecutor = ConcurrentUtils.newThreadPoolWithMax(useCachedThreadPool,
+    this.requestExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
           RaftServerConfigKeys.DataStream.asyncRequestThreadPoolSize(properties),
           name + "-request-");
-    this.writeExecutor = ConcurrentUtils.newThreadPoolWithMax(useCachedThreadPool,
+    this.writeExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
           RaftServerConfigKeys.DataStream.asyncWriteThreadPoolSize(properties),
           name + "-write-");
     this.requestTimeout = RaftClientConfigKeys.DataStream.requestTimeout(server.getProperties());
@@ -226,9 +226,9 @@ public class DataStreamManagement {
   }
 
   void shutdown() {
-    ConcurrentUtils.shutdownAndWait(TimeDuration.ONE_SECOND, requestExecutor,
+    Concurrents3.shutdownAndWait(TimeDuration.ONE_SECOND, requestExecutor,
         timeout -> LOG.warn("{}: requestExecutor shutdown timeout in {}", this, timeout));
-    ConcurrentUtils.shutdownAndWait(TimeDuration.ONE_SECOND, writeExecutor,
+    Concurrents3.shutdownAndWait(TimeDuration.ONE_SECOND, writeExecutor,
         timeout -> LOG.warn("{}: writeExecutor shutdown timeout in {}", this, timeout));
   }
 

@@ -20,7 +20,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import net.xdob.ratly.util.ConcurrentUtils;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,13 +56,13 @@ public interface NettyUtils {
     if (useEpoll) {
       if (Epoll.isAvailable()) {
         LOG.info("Create EpollEventLoopGroup for {}; Thread size is {}.", name, size);
-        return new EpollEventLoopGroup(size, ConcurrentUtils.newThreadFactory(name + "-"));
+        return new EpollEventLoopGroup(size, Concurrents3.newThreadFactory(name + "-"));
       } else {
         Print.epollUnavailability("Failed to create EpollEventLoopGroup for " + name
             + "; fall back on NioEventLoopGroup.");
       }
     }
-    return new NioEventLoopGroup(size, ConcurrentUtils.newThreadFactory(name + "-"));
+    return new NioEventLoopGroup(size, Concurrents3.newThreadFactory(name + "-"));
   }
 
   static void setTrustManager(SslContextBuilder b, TrustManagerConf trustManagerConfig) {

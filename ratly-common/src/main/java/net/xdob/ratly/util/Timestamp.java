@@ -1,13 +1,12 @@
-
 package net.xdob.ratly.util;
 
 import java.util.concurrent.TimeUnit;
 
 /**
  * Use {@link System#nanoTime()} as timestamps.
- *
+ * <p>
  * This class takes care the possibility of numerical overflow.
- *
+ * <p>
  * This is a value-based class.
  */
 public final class Timestamp implements Comparable<Timestamp> {

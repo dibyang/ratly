@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.io;
 
 import java.io.DataInput;
@@ -9,6 +8,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
+/**
+ * MD5工具封装
+ */
 public class MD5Hash {
   public static final int MD5_LEN = 16;
 

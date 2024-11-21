@@ -6,8 +6,7 @@ import net.xdob.ratly.util.ReflectionUtils;
 /** The RPC types supported. */
 public enum SupportedRpcType implements RpcType {
   NETTY("net.xdob.ratly.netty.NettyFactory"),
-  GRPC("net.xdob.ratly.grpc.GrpcFactory"),
-  HADOOP("net.xdob.ratly.hadooprpc.HadoopFactory");
+  GRPC("net.xdob.ratly.grpc.GrpcFactory"),;
 
   /** Same as {@link #valueOf(String)} except that this method is case insensitive. */
   public static SupportedRpcType valueOfIgnoreCase(String s) {

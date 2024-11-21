@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import net.xdob.ratly.protocol.exceptions.AlreadyClosedException;
@@ -110,7 +109,7 @@ public interface SlidingWindow {
 
     void putNewRequest(REQUEST request) {
       final long seqNum = request.getSeqNum();
-      CollectionUtils.putNew(seqNum, request, requests, () -> getName() + ":requests");
+      Collections3.putNew(seqNum, request, requests, () -> getName() + ":requests");
     }
 
     /**
@@ -305,7 +304,7 @@ public interface SlidingWindow {
       }
 
       // delay other requests
-      CollectionUtils.putNew(seqNum, delayedRequests::put, () -> requests.getName() + ":delayedRequests");
+      Collections3.putNew(seqNum, delayedRequests::put, () -> requests.getName() + ":delayedRequests");
       return false;
     }
 

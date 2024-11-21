@@ -4,6 +4,10 @@ package net.xdob.ratly.datastream;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.util.ReflectionUtils;
 
+/**
+ * 支持的DataStream类型
+ * 暂时只支持NETTY
+ */
 public enum SupportedDataStreamType implements DataStreamType {
   DISABLED("net.xdob.ratly.client.DisabledDataStreamClientFactory",
       "net.xdob.ratly.server.DisabledDataStreamServerFactory"),

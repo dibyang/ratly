@@ -3,6 +3,10 @@ package net.xdob.ratly.io;
 
 import java.util.Arrays;
 
+
+/**
+ * 写选项
+ */
 public interface WriteOption {
   WriteOption[] EMPTY_ARRAY = {};
 

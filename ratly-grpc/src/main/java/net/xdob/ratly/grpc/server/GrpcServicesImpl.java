@@ -32,7 +32,6 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import net.xdob.ratly.proto.RaftProtos.*;
-import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,7 +151,7 @@ public final class GrpcServicesImpl
 
     private ExecutorService newExecutor() {
       final RaftProperties properties = server.getProperties();
-      return ConcurrentUtils.newThreadPoolWithMax(
+      return Concurrents3.newThreadPoolWithMax(
           GrpcConfigKeys.Server.asyncRequestThreadPoolCached(properties),
           GrpcConfigKeys.Server.asyncRequestThreadPoolSize(properties),
           server.getId() + "-request-");
@@ -358,7 +357,7 @@ public final class GrpcServicesImpl
     }
 
     serverInterceptor.close();
-    ConcurrentUtils.shutdownAndWait(executor);
+    Concurrents3.shutdownAndWait(executor);
     zeroCopyMetrics.unregister();
   }
 

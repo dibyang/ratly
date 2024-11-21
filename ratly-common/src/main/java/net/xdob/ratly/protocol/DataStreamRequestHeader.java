@@ -4,7 +4,7 @@ package net.xdob.ratly.protocol;
 
 import net.xdob.ratly.io.WriteOption;
 import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,7 +25,7 @@ public class DataStreamRequestHeader extends DataStreamPacketHeader implements D
   public DataStreamRequestHeader(ClientId clientId, Type type, long streamId, long streamOffset, long dataLength,
                                  Iterable<WriteOption> options) {
     super(clientId, type, streamId, streamOffset, dataLength);
-    this.options = Collections.unmodifiableList(CollectionUtils.distinct(options));
+    this.options = Collections.unmodifiableList(Collections3.distinct(options));
   }
 
   @Override

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.security;
 
 import net.xdob.ratly.util.JavaUtils;

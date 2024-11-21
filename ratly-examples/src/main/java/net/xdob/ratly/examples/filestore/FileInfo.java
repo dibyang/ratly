@@ -4,7 +4,7 @@ package net.xdob.ratly.examples.filestore;
 import net.xdob.ratly.protocol.RaftPeerId;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.LogUtils;
 import net.xdob.ratly.util.Preconditions;
@@ -207,7 +207,7 @@ abstract class FileInfo {
       final CompletableFuture<Integer> f = writeQueue.submit(task, executor,
           e -> new IOException("Failed " + task, e));
       final WriteInfo info = new WriteInfo(f, lastWriteIndex.getAndSet(index));
-      CollectionUtils.putNew(index, info, writeInfos, () ->  id + ":writeInfos");
+      Collections3.putNew(index, info, writeInfos, () ->  id + ":writeInfos");
       return f;
     }
 

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import net.xdob.ratly.util.function.CheckedSupplier;

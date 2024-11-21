@@ -5,14 +5,12 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A generic parameter map.
- * The difference between this class and {@link RaftProperties} is that
- * {@link RaftProperties} is {@link String} based, i.e. properties are strings,
- * while this class is {@link Object} based, i.e. parameters can be any objects.
- *
- * Null keys or null values are not supported.
- *
- * This class is thread safe.
+ * 泛型参数map.
+ * 支持存储任意对象
+ * <p>
+ * 不支持空的键和值
+ * <p>
+ * 这个类是线程安全的
  */
 public class Parameters {
   private final Map<String, Object> map = new ConcurrentHashMap<>();

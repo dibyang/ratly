@@ -9,7 +9,8 @@ dependencies {
     api project(':ratly-metrics-default')
     api project(':ratly-grpc')
     api project(':ratly-netty')
-    api 'com.beust:jcommander:1.82'
+    api("com.beust:jcommander:1.82")
+    api("net.xdob.h2db:h2db:${h2db_version}")
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

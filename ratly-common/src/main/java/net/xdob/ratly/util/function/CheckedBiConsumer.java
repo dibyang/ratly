@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 /** BiConsumer with a throws-clause. */

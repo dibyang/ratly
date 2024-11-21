@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 /** Consumer with three input parameters. */

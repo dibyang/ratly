@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util.function;
 
 import net.xdob.ratly.util.UncheckedAutoCloseable;

@@ -12,7 +12,7 @@ import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.StateMachine.DataStream;
 import com.google.protobuf.ByteString;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.LogUtils;
@@ -89,7 +89,7 @@ public class FileStore implements Closeable {
     ReadOnly close(UnderConstruction uc) {
       LOG.trace("{}: close {}", name, uc.getRelativePath());
       final ReadOnly ro = new ReadOnly(uc);
-      CollectionUtils.replaceExisting(uc.getRelativePath(), uc, ro, map, name::toString);
+      Collections3.replaceExisting(uc.getRelativePath(), uc, ro, map, name::toString);
       return ro;
     }
   }

@@ -38,7 +38,7 @@ import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import io.netty.handler.ssl.SslContextBuilder;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.SizeInBytes;
 import net.xdob.ratly.util.TimeDuration;
@@ -241,7 +241,7 @@ public class GrpcClientProtocolClient implements Closeable {
     // synchronized to avoid putNew after getAndSetNull
     synchronized CompletableFuture<RaftClientReply> putNew(long callId) {
       return Optional.ofNullable(map.get())
-          .map(m -> CollectionUtils.putNew(callId, new CompletableFuture<>(), m, this::toString))
+          .map(m -> Collections3.putNew(callId, new CompletableFuture<>(), m, this::toString))
           .orElse(null);
     }
 

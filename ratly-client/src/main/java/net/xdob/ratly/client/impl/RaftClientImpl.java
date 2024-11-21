@@ -27,7 +27,7 @@ import net.xdob.ratly.protocol.exceptions.ResourceUnavailableException;
 import net.xdob.ratly.retry.RetryPolicy;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.MemoizedSupplier;
@@ -414,8 +414,8 @@ public final class RaftClientImpl implements RaftClient {
     final RaftPeerId curLeader = getLeaderId();
     final boolean stillLeader = oldLeader.equals(curLeader);
     if (newLeader == null && stillLeader) {
-      newLeader = CollectionUtils.random(oldLeader,
-          CollectionUtils.as(peers, RaftPeer::getId));
+      newLeader = Collections3.random(oldLeader,
+          Collections3.as(peers, RaftPeer::getId));
     }
     LOG.debug("{}: oldLeader={},  curLeader={}, newLeader={}", clientId, oldLeader, curLeader, newLeader);
 

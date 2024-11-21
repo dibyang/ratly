@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.protocol;
 
 import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
@@ -9,7 +8,7 @@ import java.util.Optional;
 /**
  * The id of a client invocation.
  * A client invocation may be an RPC or a stream.
- *
+ * <p>
  * This is a value-based class.
  */
 public final class ClientInvocationId {

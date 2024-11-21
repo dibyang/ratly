@@ -11,7 +11,7 @@ import net.xdob.ratly.server.RetryCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheStats;
-import net.xdob.ratly.util.CollectionUtils;
+import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.MemoizedSupplier;
 import net.xdob.ratly.util.TimeDuration;
@@ -222,7 +222,7 @@ class RetryCacheImpl implements RetryCache {
     }
 
     LOG.debug("invalidateRepliedRequests callIds {} for {}", callIds, clientId);
-    cache.invalidateAll(CollectionUtils.as(callIds, callId -> ClientInvocationId.valueOf(clientId, callId)));
+    cache.invalidateAll(Collections3.as(callIds, callId -> ClientInvocationId.valueOf(clientId, callId)));
   }
 
   @Override

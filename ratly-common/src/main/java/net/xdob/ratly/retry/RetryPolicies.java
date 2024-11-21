@@ -1,32 +1,38 @@
-
 package net.xdob.ratly.retry;
 
-import net.xdob.ratly.util.JavaUtils;
-import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.TimeDuration;
 
-import java.util.function.Supplier;
-
 /**
- * A collection of {@link RetryPolicy} implementations
+ * 重试策略的合集
  */
 public interface RetryPolicies {
-  /** For any requests, keep retrying forever with no sleep between attempts. */
+  /**
+   * 无限重试，重试前不睡眠
+   */
   static RetryPolicy retryForeverNoSleep() {
     return Constants.RETRY_FOREVER_NO_SLEEP;
   }
 
-  /** No retry. */
+  /**
+   * 不重试策略
+   */
   static RetryPolicy noRetry() {
     return Constants.NO_RETRY;
   }
 
-  /** For any requests, keep retrying forever with a fixed sleep time between attempts. */
+  /**
+   * 无限重试，重试前睡眠指定时间
+   * @param sleepTime 睡眠时间
+   */
   static RetryForeverWithSleep retryForeverWithSleep(TimeDuration sleepTime) {
     return new RetryForeverWithSleep(sleepTime);
   }
 
-  /** For any requests, keep retrying a limited number of attempts with a fixed sleep time between attempts. */
+  /**
+   * 限定最大重试次数，重试前睡眠指定时间
+   * @param maxAttempts 最大重试次数
+   * @param sleepTime 睡眠时间
+   */
   static RetryLimited retryUpToMaximumCountWithFixedSleep(int maxAttempts, TimeDuration sleepTime) {
     return new RetryLimited(maxAttempts, sleepTime);
   }
@@ -36,83 +42,4 @@ public interface RetryPolicies {
     private static final NoRetry NO_RETRY = new NoRetry();
   }
 
-  final class RetryForeverNoSleep implements RetryPolicy {
-    private RetryForeverNoSleep() {}
-
-    @Override
-    public Action handleAttemptFailure(Event event) {
-      return RetryPolicy.RETRY_WITHOUT_SLEEP_ACTION;
-    }
-
-    @Override
-    public String toString() {
-      return JavaUtils.getClassSimpleName(getClass());
-    }
-  }
-
-  final class NoRetry implements RetryPolicy {
-    private NoRetry() {}
-
-    @Override
-    public Action handleAttemptFailure(Event event) {
-      return RetryPolicy.NO_RETRY_ACTION;
-    }
-
-    @Override
-    public String toString() {
-      return JavaUtils.getClassSimpleName(getClass());
-    }
-  }
-
-  /** For any requests, keep retrying forever with a fixed sleep time between attempts. */
-  class RetryForeverWithSleep implements RetryPolicy {
-    private final TimeDuration sleepTime;
-
-    private RetryForeverWithSleep(TimeDuration sleepTime) {
-      Preconditions.assertTrue(!sleepTime.isNegative(), () -> "sleepTime = " + sleepTime + " < 0");
-      this.sleepTime = sleepTime;
-    }
-
-    @Override
-    public Action handleAttemptFailure(Event event) {
-      return () -> sleepTime;
-    }
-
-    @Override
-    public String toString() {
-      return JavaUtils.getClassSimpleName(getClass()) + "(sleepTime = " + sleepTime + ")";
-    }
-  }
-
-  /** For any requests, keep retrying a limited number of attempts with a fixed sleep time between attempts. */
-  final class RetryLimited extends RetryForeverWithSleep  {
-    private final int maxAttempts;
-    private final Supplier<String> myString;
-
-    private RetryLimited(int maxAttempts, TimeDuration sleepTime) {
-      super(sleepTime);
-
-      if (maxAttempts < 0) {
-        throw new IllegalArgumentException("maxAttempts = " + maxAttempts+" < 0");
-      }
-
-      this.maxAttempts = maxAttempts;
-      this.myString = JavaUtils.memoize(() -> JavaUtils.getClassSimpleName(getClass())
-          + "(maxAttempts=" + maxAttempts + ", sleepTime=" + sleepTime + ")");
-    }
-
-    public int getMaxAttempts() {
-      return maxAttempts;
-    }
-
-    @Override
-    public Action handleAttemptFailure(Event event) {
-      return event.getAttemptCount() < maxAttempts? super.handleAttemptFailure(event): NO_RETRY_ACTION;
-    }
-
-    @Override
-    public String toString() {
-      return myString.get();
-    }
-  }
 }

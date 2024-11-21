@@ -1,9 +1,10 @@
-
 package net.xdob.ratly.protocol;
 
 import java.io.IOException;
 
-/** For server administration. */
+/**
+ * server管理接口
+ */
 public interface AdminProtocol {
   GroupListReply getGroupList(GroupListRequest request) throws IOException;
 

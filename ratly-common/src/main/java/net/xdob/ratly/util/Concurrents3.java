@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.util;
 
 import net.xdob.ratly.util.function.CheckedConsumer;
@@ -16,7 +15,7 @@ import java.util.stream.Stream;
 /**
  * Utilities related to concurrent programming.
  */
-public interface ConcurrentUtils {
+public interface Concurrents3 {
   /**
    * Similar to {@link AtomicReference#updateAndGet(java.util.function.UnaryOperator)}
    * except that the update function is checked.

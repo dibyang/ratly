@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.conf;
 
 import net.xdob.ratly.security.TlsConf;
@@ -22,23 +21,42 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * 配置支持工具类
+ */
 public interface ConfUtils {
   Logger LOG = LoggerFactory.getLogger(ConfUtils.class);
 
-  static <T> void logGet(String key, T value, T defaultValue, Consumer<String> logger) {
+  /**
+   * 构建获取配置日志
+   * @param key
+   * @param value
+   * @param defaultValue
+   * @param logger
+   * @param <T>
+   */
+  static <T> void log4get(String key, T value, T defaultValue, Consumer<String> logger) {
     if (logger != null) {
       logger.accept(String.format("%s = %s (%s)", key, value,
           Objects.equal(value, defaultValue)? "default": "custom"));
     }
   }
 
-  static <T> void logFallback(String key, String fallbackKey, T fallbackValue, Consumer<String> logger) {
+  /**
+   * 构建使用回退配置日志
+   * @param key
+   * @param fallbackKey
+   * @param fallbackValue
+   * @param logger
+   * @param <T>
+   */
+  static <T> void log4fallback(String key, String fallbackKey, T fallbackValue, Consumer<String> logger) {
     if (logger != null) {
       logger.accept(String.format("%s = %s (fallback to %s)", key, fallbackValue, fallbackKey));
     }
   }
 
-  static void logSet(String key, Object value) {
+  static void log4set(String key, Object value) {
     LOG.debug("set {} = {}", key, value);
   }
 
@@ -228,7 +246,7 @@ public interface ConfUtils {
   static <T> T get(BiFunction<String, T, T> getter,
       String key, T defaultValue, Consumer<String> logger, BiConsumer<String, T>... assertions) {
     final T value = getter.apply(key, defaultValue);
-    logGet(key, value, defaultValue, logger);
+    log4get(key, value, defaultValue, logger);
     Arrays.asList(assertions).forEach(a -> a.accept(key, value));
     return value;
   }
@@ -239,10 +257,10 @@ public interface ConfUtils {
       Consumer<String> logger, BiConsumer<String, T>... assertions) {
     T value = get(getter, key, defaultValue, null, assertions);
     if (value != defaultValue) {
-      logGet(key, value, defaultValue, logger);
+      log4get(key, value, defaultValue, logger);
       return value;
     } else {
-      logFallback(key, fallbackKey, fallbackValue, logger);
+      log4fallback(key, fallbackKey, fallbackValue, logger);
       return fallbackValue;
     }
   }
@@ -322,7 +340,7 @@ public interface ConfUtils {
       BiConsumer<String, T>... assertions) {
     Arrays.asList(assertions).forEach(a -> a.accept(key, value));
     setter.accept(key, value);
-    logSet(key, value);
+    log4set(key, value);
   }
 
   static void printAll(Class<?> confClass) {
