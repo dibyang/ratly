@@ -3,7 +3,7 @@
 package net.xdob.ratly.protocol;
 
 import net.xdob.ratly.io.WriteOption;
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.util.Collections3;
 
 import java.util.Arrays;

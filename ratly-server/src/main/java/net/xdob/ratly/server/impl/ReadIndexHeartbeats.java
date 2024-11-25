@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.leader.LogAppender;
 import net.xdob.ratly.server.raftlog.RaftLog;

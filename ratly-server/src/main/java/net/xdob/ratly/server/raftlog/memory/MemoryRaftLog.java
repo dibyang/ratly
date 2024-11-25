@@ -5,7 +5,7 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.server.metrics.RaftLogMetricsBase;
 import net.xdob.ratly.server.protocol.TermIndex;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLogBase;
 import net.xdob.ratly.server.raftlog.LogEntryHeader;

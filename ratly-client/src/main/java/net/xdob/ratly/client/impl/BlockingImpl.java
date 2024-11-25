@@ -9,8 +9,8 @@ import java.util.function.Supplier;
 
 import net.xdob.ratly.client.api.BlockingApi;
 import net.xdob.ratly.client.retry.ClientRetryEvent;
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto.TypeCase;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto.TypeCase;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftClientRequest;

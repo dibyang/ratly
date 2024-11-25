@@ -10,7 +10,7 @@ import net.xdob.ratly.client.api.SnapshotManagementApi;
 import net.xdob.ratly.client.retry.ClientRetryEvent;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.SlidingWindowEntry;
+import net.xdob.ratly.proto.raft.SlidingWindowEntry;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;

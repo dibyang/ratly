@@ -3,14 +3,14 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.metrics.Timekeeper;
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.statemachine.SnapshotInfo;

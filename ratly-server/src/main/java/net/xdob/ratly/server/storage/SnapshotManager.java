@@ -3,8 +3,8 @@ package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.io.CorruptedFileException;
 import net.xdob.ratly.io.MD5Hash;
-import net.xdob.ratly.proto.RaftProtos.FileChunkProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.FileChunkProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.util.ServerStringUtils;
 import net.xdob.ratly.statemachine.SnapshotInfo;

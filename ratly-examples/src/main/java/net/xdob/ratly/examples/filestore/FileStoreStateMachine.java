@@ -2,16 +2,9 @@
 package net.xdob.ratly.examples.filestore;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.ExamplesProtos;
-import net.xdob.ratly.proto.ExamplesProtos.DeleteReplyProto;
-import net.xdob.ratly.proto.ExamplesProtos.DeleteRequestProto;
-import net.xdob.ratly.proto.ExamplesProtos.FileStoreRequestProto;
-import net.xdob.ratly.proto.ExamplesProtos.ReadRequestProto;
-import net.xdob.ratly.proto.ExamplesProtos.StreamWriteRequestProto;
-import net.xdob.ratly.proto.ExamplesProtos.WriteRequestHeaderProto;
-import net.xdob.ratly.proto.ExamplesProtos.WriteRequestProto;
-import net.xdob.ratly.proto.RaftProtos;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.example.*;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroupId;
@@ -98,7 +91,7 @@ public class FileStoreStateMachine extends BaseStateMachine {
   }
 
   @Override
-  public TransactionContext startTransaction(LogEntryProto entry, RaftProtos.RaftPeerRole role) {
+  public TransactionContext startTransaction(LogEntryProto entry, RaftPeerRole role) {
     ByteString copied = ByteString.copyFrom(entry.getStateMachineLogEntry().getLogData().asReadOnlyByteBuffer());
     return TransactionContext.newBuilder()
         .setStateMachine(this)
@@ -151,10 +144,10 @@ public class FileStoreStateMachine extends BaseStateMachine {
     }
 
     final WriteRequestHeaderProto h = proto.getWriteHeader();
-    CompletableFuture<ExamplesProtos.ReadReplyProto> reply =
+    CompletableFuture<ReadReplyProto> reply =
         files.read(h.getPath().toStringUtf8(), h.getOffset(), h.getLength(), false);
 
-    return reply.thenApply(ExamplesProtos.ReadReplyProto::getData);
+    return reply.thenApply(ReadReplyProto::getData);
   }
 
   static class LocalStream implements DataStream {

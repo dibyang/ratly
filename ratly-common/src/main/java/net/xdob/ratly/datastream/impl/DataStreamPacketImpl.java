@@ -1,6 +1,6 @@
 package net.xdob.ratly.datastream.impl;
 
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.DataStreamPacket;
 import net.xdob.ratly.util.JavaUtils;

@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.MessageStreamRequestTypeProto;
+import net.xdob.ratly.proto.raft.MessageStreamRequestTypeProto;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientRequest;

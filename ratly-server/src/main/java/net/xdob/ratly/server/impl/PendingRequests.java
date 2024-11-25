@@ -2,7 +2,7 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.NotLeaderException;
 import net.xdob.ratly.protocol.RaftClientReply;

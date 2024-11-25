@@ -13,7 +13,7 @@ import net.xdob.ratly.server.util.ServerStringUtils;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceImplBase;
 import net.xdob.ratly.util.ProtoUtils;
 import net.xdob.ratly.util.ReferenceCountedObject;

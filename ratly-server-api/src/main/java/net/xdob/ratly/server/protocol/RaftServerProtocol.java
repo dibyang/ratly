@@ -3,14 +3,14 @@ package net.xdob.ratly.server.protocol;
 
 import java.io.IOException;
 
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotReplyProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
-import net.xdob.ratly.proto.RaftProtos.RequestVoteReplyProto;
-import net.xdob.ratly.proto.RaftProtos.RequestVoteRequestProto;
-import net.xdob.ratly.proto.RaftProtos.StartLeaderElectionReplyProto;
-import net.xdob.ratly.proto.RaftProtos.StartLeaderElectionRequestProto;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.RequestVoteReplyProto;
+import net.xdob.ratly.proto.raft.RequestVoteRequestProto;
+import net.xdob.ratly.proto.raft.StartLeaderElectionReplyProto;
+import net.xdob.ratly.proto.raft.StartLeaderElectionRequestProto;
 
 public interface RaftServerProtocol {
   enum Op {REQUEST_VOTE, APPEND_ENTRIES, INSTALL_SNAPSHOT}

@@ -2,9 +2,9 @@
 package net.xdob.ratly.server.leader;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;

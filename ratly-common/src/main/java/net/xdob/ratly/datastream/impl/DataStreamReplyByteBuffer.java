@@ -1,7 +1,7 @@
 package net.xdob.ratly.datastream.impl;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.DataStreamPacket;
 import net.xdob.ratly.protocol.DataStreamReply;

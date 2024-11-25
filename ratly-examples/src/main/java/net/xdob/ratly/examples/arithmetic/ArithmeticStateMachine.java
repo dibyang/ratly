@@ -3,8 +3,8 @@ package net.xdob.ratly.examples.arithmetic;
 
 import net.xdob.ratly.examples.arithmetic.expression.Expression;
 import net.xdob.ratly.io.MD5Hash;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.server.RaftServer;

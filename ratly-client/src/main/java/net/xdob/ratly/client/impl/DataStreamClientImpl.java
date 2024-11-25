@@ -15,7 +15,7 @@ import net.xdob.ratly.datastream.impl.DataStreamReplyByteBuffer;
 import net.xdob.ratly.io.FilePositionCount;
 import net.xdob.ratly.io.StandardWriteOption;
 import net.xdob.ratly.io.WriteOption;
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.DataStreamReply;

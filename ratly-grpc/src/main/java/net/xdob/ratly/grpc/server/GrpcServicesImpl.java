@@ -31,7 +31,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

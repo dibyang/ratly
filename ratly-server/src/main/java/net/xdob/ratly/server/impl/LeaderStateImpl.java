@@ -2,14 +2,14 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto.LogEntryBodyCase;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
-import net.xdob.ratly.proto.RaftProtos.RoleInfoProto;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto.LogEntryBodyCase;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
+import net.xdob.ratly.proto.raft.RoleInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftClientRequest;
@@ -1154,7 +1154,7 @@ class LeaderStateImpl implements LeaderState {
   }
 
   @Override
-  public void onAppendEntriesReply(LogAppender appender, RaftProtos.AppendEntriesReplyProto reply) {
+  public void onAppendEntriesReply(LogAppender appender, AppendEntriesReplyProto reply) {
     readIndexHeartbeats.onAppendEntriesReply(appender, reply, this::hasMajority);
   }
 

@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
+import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 
 import java.util.Objects;
 import java.util.Optional;

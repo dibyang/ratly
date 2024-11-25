@@ -2,15 +2,15 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.FollowerInfoProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotReplyProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotResult;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerProto;
-import net.xdob.ratly.proto.RaftProtos.RaftRpcRequestProto;
-import net.xdob.ratly.proto.RaftProtos.RoleInfoProto;
-import net.xdob.ratly.proto.RaftProtos.ServerRpcProto;
+import net.xdob.ratly.proto.raft.FollowerInfoProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotResult;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.RaftPeerProto;
+import net.xdob.ratly.proto.raft.RaftRpcRequestProto;
+import net.xdob.ratly.proto.raft.RoleInfoProto;
+import net.xdob.ratly.proto.raft.ServerRpcProto;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.RaftPeer;

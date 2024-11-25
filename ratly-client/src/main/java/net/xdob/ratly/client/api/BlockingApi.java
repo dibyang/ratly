@@ -2,7 +2,7 @@
 package net.xdob.ratly.client.api;
 
 import java.io.IOException;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
 import net.xdob.ratly.protocol.exceptions.StaleReadException;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;

@@ -1,65 +1,85 @@
 syntax = "proto3";
-option java_package = "net.xdob.ratly.proto";
-option java_outer_classname = "RaftProtos";
+option java_package = "net.xdob.ratly.proto.raft";
+option java_multiple_files = true;
 option java_generate_equals_and_hash = true;
 
-package ratly.common;
-
-message RaftPeerProto {
-  bytes id = 1;      // id of the peer
-  string address = 2; // e.g. address of the RPC server
-  uint32 priority = 3; // priority of the peer
-  string dataStreamAddress = 4; // address of the data stream server
-  string clientAddress = 5; // address of the client RPC server
-  string adminAddress = 6; // address of the admin RPC server
-  optional RaftPeerRole startupRole = 7; // peer start up role
-}
+package ratly.raft;
 
 message RaftPeerIdProto {
-  bytes id = 1;      // id of the peer
+  // id of the peer
+  bytes id = 1;
 }
-
+// 组id信息
 message RaftGroupIdProto {
   bytes id = 1;
 }
 
+// 节点角色
+enum RaftPeerRole {
+  // 领导者
+  LEADER = 0;
+  // 候选者
+  CANDIDATE = 1;
+  // 追随者
+  FOLLOWER = 2;
+  // 监听者
+  LISTENER = 3;
+}
+
+// 节点信息
+message RaftPeerProto {
+  bytes id = 1;      // 节点id
+  string address = 2; // e.g. address of the RPC server
+  uint32 priority = 3; // 节点优先级priority
+  string dataStreamAddress = 4; // address of the data stream server
+  string clientAddress = 5; // address of the client RPC server
+  string adminAddress = 6; // address of the admin RPC server
+  optional RaftPeerRole startupRole = 7; // 节点起始角色
+}
+
+// 组信息
 message RaftGroupProto {
+  // 组id
   RaftGroupIdProto groupId = 1;
+  // 节点列表
   repeated RaftPeerProto peers = 2;
 }
 
+// 组成员id
 message RaftGroupMemberIdProto {
   bytes peerId = 1;
   RaftGroupIdProto groupId = 2;
 }
 
+// 配置信息
 message RaftConfigurationProto {
-  repeated RaftPeerProto peers = 1; // the peers in the current or new conf
-  repeated RaftPeerProto oldPeers = 2; // the peers in the old conf
-  repeated RaftPeerProto listeners = 3;
-  repeated RaftPeerProto oldListeners = 4;
+  repeated RaftPeerProto peers = 1; // 新配置的节点组
+  repeated RaftPeerProto oldPeers = 2; // 老的节点组
+  repeated RaftPeerProto listeners = 3; // 新配置的监听器组
+  repeated RaftPeerProto oldListeners = 4; // 老的监听器组
 }
 
+// 状态机条目信息
 message StateMachineEntryProto {
-   /**
-    * StateMachine specific data which is not written to log.
-    * Unlike logEntryData, stateMachineData is managed and stored by the StateMachine but not the RaftLog.
-    */
+  /**
+   * 未写入日志的StateMachine特定数据。
+   * 与logEntryData不同，stateMachineData由StateMachine管理和存储，而不是由RaftLog管理和存储。
+   */
+
   bytes stateMachineData = 1;
-   /**
-    * When stateMachineData is missing, it is the size of the serialized LogEntryProto along with stateMachineData.
-    * When stateMachineData is not missing, it must be set to zero.
-    */
+  /**
+   * 当stateMachineData缺失时，它是序列化的LogEntryProto和stateMachineData的大小。
+   * 当stateMachineData不缺失时，必须将其设置为零。
+   */
   uint32 logEntryProtoSerializedSize = 2;
 }
 
 message StateMachineLogEntryProto {
-  // TODO: This is not super efficient if the SM itself uses PB to serialize its own data for a
-  /** RaftLog entry data */
+  //RaftLog条目数据
   bytes logData = 1;
   /**
-   * StateMachine entry.
-   * StateMachine implementation may use this field to separate StateMachine specific data from the RaftLog data.
+   * 状态机条目。
+   * StateMachine实现可以使用此字段将StateMachine特定的数据与RaftLog数据分开。
    */
   StateMachineEntryProto stateMachineEntry = 2;
 
@@ -69,7 +89,7 @@ message StateMachineLogEntryProto {
   }
 
   Type type = 13;
-  // clientId and callId are used to rebuild the retry cache.
+  // clientId和callId用于重建重试缓存。
   bytes clientId = 14;
   uint64 callId = 15;
 }
@@ -78,6 +98,7 @@ message MetadataProto {
   uint64 commitIndex = 1;
 }
 
+// 日志条目信息
 message LogEntryProto {
   uint64 term = 1;
   uint64 index = 2;
@@ -89,59 +110,69 @@ message LogEntryProto {
   }
 }
 
+// TermIndex信息
 message TermIndexProto {
   uint64 term = 1;
   uint64 index = 2;
 }
 
-message RaftRpcRequestProto {
-  bytes requestorId = 1;
-  bytes replyId = 2;
-  RaftGroupIdProto raftGroupId = 3;
-  uint64 callId = 4;
-  bool toLeader = 5;
 
-  repeated uint64 repliedCallIds = 12; // The call ids of the replied requests
+// 滑动窗口信息
+message SlidingWindowEntry {
+  // 0表示非滑动窗口请求；>=1用于滑动窗口请求
+  uint64 seqNum = 1;
+  // 是否是滑动窗口的第一个请求
+  bool isFirst = 2;
+}
+
+// Rpc请求信息
+message RaftRpcRequestProto {
+  // 请求方的标识符，通常用于标识请求是从哪个节点发出的。
+  bytes requestorId = 1;
+  // 响应方的标识符，标识哪个节点将处理此请求
+  bytes replyId = 2;
+  // Raft 群组的 ID，指示请求与哪个 Raft 集群相关。
+  RaftGroupIdProto raftGroupId = 3;
+  // 每个请求的唯一标识符，用于匹配请求和响应。
+  uint64 callId = 4;
+  // 指示请求是否是发送给 Raft 集群的 Leader 节点。
+  bool toLeader = 5;
+  // 已回复请求的 callId 列表，这用于追踪请求和响应的历史。
+  repeated uint64 repliedCallIds = 12;
+  // 请求的超时设置（以毫秒为单位），用于控制等待响应的最大时间。
   uint64 timeoutMs = 13;
+  // 路由表信息，可能用于在集群中路由请求到正确的节点。
   RoutingTableProto routingTable = 14;
+  // 滑动窗口条目，通常用于控制流量、流量控制等。
   SlidingWindowEntry slidingWindowEntry = 15;
 }
 
-message SlidingWindowEntry {
-  uint64 seqNum = 1; // 0 for non-sliding-window requests; >= 1 for sliding-window requests
-  bool isFirst = 2;  // Is this the first request of the sliding window?
-}
-
+// 封装了 RPC 响应的基本信息
 message RaftRpcReplyProto {
+  // 请求方的标识符，用于标识响应是针对哪个请求的。
   bytes requestorId = 1;
+  // 响应方的标识符，标识哪个节点响应了请求。
   bytes replyId = 2;
+  // Raft 群组的 ID，指示响应与哪个 Raft 集群相关。
   RaftGroupIdProto raftGroupId = 3;
+  // 响应对应的请求的 callId，用于匹配请求和响应。
   uint64 callId = 4;
-
+  // 响应是否成功，表示此请求的处理结果。
   bool success = 15;
 }
 
 message FileChunkProto {
-  string filename = 1; // relative to root
-  uint64 totalSize = 2;
-  bytes fileDigest = 3;
-  uint32 chunkIndex = 4;
-  uint64 offset = 5;
-  bytes data = 6;
-  bool done = 7;
+  string filename = 1; // 相对于根的文件路径
+  uint64 totalSize = 2; // 总大小
+  bytes fileDigest = 3; // 文件摘要
+  uint32 chunkIndex = 4; // 块索引
+  uint64 offset = 5; // 数据偏移
+  bytes data = 6; // 块数据
+  bool done = 7; // 是否是最后一个块
 }
 
-enum InstallSnapshotResult {
-  SUCCESS = 0;
-  NOT_LEADER = 1;
-  IN_PROGRESS = 2;
-  ALREADY_INSTALLED = 3;
-  CONF_MISMATCH = 4;
-  SNAPSHOT_INSTALLED = 5;
-  SNAPSHOT_UNAVAILABLE = 6;
-  SNAPSHOT_EXPIRED = 7;
-}
 
+// 请求投票请求信息
 message RequestVoteRequestProto {
   RaftRpcRequestProto serverRequest = 1;
   uint64 candidateTerm = 2;
@@ -149,246 +180,408 @@ message RequestVoteRequestProto {
   bool preVote = 4;
 }
 
+// 请求投票回复信息
 message RequestVoteReplyProto {
   RaftRpcReplyProto serverReply = 1;
   uint64 term = 2;
   bool shouldShutdown = 3;
 }
 
+// 提交信息，用于表示集群中某个节点的提交状态
 message CommitInfoProto {
+  // 节点的信息，类型为 RaftPeerProto，通常包含节点的 ID、地址等
   RaftPeerProto server = 1;
   uint64 commitIndex = 2;
 }
 
+// 日志复制请求信息
+// 完成 Raft 日志复制的核心逻辑。
+// 1. 日志条目复制：
+//    用于领导者（Leader）向追随者（Follower）发送新的日志条目，确保整个集群的数据一致性。
+// 2. 心跳机制：
+//    当没有新的日志条目需要复制时，AppendEntriesRequestProto 仍会定期发送，用作心跳包，告知追随者领导者的存活状态，防止发起新一轮领导选举。
+// 3. 日志条目一致性检查：
+//    包含前一个日志条目的索引和任期信息，确保追随者的日志与领导者保持一致性。
 message AppendEntriesRequestProto {
+  // 封装了 RPC 请求的基本信息，包括请求的源（调用方）和目标（接收方）
   RaftRpcRequestProto serverRequest = 1;
+  // 当前领导者的任期号，用于保证选举和日志一致性。
   uint64 leaderTerm = 2;
+  // 当前日志条目的前一个条目的任期和索引，用于追随者检查其日志是否匹配。
   TermIndexProto previousLog = 3;
+  // 待复制的日志条目数组（可以为空）。如果为空，则是心跳请求。
   repeated LogEntryProto entries = 4;
+  // 领导者已知的最大提交索引，用于通知追随者提交对应的日志条目。
   uint64 leaderCommit = 5;
+  // 标志该请求是否为初始化请求。在特定场景（如新加入节点）下使用，用于处理集群配置变更等初始化操作。
   bool initializing = 6;
-
+  // 包含其他节点的提交信息，类型为 CommitInfoProto。提供整个集群中其他节点的提交状态信息。
   repeated CommitInfoProto commitInfos = 15;
 }
 
+// 日志复制回复信息
+// 用于回应领导者 AppendEntriesRequestProto 请求的消息类型。它包含了执行日志复制过程后的响应结果，
+// 向领导者反馈追随者的状态，包括成功与否、日志一致性检查结果、提交进度等信息。
 message AppendEntriesReplyProto {
+  // 追随者对日志复制的响应状态
   enum AppendResult {
+    // 表示日志复制成功，追随者已接受并追加日志。
     SUCCESS = 0;
-    NOT_LEADER = 1; // the requester's term is not large enough
-    INCONSISTENCY = 2; // gap between the local log and the entries or snapshot installation in progress or
-                       // overlap between local snapshot and the entries
+    // 追随者认为请求的领导者已经过期，领导者的任期号小于追随者的当前任期号，或请求者并非当前有效的领导者。
+    NOT_LEADER = 1;
+    // 表示日志存在不一致的地方，可能有以下几种原因：
+    //    追随者本地日志与领导者请求中的日志存在差距（比如缺少某些条目）。
+    //    追随者正在安装快照（可能导致日志不一致）。
+    //    本地快照与领导者请求的日志条目重叠，导致不一致。
+    INCONSISTENCY = 2;
   }
-
+  // 封装了 RPC 响应的基本信息，类似于 RaftRpcRequestProto，包括回复的来源、目标等。
   RaftRpcReplyProto serverReply = 1;
+  // 当前领导者的任期号
   uint64 term = 2;
+  // 追随者在接收到日志条目后，下一条应该追加的日志索引。
+  // 用于领导者调整日志复制策略。如果追随者的日志不一致，领导者可以调整下一个日志条目的索引，从而引导追随者同步正确的日志。
+  // 如果追随者的日志不一致，nextIndex 通常指向追随者缺失日志的索引。
   uint64 nextIndex = 3;
+  // 日志复制的结果，采用 AppendResult 枚举，表示日志复制是否成功，或是出现了错误（如不是领导者，或者存在日志不一致）。
   AppendResult result = 4;
+  // 追随者最新的提交索引。追随者告诉领导者它的日志提交进度，领导者可以根据该字段来判断是否可以向其他节点提交日志。
   uint64 followerCommit = 5;
+  // 追随者上次成功添加日志的最大索引（包括已经提交的日志条目）。
   uint64 matchIndex = 6;
+  // 标识此次响应是否为心跳响应。
   bool isHearbeat = 7;
 }
 
+// 安装快照请求的结果
+enum InstallSnapshotResult {
+  // 快照安装成功。
+  SUCCESS = 0;
+  // 请求的领导者过期或无效，追随者拒绝安装快照。
+  NOT_LEADER = 1;
+  // 快照安装仍在进行中。表示快照安装操作还没有完成，追随者正在处理快照片段。
+  IN_PROGRESS = 2;
+  // 快照已经安装过，重复请求无效。
+  ALREADY_INSTALLED = 3;
+  // 快照的配置与当前集群的配置不匹配。
+  CONF_MISMATCH = 4;
+  // 快照已经成功安装并应用。
+  SNAPSHOT_INSTALLED = 5;
+  // 请求的快照不可用。表示领导者请求的快照不可用，可能是因为快照文件丢失或不可访问。
+  SNAPSHOT_UNAVAILABLE = 6;
+  // 快照已经过期，不能再安装。
+  SNAPSHOT_EXPIRED = 7;
+}
+
+// 用于领导者向追随者发送快照安装请求，分为多个部分来传输（称为 "chunk"）。
+// 它的作用是将领导者的状态快照传输到追随者，确保追随者同步并且拥有一致的状态。
 message InstallSnapshotRequestProto {
+  // 每次发送的快照数据片段（chunk），包含快照的部分内容
   message SnapshotChunkProto {
-    string requestId = 1; // an identifier for chunked-requests.
-    uint32 requestIndex = 2; // the index for this request chunk. Starts from 0.
+    // 标识这一组快照数据请求的唯一 ID，用于标识不同请求。
+    string requestId = 1;
+    // 当前快照数据片段的索引，从 0 开始。
+    uint32 requestIndex = 2;
+    // 包含当前 Raft 配置信息，用于帮助追随者同步集群成员信息。
     RaftConfigurationProto raftConfiguration = 3;
+    // 快照对应的日志条目任期和索引，确保快照与日志的同步。
     TermIndexProto termIndex = 4;
+    // 实际的文件内容，分割为多个 FileChunkProto。
     repeated FileChunkProto fileChunks = 5;
+    // 整个快照的总大小。
     uint64 totalSize = 6;
-    bool done = 7; // whether this is the final chunk for the same req.
+    // 标记是否为最后一个片段。如果为 true，则表示这是一组快照请求的最后一个片段。
+    bool done = 7;
   }
-
+  // 一个通知，用于告知追随者可以开始安装快照。
   message NotificationProto {
-    TermIndexProto firstAvailableTermIndex = 1; // first available log index to notify Follower to install snapshot.
+    // 告知追随者开始安装快照的起始日志索引，确保追随者的状态与领导者一致。
+    // 当快照安装完成后，追随者可以通过此通知开始恢复状态。
+    TermIndexProto firstAvailableTermIndex = 1;
   }
-
+  // 与其他 Raft RPC 请求一样，包含了请求的元数据（如请求的源、目标等）
   RaftRpcRequestProto serverRequest = 1;
+  // 当前领导者的任期号。
   uint64 leaderTerm = 2;
-
+  //  使用 oneof 类型定义了两种可能的请求体：SnapshotChunkProto 和 NotificationProto，确保快照请求可以被分割并且分阶段进行。
   oneof InstallSnapshotRequestBody {
+    // 每次发送的快照数据片段（chunk），包含快照的部分内容
     SnapshotChunkProto snapshotChunk = 3;
+    // 一个通知，用于告知追随者可以开始安装快照。
     NotificationProto notification = 4;
   }
-
+  // 领导者发送的最后一个配置日志条目的信息，包含了 Raft 配置的日志条目。
+  // 确保在快照过程中，追随者可以获得配置的最新信息。
   LogEntryProto lastRaftConfigurationLogEntryProto = 5;
 }
 
+// 用于追随者回复领导者的快照安装请求，告知领导者快照安装的进度或结果。
 message InstallSnapshotReplyProto {
+  // 与所有 Raft RPC 回复一样，封装了 RPC 响应的基本信息。
   RaftRpcReplyProto serverReply = 1;
+  // 当前领导者的任期号。用于领导者判断是否需要更新任期号。
   uint64 term = 2;
+  // 安装快照请求的结果，使用枚举类型 InstallSnapshotResult。
   InstallSnapshotResult result = 3;
 
+  // 使用 oneof 定义了两种可能的响应内容：快照请求的索引（requestIndex）和安装后的快照索引（snapshotIndex）
   oneof InstallSnapshotReplyBody {
-    uint32 requestIndex = 4;  // index of the snapshot chunk request.
-    uint64 snapshotIndex = 5; // index of snapshot installed after notification.
+    // 当前快照片段的请求索引。告知领导者该快照片段的索引位置，通常用于继续发送下一个片段。
+    uint32 requestIndex = 4;
+    // 安装的快照索引，表示追随者已经成功安装并同步的快照位置。指示追随者安装的最新快照位置，帮助领导者跟踪快照的进度。
+    uint64 snapshotIndex = 5;
   }
 }
 
+// 用于请求一个读取操作，该请求通常由客户端发起，用于查询集群中的某个特定状态，并确保读取的是一致的、最新的数据。
 message ReadIndexRequestProto {
+  // 与所有 Raft RPC 请求一样，包含了请求的元数据（如请求的源、目标等）
   RaftRpcRequestProto serverRequest = 1;
-  RaftClientRequestProto clientRequest = 2; // clientRequest is used to support read-after-write consistency
+  // 包含与客户端请求相关的元数据，主要用于支持 读-写一致性（Read-After-Write Consistency）
+  RaftClientRequestProto clientRequest = 2;
 }
 
+// 包含了响应的基本信息和读取操作的结果。
 message ReadIndexReplyProto {
+  // 与所有 Raft RPC 回复一样，封装了 RPC 响应的基本信息。
   RaftRpcReplyProto serverReply = 1;
+  // 表示读取操作的索引。通常，它表示集群中最新写入操作的索引，或者代表读取数据的一致性点。
+  // 客户端可以根据这个索引来判断其读取的是否是已提交的最新数据。如果客户端请求的读操作的索引小于该值，则说明读取的数据已经包含了最新的写入。
   uint64 readIndex = 2;
 }
 
+/**
+ *写操作的复制级别
+ */
+enum ReplicationLevel {
+  /**
+   * leader提交并复制给多数节点
+   */
+  MAJORITY = 0;
+  /**
+   * leader提交并复制给所有节点
+   */
+  ALL = 1;
+
+  /**
+   * 在多数节点提交
+   */
+  MAJORITY_COMMITTED = 2;
+
+  /**
+   * 在所有节点都提交
+   */
+  ALL_COMMITTED = 3;
+}
+
+// 写操作的复制级别
+message WriteRequestTypeProto {
+  // 指定写操作的复制级别。
+  // 作用：定义数据写入时，是否需要在所有节点上复制（比如要求大多数节点确认），还是仅在领导者节点或某些节点上复制，取决于系统的配置和一致性需求。
+  ReplicationLevel replication = 1;
+}
+
+// 流式消息的标识和处理
+message MessageStreamRequestTypeProto {
+  // 表示请求所属的流的 ID。帮助标识不同的数据流或消息通道，适用于流式处理或多通道通信的场景。
+  uint64 streamId = 1;
+  // 在特定流中的消息 ID。标识流中的某一特定消息，用于消息追踪、确认或处理。
+  uint64 messageId = 2;
+  // 标记这是否为请求的结束。
+  bool endOfRequest = 3;
+}
+
+// 数据流的请求
+// 这个消息类型看起来是用于处理数据流的请求，但没有定义任何字段，因此它可能仅作为标识符或基础消息类型，用于标识数据流请求。
+message DataStreamRequestTypeProto {
+}
+
+// 请求转发
+// 该消息用于转发请求，可能是在分布式系统中，某个节点将请求转发给另一个节点进行处理。
+// 虽然该消息没有定义任何字段，但 "转发" 表示请求可能会被重定向或传递给其他节点或服务。通常用于代理层或具有请求转发功能的系统。
+message ForwardRequestTypeProto {
+}
+
+// 此消息类型用于读取操作，包含一些与一致性和读取偏好相关的标志。
+message ReadRequestTypeProto {
+  // 表示客户端是否更倾向于非线性化的读取。
+  // 允许系统提供可能是陈旧的数据，如果客户端能够接受最终一致性而非强一致性，则能提高性能。
+  bool preferNonLinearizable = 1;
+  // 标记读取操作是否应遵循写后读取一致性。
+  // 确保在进行写操作后，后续的读取请求会反映出最新的写入。此标志用于确保强一致性。
+  bool readAfterWriteConsistent = 2;
+}
+// 此消息用于请求读取陈旧数据，通常用于客户端可以接受稍微过时的数据场景。
+message StaleReadRequestTypeProto {
+  // 请求读取的最小日志索引。
+  // 客户端可以指定一个最小索引，从该索引开始读取数据，确保读取到某个特定点的数据，通常用于从故障恢复或读取备份状态时。
+  uint64 minIndex = 1;
+}
+
+// 此消息类型表示订阅或监控数据变化的请求，类似于监听某个数据变化并进行通知。
+message WatchRequestTypeProto {
+  // 开始监听的日志索引。
+  uint64 index = 1;
+  // 指定监视操作的复制级别。确定多少个副本节点需要确认数据更新，才会触发客户端的通知。这确保客户端只会看到已经充分复制的变化。
+  ReplicationLevel replication = 2;
+}
+// 表示单个路由的消息类型，包含了一个节点的 peerId 和它的后继节点列表。
+message RouteProto {
+  // 表示路由的目标节点的 ID（即某个 Raft 节点的标识）
+  RaftPeerIdProto peerId = 1;
+  // 表示当前节点的所有后继节点的 ID（即该节点的所有下游节点）。
+  // 列出与该节点相关联的所有后继节点。后继节点可能会参与数据复制、日志同步等操作。
+  repeated RaftPeerIdProto successors = 2;
+}
+// 是一个包含多条路由信息的表。它可以用于存储集群中节点之间的路由关系。
+message RoutingTableProto {
+  // 一个包含多个 RouteProto 路由对象的列表。
+  // 存储所有的路由信息，用于路由查询和数据传输的决策。每个路由对象包含了节点和它的后继节点信息。
+  repeated RouteProto routes = 1;
+}
+
+// 用于封装客户端的消息内容，通常用于 Raft 协议中的客户端请求和响应，表示客户端向集群请求的具体数据。
 message ClientMessageEntryProto {
   bytes content = 1;
 }
 
-enum ReplicationLevel {
-  /** Committed at the leader and replicated to the majority of peers. */
-  MAJORITY = 0;
-  /** Committed at the leader and replicated to all peers.
-       Note that ReplicationLevel.ALL implies ReplicationLevel.MAJORITY. */
-  ALL = 1;
-
-  /** Committed at majority peers.
-      Note that ReplicationLevel.MAJORITY_COMMITTED implies ReplicationLevel.MAJORITY. */
-  MAJORITY_COMMITTED = 2;
-
-  /** Committed at all peers.
-      Note that ReplicationLevel.ALL_COMMITTED implies ReplicationLevel.ALL
-      and ReplicationLevel.MAJORITY_COMMITTED */
-  ALL_COMMITTED = 3;
-}
-
-
-/** Role of raft peer */
-enum RaftPeerRole {
-  LEADER = 0;
-  CANDIDATE = 1;
-  FOLLOWER = 2;
-  LISTENER = 3;
-}
-
-message WriteRequestTypeProto {
-  ReplicationLevel replication = 1;
-}
-
-message MessageStreamRequestTypeProto {
-  uint64 streamId = 1;  // the id of this stream
-  uint64 messageId = 2; // the message id within a particular stream.
-  bool endOfRequest = 3;// Is this the end-of-request?
-}
-
-message DataStreamRequestTypeProto {
-}
-
-message ForwardRequestTypeProto {
-}
-
-message ReadRequestTypeProto {
-  bool preferNonLinearizable = 1;
-  bool readAfterWriteConsistent = 2;
-}
-
-message StaleReadRequestTypeProto {
-  uint64 minIndex = 1;
-}
-
-message WatchRequestTypeProto {
-  uint64 index = 1;
-  ReplicationLevel replication = 2;
-}
-
-message RouteProto {
-  RaftPeerIdProto peerId = 1;
-  repeated RaftPeerIdProto successors = 2;
-}
-
-message RoutingTableProto {
-  repeated RouteProto routes = 1;
-}
-
-// normal client request
+// 用于表示一个标准的客户端请求，客户端发起的各种操作都通过这个消息进行封装。
 message RaftClientRequestProto {
+  // 封装请求的元数据，例如请求的源节点、目标节点等信息。
+  // 所有 Raft RPC 请求都包含此字段，用于处理通信的上下文和元信息。
   RaftRpcRequestProto rpcRequest = 1;
+  // 表示客户端消息的内容。
+  // 这是客户端发起的实际请求，通常是一个数据操作请求（如写入、读取等），并且是通过 ClientMessageEntryProto 来封装的。
   ClientMessageEntryProto message = 2;
-
+  // RaftClientRequestProto 中使用 oneof 来表示请求的不同类型。具体类型的请求由客户端根据操作的需求选择。
   oneof Type {
+    // 表示写操作的请求。客户端请求将某些数据写入集群。
     WriteRequestTypeProto write = 3;
+    // 表示读取操作的请求。客户端请求从集群中读取数据。
     ReadRequestTypeProto read = 4;
+    // 表示读取陈旧数据的请求。客户端允许系统返回稍微过时的数据，适用于最终一致性场景。
     StaleReadRequestTypeProto staleRead = 5;
+    // 表示数据监视请求。客户端希望监听数据的变化，通常用于订阅模式，接收数据变动的通知。
     WatchRequestTypeProto watch = 6;
+    // 表示消息流请求。客户端希望通过流式方式发送和接收消息，可能涉及大批量的数据传输。
     MessageStreamRequestTypeProto messageStream = 7;
+    // 表示数据流请求。客户端请求通过流式方式传输数据，可能用于文件传输等场景。
     DataStreamRequestTypeProto dataStream = 8;
+    // 表示转发请求。请求可能会被转发到其他节点进行处理。
     ForwardRequestTypeProto forward = 9;
   }
 }
-
+// 定义了数据流包的头部信息，包含了数据包的基本元数据，类似于协议中的标头。
 message DataStreamPacketHeaderProto {
+  // 数据包的类型
   enum Type {
+    // 表示数据流的头部信息
     STREAM_HEADER = 0;
+    // 表示实际的数据流内容。
     STREAM_DATA = 1;
   }
-
+  // 数据包的选项
   enum Option {
+    // 同步操作
     SYNC = 0;
+    // 关闭流操作
     CLOSE = 1;
   }
-
+  // 客户端的 ID，用于标识发起请求的客户端。
   bytes clientId = 1;
+  // 数据包的类型，指示该包是流的头部还是数据。
   Type type = 2;
+  // 流的 ID，表示数据流的标识符。
   uint64 streamId = 3;
+  // 流中数据的偏移量。
   uint64 streamOffset = 4;
+  // 当前数据包中数据的长度。
   uint64 dataLength = 5;
+  // 数据包的选项。可以指定同步（SYNC）或关闭（`CLOSE）等操作，控制流的行为。
   repeated Option options = 6;
 }
 
+// 用于封装数据流请求的头部信息。
 message DataStreamRequestHeaderProto {
+  // 数据流请求的包头信息。封装了数据流请求的基本元数据，例如流的 ID、数据长度、客户端 ID 等信息。
   DataStreamPacketHeaderProto packetHeader = 1;
 }
 
+// 用于封装数据流请求的回复头部信息。
 message DataStreamReplyHeaderProto {
+  // 数据流响应的包头信息。
   DataStreamPacketHeaderProto packetHeader = 1;
+  // 已写入的数据字节数。指示数据流操作中实际写入的字节数，常用于文件上传或大数据传输场景。
   uint64 bytesWritten = 2;
+  // 操作是否成功。指示数据流操作是否成功，常用于反馈客户端。
   bool success = 3;
-
+  // 提交信息列表。包含与该数据流请求相关的提交信息，通常与 Raft 协议的日志复制有关。
   repeated CommitInfoProto commitInfos = 15;
 }
 
+// 表示“非领导者”异常，当请求到达一个非领导节点时抛出。
 message NotLeaderExceptionProto {
+  // 建议的领导者节点。在发生 NotLeaderException 时，返回推荐的领导者节点。
   RaftPeerProto suggestedLeader = 1;
+  // 当前配置中所有节点的列表。提供当前集群配置中所有节点的信息。
   repeated RaftPeerProto peersInConf = 2;
 }
 
+// 表示领导者未准备好异常，通常在领导者节点启动但尚未准备好时抛出。
 message LeaderNotReadyExceptionProto {
+  // 领导者的节点 ID。
   RaftGroupMemberIdProto serverId = 1; // id of the leader
 }
 
+// 表示数据未被复制异常，通常在写请求的日志条目尚未达到期望的复制级别时发生。
 message NotReplicatedExceptionProto {
+  // 请求的标识符。
   uint64 callId = 1;
+  // 请求期望的复制级别。表示在数据复制时期望的复制程度。
   ReplicationLevel replication = 2;
+  // 日志索引。标识请求的日志条目在集群中的位置。
   uint64 logIndex = 3;
 }
 
+// 表示状态机异常，通常在处理 Raft 协议状态机时发生错误。
 message StateMachineExceptionProto {
+  // 异常的类名。
   string exceptionClassName = 1;
+  // 异常的错误信息。
   string errorMsg = 2;
+  // 堆栈跟踪信息。提供异常发生时的调用栈，用于调试。
   bytes stacktrace = 3;
 }
 
+// 表示已经关闭异常，通常在关闭的流或资源上进行操作时抛出。
 message AlreadyClosedExceptionProto {
+  // 异常的类名。
   string exceptionClassName = 1;
+  // 异常的错误信息。
   string errorMsg = 2;
+  // 堆栈跟踪信息。提供异常发生时的调用栈，用于调试。
   bytes stacktrace = 3;
 }
 
+// 表示Throwable对象
 message ThrowableProto {
+  // 类名
   string className = 1;
+  // 错误信息。
   string errorMessage = 2;
+  // 堆栈跟踪信息。提供异常发生时的调用栈，用于调试。
   bytes stackTrace = 3;
+  // 导致错误的原因
   bytes cause = 4;
 }
 
+// Raft 客户端请求的回复消息类型。
 message RaftClientReplyProto {
+  // 封装了 RPC 请求的元数据。包含响应的基本信息，如响应状态、错误信息等。
   RaftRpcReplyProto rpcReply = 1;
+  // 客户端响应的消息内容。包含实际的客户端请求的响应内容。
   ClientMessageEntryProto message = 2;
-
+  // 封装不同类型的异常详细信息。根据不同异常类型返回相应的异常信息。
   oneof ExceptionDetails {
     NotLeaderExceptionProto notLeaderException = 3;
     NotReplicatedExceptionProto notReplicatedException = 4;
@@ -401,154 +594,225 @@ message RaftClientReplyProto {
     ThrowableProto readException = 11;
     ThrowableProto readIndexException = 12;
   }
-
-  uint64 logIndex = 14; // When the request is a write request and the reply is success, the log index of the transaction
+  // 写请求成功时返回的日志索引。指示写入请求的日志位置。
+  uint64 logIndex = 14;
+  // 提交信息列表。包含与该回复相关的提交信息，通常用于确认数据的提交。
   repeated CommitInfoProto commitInfos = 15;
 }
 
-// setConfiguration request
+// 用于表示一个服务器的 RPC 请求信息。
+message ServerRpcProto {
+  // 服务器的 ID。
+  RaftPeerProto id = 1;
+  // 上次 RPC 请求的延迟时间，单位为毫秒。提供服务器的请求延迟信息，用于性能监控。
+  uint64 lastRpcElapsedTimeMs = 2;
+}
+
+// 用于表示领导者节点的信息。
+message LeaderInfoProto {
+  // 领导者的从节点信息。列出当前领导者的所有追随者服务器及其 RPC 请求信息。
+  repeated ServerRpcProto followerInfo = 1;
+  // 当前领导者的任期号。用于标识领导者的任期，有助于保证 Raft 协议的一致性。
+  uint64 term = 2;
+}
+
+// 用于表示追随者节点的信息。
+message FollowerInfoProto {
+  // 追随者的领导者信息。
+  ServerRpcProto leaderInfo = 1;
+  // 追随者的未完成操作数。表示追随者上有多少个日志操作尚未完成。
+  uint32 outstandingOp = 2;
+}
+
+// 用于表示候选者节点的信息（通常在选举期间使用）。
+message CandidateInfoProto {
+  // 候选者上次成为领导者的时间（毫秒）。记录候选者上次成为领导者的时间，可能用于选举策略的调整。
+  uint64 lastLeaderElapsedTimeMs = 1;
+}
+
+// 用于设置 Raft 集群的配置，包括节点列表和监听器的配置。
 message SetConfigurationRequestProto {
+  // 配置的模式。控制是否覆盖当前配置或追加配置等。
   enum Mode {
+    // 无条件地设置集群配置。
     SET_UNCONDITIONALLY = 0;
+    // 将新的节点或监听器添加到集群配置中。
     ADD = 1;
+    // 比较当前配置，只有在当前配置匹配时才设置新的配置。
     COMPARE_AND_SET = 2;
   }
+  // 封装请求的元数据，例如请求的源节点、目标节点等信息。
   RaftRpcRequestProto rpcRequest = 1;
+  // 集群中的所有节点。
   repeated RaftPeerProto peers = 2;
+  // 集群的监听器节点列表。
   repeated RaftPeerProto listeners = 3;
+  // 设置配置的模式。控制是否覆盖当前配置或追加配置等。
   optional Mode mode = 4;
+  // 当前配置中的节点列表。帮助确定当前的集群成员，在进行比较操作时使用。
   repeated RaftPeerProto currentPeers = 5;
+  // 当前配置中的监听器节点列表。帮助确定当前的监听器节点，在进行比较操作时使用。
   repeated RaftPeerProto currentListeners = 6;
 }
 
-// transfer leadership request
+// 用于请求将 Raft 集群的领导者角色转移到新的节点。
 message TransferLeadershipRequestProto {
+  // 封装请求的元数据。包含关于请求的上下文和路由信息。
   RaftRpcRequestProto rpcRequest = 1;
+  // 新领导者节点。指定新的领导者节点，领导者的角色将在该节点上生效。
   RaftPeerProto newLeader = 2;
 }
 
-// leader election request
-message LeaderElectionManagementRequestProto {
-  RaftRpcRequestProto rpcRequest = 1;
-
-  oneof Op {
-    LeaderElectionPauseRequestProto pause = 2;
-    LeaderElectionResumeRequestProto resume = 3;
-  }
-}
-
+// 请求暂停领导者选举过程。在选举期间暂停选举操作，可能用于故障恢复或其他情况。
 message LeaderElectionPauseRequestProto {
 
 }
-
+// 请求恢复领导者选举过程。在选举暂停后恢复选举，继续进行领导者选举过程。
 message LeaderElectionResumeRequestProto {
 
 }
 
-// snapshot request
-message SnapshotManagementRequestProto {
+// 用于管理 Raft 集群中的领导者选举过程。
+message LeaderElectionManagementRequestProto {
+  // 封装请求的元数据。包含关于请求的上下文和路由信息。
   RaftRpcRequestProto rpcRequest = 1;
+  // 提供选举管理的不同操作选项。可以选择对领导者选举进行暂停或恢复。
+  oneof Op {
+    // 请求暂停领导者选举过程。
+    LeaderElectionPauseRequestProto pause = 2;
+    // 请求恢复领导者选举过程。
+    LeaderElectionResumeRequestProto resume = 3;
+  }
+}
 
+// 请求创建快照。
+message SnapshotCreateRequestProto {
+  // 创建快照时的间隔（gap）。指定在创建快照时需要等待的时间间隔，可能用于控制快照的频率或在某些事件发生后创建快照。
+  uint64 creationGap = 1;
+}
+
+// 用于管理 Raft 集群的快照操作。
+message SnapshotManagementRequestProto {
+  // 封装请求的元数据。包含关于请求的上下文和路由信息。
+  RaftRpcRequestProto rpcRequest = 1;
+  // 提供不同的快照操作选项。
   oneof Op {
     SnapshotCreateRequestProto create = 2;
   }
 }
 
-message SnapshotCreateRequestProto {
-  uint64 creationGap = 1;
-}
-
+// 用于启动领导者选举。
 message StartLeaderElectionRequestProto {
+  // 封装请求的元数据。
   RaftRpcRequestProto serverRequest = 1;
+  // 领导者的最后一条日志条目的信息。
   TermIndexProto leaderLastEntry = 2;
 }
 
+// 用于响应领导者选举请求。
 message StartLeaderElectionReplyProto {
+  // 封装响应的元数据。
   RaftRpcReplyProto serverReply = 1;
 }
 
-// A request to add a new group
+// 用于请求向集群中添加一个新组。
 message GroupAddRequestProto {
-  RaftGroupProto group = 1; // the group to be added.
-  bool format = 2; // Should it format the storage?
+  // 指定要添加的 Raft 集群组。
+  RaftGroupProto group = 1;
+  // 是否格式化存储。如果为 true，则会对该组的存储进行格式化，通常用于初始化存储。
+  bool format = 2;
 }
 
+// 用于请求从集群中移除一个组。
 message GroupRemoveRequestProto {
-  RaftGroupIdProto groupId = 1; // the group to be removed.
-  bool deleteDirectory = 2; // delete the directory for that group?
-  bool renameDirectory = 3; // rename the directory if not deleted.
+  // 指定要移除的 Raft 集群组 ID。
+  RaftGroupIdProto groupId = 1;
+  // 是否删除该组的存储目录。如果为 true，会删除该组的存储目录及其内容。
+  bool deleteDirectory = 2;
+  // 如果不删除目录，是否重命名该目录。用于控制在移除组时如何处理其目录。
+  bool renameDirectory = 3;
 }
 
+// 用于处理集群组的添加或删除操作。
 message GroupManagementRequestProto {
+  // 封装请求的元数据，包含请求源、目标等信息。
   RaftRpcRequestProto rpcRequest = 1;
-
+  // 操作类型，决定是添加组还是移除组。
   oneof Op {
+    // 执行添加组的操作。
     GroupAddRequestProto groupAdd = 2;
+    // 执行删除组的操作。
     GroupRemoveRequestProto groupRemove = 3;
   }
 }
 
-// server info requests
+// 用于请求获取集群中所有组的列表。
 message GroupListRequestProto {
+  // 封装请求的元数据。
   RaftRpcRequestProto rpcRequest = 1;
 }
 
+// 用于请求获取某个特定组的信息。
 message GroupInfoRequestProto {
+  // 封装请求的元数据。
   RaftRpcRequestProto rpcRequest = 1;
+  // 指定要查询的组 ID。
   RaftGroupIdProto groupId = 2;
 }
 
-message ServerRpcProto {
-  RaftPeerProto id = 1;
-  uint64 lastRpcElapsedTimeMs = 2;
-}
-
-message LeaderInfoProto {
-  repeated ServerRpcProto followerInfo = 1;
-  uint64 term = 2;
-}
-
-message FollowerInfoProto {
-  ServerRpcProto leaderInfo = 1;
-  uint32 outstandingOp = 2;
-}
-
-message CandidateInfoProto {
-  uint64 lastLeaderElapsedTimeMs = 1;
-}
-
+// 用于表示服务器的角色信息，包括领导者、追随者和候选者。
 message RoleInfoProto {
+  // 当前服务器的 ID。
   RaftPeerProto self = 1;
+  // 当前服务器的角色（领导者、追随者或候选者）。
   RaftPeerRole role = 2;
+  // 该服务器角色已存在的时间（毫秒）。记录当前角色持续的时间，帮助在选举时决定是否进行角色切换。
   uint64 roleElapsedTimeMs = 3;
-
+  // 提供不同角色的详细信息。
   oneof PeerInfo {
+    // 如果是领导者，则提供领导者的详细信息。
     LeaderInfoProto leaderInfo = 4;
+    // 如果是追随者，则提供追随者的详细信息。
     FollowerInfoProto followerInfo = 5;
+    // 如果是候选者，则提供候选者的详细信息。
     CandidateInfoProto candidateInfo = 6;
   }
 }
 
+// 用于响应查询集群中所有组的请求。
 message GroupListReplyProto {
+  // 封装响应的元数据。
   RaftRpcReplyProto rpcReply = 1;
+  // 集群中所有组的 ID 列表。
   repeated RaftGroupIdProto groupId = 2;
 }
 
+// 用于响应查询某个特定组的详细信息的请求。
 message GroupInfoReplyProto {
+  // 封装响应的元数据。
   RaftRpcReplyProto rpcReply = 1;
+  // 组的详细信息。
   RaftGroupProto group = 2;
+  // 节点当前的角色信息。
   RoleInfoProto role = 3;
+  // Raft 存储的健康状态。
   bool isRaftStorageHealthy = 4;
+  // 该组的提交信息。
   repeated CommitInfoProto commitInfos = 5;
+  // 该组的配置信息。
   RaftConfigurationProto conf = 6;
+  // 该组的日志信息。
   LogInfoProto logInfo = 7;
 }
 
-/** Add new LogInfoProto for ratly-2030, allow GroupInfoCommand to show each server's last committed log,
-    last applied log, last snapshot log, last entry log.*/
+// 用于表示服务器的日志信息，包括已提交的日志、已应用的日志、快照等。
 message LogInfoProto {
+  // 最后一个快照的日志条目索引和任期。
   TermIndexProto lastSnapshot = 1;
+  // 最后应用的日志条目索引和任期。
   TermIndexProto applied = 2;
+  // 最后已提交的日志条目索引和任期。
   TermIndexProto committed = 3;
+  // 最后的日志条目索引和任期。
   TermIndexProto lastEntry = 4;
 }

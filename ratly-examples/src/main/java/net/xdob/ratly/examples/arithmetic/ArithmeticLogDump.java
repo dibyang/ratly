@@ -4,7 +4,7 @@ package net.xdob.ratly.examples.arithmetic;
 
 import java.io.File;
 
-import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
+import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 import net.xdob.ratly.tools.ParseRatlyLog;
 
 /**

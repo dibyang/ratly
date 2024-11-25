@@ -2,7 +2,7 @@
 package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.io.MD5Hash;
-import net.xdob.ratly.proto.RaftProtos.FileChunkProto;
+import net.xdob.ratly.proto.raft.FileChunkProto;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import net.xdob.ratly.util.FileUtils;

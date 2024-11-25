@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.raftlog;
 
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.server.metrics.RaftLogMetrics;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.RaftStorageMetadata;

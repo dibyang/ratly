@@ -3,8 +3,8 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
-import net.xdob.ratly.proto.RaftProtos.WatchRequestTypeProto;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
+import net.xdob.ratly.proto.raft.WatchRequestTypeProto;
 import net.xdob.ratly.protocol.exceptions.NotReplicatedException;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.exceptions.ResourceUnavailableException;

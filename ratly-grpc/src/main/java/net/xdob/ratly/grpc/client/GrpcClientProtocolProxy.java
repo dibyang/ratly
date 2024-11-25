@@ -4,8 +4,8 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcTlsConfig;
 import net.xdob.ratly.protocol.ClientId;
 import io.grpc.stub.StreamObserver;
-import net.xdob.ratly.proto.RaftProtos.RaftClientReplyProto;
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto;
+import net.xdob.ratly.proto.raft.RaftClientReplyProto;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto;
 import net.xdob.ratly.protocol.RaftPeer;
 
 import java.io.Closeable;

@@ -2,7 +2,7 @@
 
 package net.xdob.ratly.netty.client;
 
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.DataStreamPacket;
 import net.xdob.ratly.protocol.DataStreamReply;

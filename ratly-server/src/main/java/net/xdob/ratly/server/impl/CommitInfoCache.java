@@ -3,7 +3,7 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.ProtoUtils;
 

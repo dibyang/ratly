@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.statemachine;
 
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.Message;

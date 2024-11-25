@@ -1,7 +1,7 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 
 import java.util.Collection;
 import java.util.Collections;

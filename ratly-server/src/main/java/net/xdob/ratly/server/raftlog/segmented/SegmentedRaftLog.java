@@ -17,7 +17,7 @@ import net.xdob.ratly.server.storage.RaftStorageMetadata;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.server.raftlog.segmented.LogSegment.LogRecord;
 import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLogCache.TruncateIndices;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.TransactionContext;
 import net.xdob.ratly.statemachine.impl.TransactionContextImpl;

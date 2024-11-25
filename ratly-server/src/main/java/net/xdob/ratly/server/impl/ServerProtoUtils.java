@@ -2,8 +2,8 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
-import net.xdob.ratly.proto.RaftProtos.*;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto.AppendResult;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto.AppendResult;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.RaftPeer;

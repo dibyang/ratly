@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.raftlog;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.statemachine.TransactionContext;

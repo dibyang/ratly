@@ -1,8 +1,8 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto.TypeCase;
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto.TypeCase;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.NotLeaderException;
 import net.xdob.ratly.server.protocol.TermIndex;

@@ -1,9 +1,9 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
-import net.xdob.ratly.proto.RaftProtos.LogInfoProto;
-import net.xdob.ratly.proto.RaftProtos.RaftConfigurationProto;
-import net.xdob.ratly.proto.RaftProtos.RoleInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
+import net.xdob.ratly.proto.raft.LogInfoProto;
+import net.xdob.ratly.proto.raft.RaftConfigurationProto;
+import net.xdob.ratly.proto.raft.RoleInfoProto;
 
 import java.util.Collection;
 import java.util.Optional;

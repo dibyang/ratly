@@ -7,7 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.OpenCloseState;

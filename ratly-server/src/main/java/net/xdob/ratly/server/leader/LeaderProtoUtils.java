@@ -2,11 +2,11 @@
 package net.xdob.ratly.server.leader;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
-import net.xdob.ratly.proto.RaftProtos.FileChunkProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto.NotificationProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto.SnapshotChunkProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.FileChunkProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto.NotificationProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto.SnapshotChunkProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftServer;

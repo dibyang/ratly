@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.util.Preconditions;
 
 import java.util.Arrays;
@@ -45,7 +45,7 @@ public class SetConfigurationRequest extends RaftClientRequest {
       Preconditions.assertUnique(listenersInCurrentConf);
     }
 
-    public List<RaftPeer> getPeersInNewConf(RaftProtos.RaftPeerRole role) {
+    public List<RaftPeer> getPeersInNewConf(RaftPeerRole role) {
       switch (role) {
         case FOLLOWER: return serversInNewConf;
         case LISTENER: return listenersInNewConf;
@@ -72,8 +72,8 @@ public class SetConfigurationRequest extends RaftClientRequest {
     @Override
     public String toString() {
       return getMode()
-          + ", servers:" + getPeersInNewConf(RaftProtos.RaftPeerRole.FOLLOWER)
-          + ", listeners:" + getPeersInNewConf(RaftProtos.RaftPeerRole.LISTENER);
+          + ", servers:" + getPeersInNewConf(RaftPeerRole.FOLLOWER)
+          + ", listeners:" + getPeersInNewConf(RaftPeerRole.LISTENER);
 
     }
 

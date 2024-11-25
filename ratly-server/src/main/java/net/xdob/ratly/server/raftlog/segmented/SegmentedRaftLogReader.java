@@ -3,7 +3,7 @@ package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.io.CorruptedFileException;
 import net.xdob.ratly.metrics.Timekeeper;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.exceptions.ChecksumException;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.raftlog.RaftLog;

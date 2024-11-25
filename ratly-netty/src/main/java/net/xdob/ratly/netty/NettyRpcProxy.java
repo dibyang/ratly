@@ -10,9 +10,9 @@ import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import net.xdob.ratly.proto.RaftProtos.RaftRpcRequestProto;
-import net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerReplyProto;
-import net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerRequestProto;
+import net.xdob.ratly.proto.raft.RaftRpcRequestProto;
+import net.xdob.ratly.proto.netty.RaftNettyServerReplyProto;
+import net.xdob.ratly.proto.netty.RaftNettyServerRequestProto;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.PeerProxyMap;
 import net.xdob.ratly.util.ProtoUtils;
@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerReplyProto.RaftNettyServerReplyCase.EXCEPTIONREPLY;
+import static net.xdob.ratly.proto.netty.RaftNettyServerReplyProto.RaftNettyServerReplyCase.EXCEPTIONREPLY;
 
 public class NettyRpcProxy implements Closeable {
   public static class PeerMap extends PeerProxyMap<NettyRpcProxy> {

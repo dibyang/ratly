@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftConfiguration;

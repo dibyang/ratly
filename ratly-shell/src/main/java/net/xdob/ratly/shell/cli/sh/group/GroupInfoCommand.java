@@ -3,7 +3,7 @@ package net.xdob.ratly.shell.cli.sh.group;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import net.xdob.ratly.proto.RaftProtos;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.GroupInfoReply;
 import net.xdob.ratly.shell.cli.sh.command.AbstractRatlyCommand;
 import net.xdob.ratly.shell.cli.sh.command.Context;
@@ -31,7 +31,7 @@ public class GroupInfoCommand extends AbstractRatlyCommand {
     super.run(cl);
     println("group id: " + getRaftGroup().getGroupId().getUuid());
     final GroupInfoReply reply = getGroupInfoReply();
-    RaftProtos.RaftPeerProto leader = getLeader(reply.getRoleInfoProto());
+    RaftPeerProto leader = getLeader(reply.getRoleInfoProto());
     if (leader == null) {
       println("leader not found");
     } else {

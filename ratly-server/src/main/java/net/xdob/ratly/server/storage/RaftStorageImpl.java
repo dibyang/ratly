@@ -4,7 +4,7 @@ package net.xdob.ratly.server.storage;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicReference;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftServerConfigKeys.Log.CorruptionPolicy;

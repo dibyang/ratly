@@ -2,7 +2,7 @@
 
 package net.xdob.ratly.statemachine.impl;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroupId;

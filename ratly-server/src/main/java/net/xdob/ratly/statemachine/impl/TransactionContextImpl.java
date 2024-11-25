@@ -1,9 +1,9 @@
 
 package net.xdob.ratly.statemachine.impl;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
-import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
+import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.statemachine.StateMachine;

@@ -1,7 +1,7 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.*;
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto.TypeCase;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto.TypeCase;
 import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.ProtoUtils;
 

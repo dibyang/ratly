@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server;
 
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 
@@ -19,7 +19,7 @@ import java.util.Collection;
  *
  * The objects of this class are immutable.
  *
- * @see net.xdob.ratly.proto.RaftProtos.RaftPeerRole
+ * @see net.xdob.ratly.proto.raft.RaftPeerRole
  */
 public interface RaftConfiguration {
   /**

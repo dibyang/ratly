@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 
 import java.util.Collection;
 

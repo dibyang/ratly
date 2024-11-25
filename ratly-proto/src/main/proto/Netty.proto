@@ -1,43 +1,70 @@
 syntax = "proto3";
 option java_package = "net.xdob.ratly.proto.netty";
-option java_outer_classname = "NettyProtos";
+option java_multiple_files = true;
 option java_generate_equals_and_hash = true;
 
 package ratly.netty;
 
 import "Raft.proto";
 
+// 这个消息类型用于封装 Raft 请求或响应中出现的异常信息。
+// 主要用于在网络通信中捕获和传递异常信息，帮助客户端或服务器处理网络层的错误。
 message RaftNettyExceptionReplyProto {
-  ratly.common.RaftRpcReplyProto rpcReply = 1;
+  // 封装基本的 Raft RPC 回复信息，提供请求的基本元数据。
+  ratly.raft.RaftRpcReplyProto rpcReply = 1;
+  // 包含异常的详细信息，通常是一个字节流，可能包含异常的类名、错误消息和栈跟踪。
   bytes exception = 2;
 }
-
+// 这个消息类型用于封装服务器接收到的 Raft 请求。
+// 封装所有 Raft 请求，使用 oneof 允许请求类型灵活扩展，支持多种 Raft 操作。
 message RaftNettyServerRequestProto {
   oneof raftNettyServerRequest {
-    ratly.common.RequestVoteRequestProto requestVoteRequest = 1;
-    ratly.common.AppendEntriesRequestProto appendEntriesRequest = 2;
-    ratly.common.InstallSnapshotRequestProto installSnapshotRequest = 3;
-    ratly.common.RaftClientRequestProto raftClientRequest = 4;
-    ratly.common.SetConfigurationRequestProto setConfigurationRequest = 5;
-    ratly.common.GroupManagementRequestProto groupManagementRequest = 6;
-    ratly.common.GroupListRequestProto groupListRequest = 7;
-    ratly.common.GroupInfoRequestProto groupInfoRequest = 8;
-    ratly.common.TransferLeadershipRequestProto transferLeadershipRequest = 9;
-    ratly.common.StartLeaderElectionRequestProto startLeaderElectionRequest = 10;
-    ratly.common.SnapshotManagementRequestProto snapshotManagementRequest = 11;
-    ratly.common.LeaderElectionManagementRequestProto leaderElectionManagementRequest = 12;
+    // 投票请求，通常用于领导者选举。
+    ratly.raft.RequestVoteRequestProto requestVoteRequest = 1;
+    // 日志条目追加请求，用于领导者与追随者之间同步日志。
+    ratly.raft.AppendEntriesRequestProto appendEntriesRequest = 2;
+    // 安装快照请求，通常用于同步和恢复状态。
+    ratly.raft.InstallSnapshotRequestProto installSnapshotRequest = 3;
+    // 来自客户端的 Raft 请求，可能是写请求、读请求等。
+    ratly.raft.RaftClientRequestProto raftClientRequest = 4;
+    // 设置新的 Raft 配置。
+    ratly.raft.SetConfigurationRequestProto setConfigurationRequest = 5;
+    // 集群组管理请求，涉及添加或移除组。
+    ratly.raft.GroupManagementRequestProto groupManagementRequest = 6;
+    // 查询组列表请求。
+    ratly.raft.GroupListRequestProto groupListRequest = 7;
+    // 查询组的详细信息请求。
+    ratly.raft.GroupInfoRequestProto groupInfoRequest = 8;
+    // 请求转移领导权。
+    ratly.raft.TransferLeadershipRequestProto transferLeadershipRequest = 9;
+    // 请求启动领导者选举。
+    ratly.raft.StartLeaderElectionRequestProto startLeaderElectionRequest = 10;
+    // 请求管理快照操作。
+    ratly.raft.SnapshotManagementRequestProto snapshotManagementRequest = 11;
+    // 管理领导者选举（例如暂停或恢复选举）请求。
+    ratly.raft.LeaderElectionManagementRequestProto leaderElectionManagementRequest = 12;
   }
 }
 
+// 这个消息类型用于封装 Raft 服务器的响应。
+// 封装所有 Raft 请求的回复，确保客户端能够获得相应操作的结果。
 message RaftNettyServerReplyProto {
   oneof raftNettyServerReply {
-    ratly.common.RequestVoteReplyProto requestVoteReply = 1;
-    ratly.common.AppendEntriesReplyProto appendEntriesReply = 2;
-    ratly.common.InstallSnapshotReplyProto installSnapshotReply = 3;
-    ratly.common.RaftClientReplyProto raftClientReply = 4;
-    ratly.common.GroupListReplyProto groupListReply = 5;
-    ratly.common.GroupInfoReplyProto groupInfoReply = 6;
+    // 投票请求的回复，包含投票结果。
+    ratly.raft.RequestVoteReplyProto requestVoteReply = 1;
+    // 日志条目追加请求的回复，包含日志同步结果。
+    ratly.raft.AppendEntriesReplyProto appendEntriesReply = 2;
+    // 快照安装请求的回复。
+    ratly.raft.InstallSnapshotReplyProto installSnapshotReply = 3;
+    // 客户端请求的回复，可能是客户端的写入或读取结果。
+    ratly.raft.RaftClientReplyProto raftClientReply = 4;
+    // 组列表的查询回复。
+    ratly.raft.GroupListReplyProto groupListReply = 5;
+    // 组信息的查询回复。
+    ratly.raft.GroupInfoReplyProto groupInfoReply = 6;
+    // 包含异常信息的回复，通常在请求处理出现错误时返回。
     RaftNettyExceptionReplyProto exceptionReply = 7;
-    ratly.common.StartLeaderElectionReplyProto startLeaderElectionReply = 8;
+    // 领导者选举请求的回复。
+    ratly.raft.StartLeaderElectionReplyProto startLeaderElectionReply = 8;
   }
 }

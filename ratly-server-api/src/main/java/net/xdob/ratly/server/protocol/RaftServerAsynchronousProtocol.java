@@ -2,10 +2,10 @@
 
 package net.xdob.ratly.server.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.ReadIndexRequestProto;
-import net.xdob.ratly.proto.RaftProtos.ReadIndexReplyProto;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.ReadIndexRequestProto;
+import net.xdob.ratly.proto.raft.ReadIndexReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
 import net.xdob.ratly.util.ReferenceCountedObject;
 
 import java.io.IOException;

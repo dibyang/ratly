@@ -1,7 +1,6 @@
 package net.xdob.ratly.util;
 
-import net.xdob.ratly.proto.RaftProtos;
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.*;
@@ -85,7 +84,7 @@ public interface ProtoUtils {
         .setClientAddress(p.getClientAddress())
         .setAdminAddress(p.getAdminAddress())
         .setPriority(p.getPriority())
-        .setStartupRole(p.hasStartupRole() ? p.getStartupRole() : RaftProtos.RaftPeerRole.FOLLOWER)
+        .setStartupRole(p.hasStartupRole() ? p.getStartupRole() : RaftPeerRole.FOLLOWER)
         .build();
   }
 

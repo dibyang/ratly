@@ -5,7 +5,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import net.xdob.ratly.client.RaftClient;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;

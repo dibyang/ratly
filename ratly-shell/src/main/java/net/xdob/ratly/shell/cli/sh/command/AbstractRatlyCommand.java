@@ -12,11 +12,11 @@ import net.xdob.ratly.shell.cli.CliUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import net.xdob.ratly.client.RaftClient;
-import net.xdob.ratly.proto.RaftProtos.RaftConfigurationProto;
-import net.xdob.ratly.proto.RaftProtos.FollowerInfoProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
-import net.xdob.ratly.proto.RaftProtos.RoleInfoProto;
+import net.xdob.ratly.proto.raft.RaftConfigurationProto;
+import net.xdob.ratly.proto.raft.FollowerInfoProto;
+import net.xdob.ratly.proto.raft.RaftPeerProto;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RoleInfoProto;
 import net.xdob.ratly.util.ProtoUtils;
 
 import java.io.IOException;

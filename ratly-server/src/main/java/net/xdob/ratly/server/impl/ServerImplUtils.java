@@ -3,8 +3,8 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroup;
 import net.xdob.ratly.protocol.RaftGroupId;

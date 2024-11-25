@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.raftlog.segmented;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import com.google.protobuf.CodedOutputStream;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.JavaUtils;

@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.RoutingTableProto;
+import net.xdob.ratly.proto.raft.RoutingTableProto;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.ProtoUtils;

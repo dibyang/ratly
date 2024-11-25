@@ -1,8 +1,8 @@
 
 package net.xdob.ratly.server.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.TermIndexProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.TermIndexProto;
 import net.xdob.ratly.server.raftlog.RaftLog;
 
 import java.util.Comparator;

@@ -11,7 +11,7 @@ import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc;
 import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceBlockingStub;
 import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceStub;

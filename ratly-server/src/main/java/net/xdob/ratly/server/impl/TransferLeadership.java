@@ -2,7 +2,7 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftPeerId;
@@ -194,9 +194,9 @@ public class TransferLeadership {
     LOG.info("{}: sendStartLeaderElection to follower {}, lastEntry={}",
         server.getMemberId(), transferee, lastEntry);
 
-    final RaftProtos.StartLeaderElectionRequestProto r = ServerProtoUtils.toStartLeaderElectionRequestProto(
+    final StartLeaderElectionRequestProto r = ServerProtoUtils.toStartLeaderElectionRequestProto(
         server.getMemberId(), transferee, lastEntry);
-    final CompletableFuture<RaftProtos.StartLeaderElectionReplyProto> f = CompletableFuture.supplyAsync(() -> {
+    final CompletableFuture<StartLeaderElectionReplyProto> f = CompletableFuture.supplyAsync(() -> {
       server.getLeaderElectionMetrics().onTransferLeadership();
       try {
         return server.getServerRpc().startLeaderElection(r);

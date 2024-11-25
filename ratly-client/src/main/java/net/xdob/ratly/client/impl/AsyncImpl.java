@@ -5,8 +5,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import net.xdob.ratly.client.AsyncRpcApi;
-import net.xdob.ratly.proto.RaftProtos;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftClientRequest;
@@ -62,7 +62,7 @@ class AsyncImpl implements AsyncRpcApi {
 
   @Override
   public CompletableFuture<RaftClientReply> sendForward(RaftClientRequest request) {
-    final RaftProtos.RaftClientRequestProto proto = ClientProtoUtils.toRaftClientRequestProto(request);
+    final RaftClientRequestProto proto = ClientProtoUtils.toRaftClientRequestProto(request);
     return send(RaftClientRequest.forwardRequestType(), Message.valueOf(proto.toByteString()), null);
   }
 }

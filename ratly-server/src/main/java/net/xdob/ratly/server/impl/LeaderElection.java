@@ -2,8 +2,8 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.metrics.Timekeeper;
-import net.xdob.ratly.proto.RaftProtos.RequestVoteReplyProto;
-import net.xdob.ratly.proto.RaftProtos.RequestVoteRequestProto;
+import net.xdob.ratly.proto.raft.RequestVoteReplyProto;
+import net.xdob.ratly.proto.raft.RequestVoteRequestProto;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;

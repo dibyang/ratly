@@ -1,13 +1,13 @@
 
 package net.xdob.ratly.server.util;
 
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotReplyProto;
-import net.xdob.ratly.proto.RaftProtos.InstallSnapshotRequestProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.RequestVoteReplyProto;
-import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.proto.raft.RequestVoteReplyProto;
+import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.util.ProtoUtils;

@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.RaftPeerIdProto;
+import net.xdob.ratly.proto.raft.RaftPeerIdProto;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;

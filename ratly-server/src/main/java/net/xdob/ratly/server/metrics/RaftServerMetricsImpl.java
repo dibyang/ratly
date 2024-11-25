@@ -13,8 +13,8 @@ import net.xdob.ratly.metrics.Timekeeper;
 
 import net.xdob.ratly.metrics.MetricRegistryInfo;
 import net.xdob.ratly.metrics.RatlyMetricRegistry;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto.TypeCase;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto.TypeCase;
 import net.xdob.ratly.protocol.RaftClientRequest.Type;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.RaftPeerId;

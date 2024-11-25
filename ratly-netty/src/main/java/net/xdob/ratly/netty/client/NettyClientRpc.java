@@ -9,12 +9,12 @@ import net.xdob.ratly.client.impl.RaftClientRpcWithProxy;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.netty.NettyRpcProxy;
 import net.xdob.ratly.protocol.*;
-import net.xdob.ratly.proto.RaftProtos;
-import net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto;
-import net.xdob.ratly.proto.RaftProtos.RaftRpcRequestProto;
-import net.xdob.ratly.proto.RaftProtos.GroupManagementRequestProto;
-import net.xdob.ratly.proto.RaftProtos.SetConfigurationRequestProto;
-import net.xdob.ratly.proto.netty.NettyProtos.RaftNettyServerRequestProto;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.RaftClientRequestProto;
+import net.xdob.ratly.proto.raft.RaftRpcRequestProto;
+import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
+import net.xdob.ratly.proto.raft.SetConfigurationRequestProto;
+import net.xdob.ratly.proto.netty.RaftNettyServerRequestProto;
 import net.xdob.ratly.util.JavaUtils;
 
 import java.io.IOException;
@@ -75,23 +75,23 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
           (SetConfigurationRequest)request);
       b.setSetConfigurationRequest(proto);
     } else if (request instanceof GroupListRequest) {
-      final RaftProtos.GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto(
+      final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto(
           (GroupListRequest)request);
       b.setGroupListRequest(proto);
     } else if (request instanceof GroupInfoRequest) {
-      final RaftProtos.GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto(
+      final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto(
           (GroupInfoRequest)request);
       b.setGroupInfoRequest(proto);
     } else if (request instanceof TransferLeadershipRequest) {
-      final RaftProtos.TransferLeadershipRequestProto proto = ClientProtoUtils.toTransferLeadershipRequestProto(
+      final TransferLeadershipRequestProto proto = ClientProtoUtils.toTransferLeadershipRequestProto(
           (TransferLeadershipRequest)request);
       b.setTransferLeadershipRequest(proto);
     } else if (request instanceof SnapshotManagementRequest) {
-      final RaftProtos.SnapshotManagementRequestProto proto = ClientProtoUtils.toSnapshotManagementRequestProto(
+      final SnapshotManagementRequestProto proto = ClientProtoUtils.toSnapshotManagementRequestProto(
           (SnapshotManagementRequest) request);
       b.setSnapshotManagementRequest(proto);
     } else if (request instanceof LeaderElectionManagementRequest) {
-      final RaftProtos.LeaderElectionManagementRequestProto proto =
+      final LeaderElectionManagementRequestProto proto =
           ClientProtoUtils.toLeaderElectionManagementRequestProto(
           (LeaderElectionManagementRequest) request);
       b.setLeaderElectionManagementRequest(proto);

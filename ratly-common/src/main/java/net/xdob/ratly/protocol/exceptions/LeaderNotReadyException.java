@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol.exceptions;
 
-import net.xdob.ratly.proto.RaftProtos.RaftGroupMemberIdProto;
+import net.xdob.ratly.proto.raft.RaftGroupMemberIdProto;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.util.ProtoUtils;
 

@@ -1,6 +1,6 @@
 package net.xdob.ratly.server.storage;
 
-import net.xdob.ratly.proto.RaftProtos.TermIndexProto;
+import net.xdob.ratly.proto.raft.TermIndexProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.util.JavaUtils;
 

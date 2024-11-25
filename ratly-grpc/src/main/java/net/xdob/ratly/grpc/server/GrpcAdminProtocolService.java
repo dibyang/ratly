@@ -2,7 +2,7 @@ package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
 import net.xdob.ratly.grpc.GrpcUtil;
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.AdminAsynchronousProtocol;
 import net.xdob.ratly.protocol.GroupInfoRequest;
 import net.xdob.ratly.protocol.GroupListRequest;
@@ -12,8 +12,8 @@ import net.xdob.ratly.protocol.SetConfigurationRequest;
 import net.xdob.ratly.protocol.SnapshotManagementRequest;
 import net.xdob.ratly.protocol.TransferLeadershipRequest;
 import io.grpc.stub.StreamObserver;
-import net.xdob.ratly.proto.RaftProtos.RaftClientReplyProto;
-import net.xdob.ratly.proto.RaftProtos.GroupManagementRequestProto;
+import net.xdob.ratly.proto.raft.RaftClientReplyProto;
+import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
 import net.xdob.ratly.proto.grpc.AdminProtocolServiceGrpc.AdminProtocolServiceImplBase;
 
 public class GrpcAdminProtocolService extends AdminProtocolServiceImplBase {

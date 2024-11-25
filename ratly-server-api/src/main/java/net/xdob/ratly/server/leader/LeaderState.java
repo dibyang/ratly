@@ -1,9 +1,9 @@
 
 package net.xdob.ratly.server.leader;
 
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesReplyProto;
-import net.xdob.ratly.proto.RaftProtos.AppendEntriesRequestProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
+import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.util.JavaUtils;
 

@@ -1,7 +1,7 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.RaftPeerProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RaftPeerProto;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.NetUtils;

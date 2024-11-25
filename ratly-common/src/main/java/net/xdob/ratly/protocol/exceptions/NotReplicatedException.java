@@ -1,7 +1,7 @@
 package net.xdob.ratly.protocol.exceptions;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
-import net.xdob.ratly.proto.RaftProtos.ReplicationLevel;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
+import net.xdob.ratly.proto.raft.ReplicationLevel;
 
 import java.util.Collection;
 

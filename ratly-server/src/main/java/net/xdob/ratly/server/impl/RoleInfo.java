@@ -2,11 +2,11 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.CandidateInfoProto;
-import net.xdob.ratly.proto.RaftProtos.FollowerInfoProto;
-import net.xdob.ratly.proto.RaftProtos.LeaderInfoProto;
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
-import net.xdob.ratly.proto.RaftProtos.RoleInfoProto;
+import net.xdob.ratly.proto.raft.CandidateInfoProto;
+import net.xdob.ratly.proto.raft.FollowerInfoProto;
+import net.xdob.ratly.proto.raft.LeaderInfoProto;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RoleInfoProto;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.leader.LogAppender;

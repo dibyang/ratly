@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos.RaftPeerRole;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.util.Preconditions;
@@ -26,12 +26,12 @@ import java.util.stream.Stream;
 class PeerConfiguration {
   /**
    * Peers are voting members such as LEADER, CANDIDATE and FOLLOWER
-   * @see net.xdob.ratly.proto.RaftProtos.RaftPeerRole
+   * @see net.xdob.ratly.proto.raft.RaftPeerRole
    */
   private final Map<RaftPeerId, RaftPeer> peers;
   /**
    * Listeners are non-voting members.
-   * @see net.xdob.ratly.proto.RaftProtos.RaftPeerRole#LISTENER
+   * @see net.xdob.ratly.proto.raft.RaftPeerRole#LISTENER
    */
   private final Map<RaftPeerId, RaftPeer> listeners;
 

@@ -1,7 +1,7 @@
 package net.xdob.ratly.datastream.impl;
 
 import net.xdob.ratly.io.WriteOption;
-import net.xdob.ratly.proto.RaftProtos.DataStreamPacketHeaderProto.Type;
+import net.xdob.ratly.proto.raft.DataStreamPacketHeaderProto.Type;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.DataStreamRequest;
 import net.xdob.ratly.protocol.DataStreamRequestHeader;

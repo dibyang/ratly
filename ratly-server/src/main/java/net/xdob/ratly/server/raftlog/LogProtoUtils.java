@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.raftlog;
 
-import net.xdob.ratly.proto.RaftProtos.*;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftPeer;

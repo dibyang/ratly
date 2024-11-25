@@ -2,8 +2,8 @@
 
 package net.xdob.ratly.tools;
 
-import net.xdob.ratly.proto.RaftProtos.StateMachineLogEntryProto;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.segmented.LogSegmentPath;

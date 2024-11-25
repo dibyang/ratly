@@ -1,6 +1,6 @@
 package net.xdob.ratly.protocol;
 
-import net.xdob.ratly.proto.RaftProtos.CommitInfoProto;
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.exceptions.*;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;
@@ -118,7 +118,7 @@ public class RaftClientReply extends RaftClientMessage {
 
   /**
    * This field is the log index of the transaction
-   * if (1) the request is {@link net.xdob.ratly.proto.RaftProtos.RaftClientRequestProto.TypeCase#WRITE} and (2) the
+   * if (1) the request is {@link net.xdob.ratly.proto.raft.RaftClientRequestProto.TypeCase#WRITE} and (2) the
    * reply is success.
    * Otherwise, this field is not used.
    */

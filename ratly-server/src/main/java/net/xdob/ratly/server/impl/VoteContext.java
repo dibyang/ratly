@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.RaftProtos;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
@@ -118,7 +118,7 @@ class VoteContext {
    * See Section 5.4.1 Election restriction
    */
   boolean decideVote(RaftPeer candidate, TermIndex candidateLastEntry) {
-    if (impl.getRole().getCurrentRole() == RaftProtos.RaftPeerRole.LISTENER) {
+    if (impl.getRole().getCurrentRole() == RaftPeerRole.LISTENER) {
       return reject("this server is a listener, who is a non-voting member");
     }
     if (candidate == null) {

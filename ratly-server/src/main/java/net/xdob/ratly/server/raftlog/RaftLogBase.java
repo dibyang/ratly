@@ -4,7 +4,7 @@ package net.xdob.ratly.server.raftlog;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.RaftProtos.LogEntryProto;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.RaftConfiguration;
