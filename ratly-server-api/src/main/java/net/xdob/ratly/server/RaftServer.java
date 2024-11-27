@@ -1,150 +1,112 @@
-
 package net.xdob.ratly.server;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.Objects;
-import java.util.Optional;
+
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.proto.raft.CommitInfoProto;
-import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.AdminAsynchronousProtocol;
 import net.xdob.ratly.protocol.AdminProtocol;
 import net.xdob.ratly.protocol.RaftClientAsynchronousProtocol;
 import net.xdob.ratly.protocol.RaftClientProtocol;
 import net.xdob.ratly.protocol.RaftGroup;
 import net.xdob.ratly.protocol.RaftGroupId;
-import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rpc.RpcType;
-import net.xdob.ratly.server.metrics.RaftServerMetrics;
 import net.xdob.ratly.server.protocol.RaftServerAsynchronousProtocol;
 import net.xdob.ratly.server.protocol.RaftServerProtocol;
-import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.statemachine.StateMachine;
-import com.google.common.collect.Iterables;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.LifeCycle;
 import net.xdob.ratly.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Raft server interface */
+/**
+ * Raft 协议的服务端实现，负责处理集群中的节点间的通信、领导者选举、日志复制等操作。
+ */
 public interface RaftServer extends Closeable, RpcType.Get,
     RaftServerProtocol, RaftServerAsynchronousProtocol,
     RaftClientProtocol, RaftClientAsynchronousProtocol,
     AdminProtocol, AdminAsynchronousProtocol {
   Logger LOG = LoggerFactory.getLogger(RaftServer.class);
 
-  /** A division of a {@link RaftServer} for a particular {@link RaftGroup}. */
-  interface Division extends Closeable {
-    Logger LOG = LoggerFactory.getLogger(Division.class);
-
-    /** @return the {@link DivisionProperties} for this division. */
-    DivisionProperties properties();
-
-    /** @return the {@link RaftGroupMemberId} for this division. */
-    RaftGroupMemberId getMemberId();
-
-    /** @return the {@link RaftPeerId} for this division. */
-    default RaftPeerId getId() {
-      return getMemberId().getPeerId();
-    }
-
-    /** @return the {@link RaftPeer} for this division. */
-    default RaftPeer getPeer() {
-      return Optional.ofNullable(getRaftConf().getPeer(getId(), RaftPeerRole.FOLLOWER, RaftPeerRole.LISTENER))
-        .orElseGet(() -> getRaftServer().getPeer());
-    }
-
-    /** @return the information about this division. */
-    DivisionInfo getInfo();
-
-    /** @return the {@link RaftGroup} for this division. */
-    default RaftGroup getGroup() {
-      final Collection<RaftPeer> allFollowerPeers = getRaftConf().getAllPeers(RaftPeerRole.FOLLOWER);
-      final Collection<RaftPeer> allListenerPeers = getRaftConf().getAllPeers(RaftPeerRole.LISTENER);
-      Iterable<RaftPeer> peers = Iterables.concat(allFollowerPeers, allListenerPeers);
-      return RaftGroup.valueOf(getMemberId().getGroupId(), peers);
-    }
-
-    /** @return the current {@link RaftConfiguration} for this division. */
-    RaftConfiguration getRaftConf();
-
-    /** @return the {@link RaftServer} containing this division. */
-    RaftServer getRaftServer();
-
-    /** @return the {@link RaftServerMetrics} for this division. */
-    RaftServerMetrics getRaftServerMetrics();
-
-    /** @return the {@link StateMachine} for this division. */
-    StateMachine getStateMachine();
-
-    /** @return the raft log of this division. */
-    RaftLog getRaftLog();
-
-    /** @return the storage of this division. */
-    RaftStorage getRaftStorage();
-
-    /** @return the commit information of this division. */
-    Collection<CommitInfoProto> getCommitInfos();
-
-    /** @return the retry cache of this division. */
-    RetryCache getRetryCache();
-
-    /** @return the data stream map of this division. */
-    DataStreamMap getDataStreamMap();
-
-    /** @return the {@link ThreadGroup} the threads of this Division belong to. */
-    ThreadGroup getThreadGroup();
-
-    @Override
-    void close();
-  }
-
-  /** @return the server ID. */
+  /**
+   * 返回 RaftServer 的唯一 ID (RaftPeerId)。
+   * @return the server ID.
+   */
   RaftPeerId getId();
 
   /**
+   * 返回与该服务器相关的 RaftPeer，可以用于获取当前节点的详细信息。
    * @return the general {@link RaftPeer} for this server.
    *         To obtain a specific {@link RaftPeer} for a {@link RaftGroup}, use {@link Division#getPeer()}.
    */
   RaftPeer getPeer();
 
-  /** @return the group IDs the server is part of. */
+  /**
+   * 返回该服务器所在的所有 Raft 集群组 ID。
+   * @return the group IDs the server is part of.
+   */
   Iterable<RaftGroupId> getGroupIds();
 
-  /** @return the groups the server is part of. */
+  /**
+   * 返回该服务器参与的所有 Raft 集群组。
+   * @return the groups the server is part of.
+   */
   Iterable<RaftGroup> getGroups() throws IOException;
 
+  /**
+   * 根据集群组 ID 获取该服务器对应的 Division 实例。
+   */
   Division getDivision(RaftGroupId groupId) throws IOException;
 
-  /** @return the server properties. */
+  /**
+   * 返回服务器的配置属性 (RaftProperties)。
+   * @return the server properties.
+   */
   RaftProperties getProperties();
 
-  /** @return the rpc service. */
+  /**
+   * 返回用于处理 RPC 请求的服务接口 ({@link RaftServerRpc})。
+   * @return the rpc service.
+   */
   RaftServerRpc getServerRpc();
 
-  /** @return the data stream rpc service. */
+  /**
+   * 返回用于数据流传输的 RPC 服务接口 ({@link DataStreamServerRpc})。
+   * @return the data stream rpc service.
+   */
   DataStreamServerRpc getDataStreamServerRpc();
 
-  /** @return the {@link RpcType}. */
+  /**
+   * 返回该服务器的 RPC 类型 (RpcType)，用于标识服务器支持的协议类型。
+   * @return the {@link RpcType}.
+   */
   default RpcType getRpcType() {
     return getFactory().getRpcType();
   }
 
-  /** @return the factory for creating server components. */
+  /**
+   * 返回用于创建 RaftServer 组件的工厂实例 (ServerFactory)。
+   * @return the factory for creating server components.
+   */
   ServerFactory getFactory();
 
-  /** Start this server. */
+  /**
+   * 启动该 Raft 服务器。
+   * Start this server.
+   */
   void start() throws IOException;
 
+  /**
+   * 返回服务器的生命周期状态。
+   */
   LifeCycle.State getLifeCycleState();
 
   /** @return a {@link Builder}. */

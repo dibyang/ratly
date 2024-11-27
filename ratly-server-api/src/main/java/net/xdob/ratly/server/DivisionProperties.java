@@ -1,6 +1,7 @@
 
 package net.xdob.ratly.server;
 
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,7 +9,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The properties set for a server division.
+ * 接口描述了 Raft 服务器分区（Division）的一些配置属性，
+ * 主要集中在 RPC（远程过程调用）的超时设置等方面。
  *
  * @see RaftServerConfigKeys
  */

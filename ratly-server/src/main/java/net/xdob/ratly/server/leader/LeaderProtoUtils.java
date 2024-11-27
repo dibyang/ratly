@@ -8,8 +8,8 @@ import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto.NotificationProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto.SnapshotChunkProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftPeerId;
+import net.xdob.ratly.server.Division;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 
@@ -31,21 +31,21 @@ final class LeaderProtoUtils {
   }
 
   static InstallSnapshotRequestProto toInstallSnapshotRequestProto(
-      RaftServer.Division server, RaftPeerId replyId, SnapshotChunkProto.Builder chunk) {
+      Division server, RaftPeerId replyId, SnapshotChunkProto.Builder chunk) {
     return toInstallSnapshotRequestProtoBuilder(server, replyId)
         .setSnapshotChunk(chunk)
         .build();
   }
 
   static InstallSnapshotRequestProto toInstallSnapshotRequestProto(
-      RaftServer.Division server, RaftPeerId replyId, TermIndex firstAvailable) {
+      Division server, RaftPeerId replyId, TermIndex firstAvailable) {
     return toInstallSnapshotRequestProtoBuilder(server, replyId)
         .setNotification(NotificationProto.newBuilder().setFirstAvailableTermIndex(firstAvailable.toProto()))
         .build();
   }
 
   private static InstallSnapshotRequestProto.Builder toInstallSnapshotRequestProtoBuilder(
-      RaftServer.Division server, RaftPeerId replyId) {
+      Division server, RaftPeerId replyId) {
     // term is not going to used by installSnapshot to update the RaftConfiguration
     final RaftConfiguration conf = server.getRaftConf();
     final LogEntryProto confLogEntryProto = LogProtoUtils.toLogEntryProto(conf, null, conf.getLogEntryIndex());

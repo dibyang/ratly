@@ -1,6 +1,7 @@
 
 package net.xdob.ratly.server.impl;
 
+import net.xdob.ratly.server.config.Watch;
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.ReplicationLevel;
@@ -8,9 +9,7 @@ import net.xdob.ratly.proto.raft.WatchRequestTypeProto;
 import net.xdob.ratly.protocol.exceptions.NotReplicatedException;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.exceptions.ResourceUnavailableException;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.metrics.RaftServerMetricsImpl;
-import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,15 +171,15 @@ class WatchRequests {
   WatchRequests(Object name, RaftProperties properties, RaftServerMetricsImpl raftServerMetrics) {
     this.name = name + "-" + JavaUtils.getClassSimpleName(getClass());
 
-    final TimeDuration watchTimeout = RaftServerConfigKeys.Watch.timeout(properties);
+    final TimeDuration watchTimeout = Watch.timeout(properties);
     this.watchTimeoutNanos = watchTimeout.to(TimeUnit.NANOSECONDS);
-    final TimeDuration watchTimeoutDenomination = RaftServerConfigKeys.Watch.timeoutDenomination(properties);
+    final TimeDuration watchTimeoutDenomination = Watch.timeoutDenomination(properties);
     this.watchTimeoutDenominationNanos = watchTimeoutDenomination.to(TimeUnit.NANOSECONDS);
     Preconditions.assertTrue(watchTimeoutNanos.getDuration() % watchTimeoutDenominationNanos.getDuration() == 0L,
         () -> "watchTimeout (=" + watchTimeout + ") is not a multiple of watchTimeoutDenomination (="
             + watchTimeoutDenomination + ").");
 
-    final int elementLimit = RaftServerConfigKeys.Watch.elementLimit(properties);
+    final int elementLimit = Watch.elementLimit(properties);
     Arrays.stream(ReplicationLevel.values()).forEach(r -> queues.put(r,
         new WatchQueue(r, elementLimit, raftServerMetrics)));
   }

@@ -22,7 +22,9 @@ import net.xdob.ratly.protocol.exceptions.NotLeaderException;
 import net.xdob.ratly.protocol.exceptions.NotReplicatedException;
 import net.xdob.ratly.protocol.exceptions.ReadIndexException;
 import net.xdob.ratly.protocol.exceptions.ReconfigurationTimeoutException;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Write;
 import net.xdob.ratly.server.impl.ReadIndexHeartbeats.AppendEntriesListener;
 import net.xdob.ratly.server.leader.FollowerInfo;
 import net.xdob.ratly.server.leader.LeaderState;
@@ -71,8 +73,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static net.xdob.ratly.server.RaftServer.Division.LOG;
-import static net.xdob.ratly.server.RaftServerConfigKeys.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
+import static net.xdob.ratly.server.Division.LOG;
+import static net.xdob.ratly.server.config.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
 
 /**
  * States for leader only. It contains three different types of processors:
@@ -364,9 +366,9 @@ class LeaderStateImpl implements LeaderState {
     this.pendingStepDown = new PendingStepDown(this);
     this.readIndexHeartbeats = new ReadIndexHeartbeats();
     this.lease = new LeaderLease(properties);
-    this.logMetadataEnabled = RaftServerConfigKeys.Log.logMetadataEnabled(properties);
-    long maxPendingRequests = RaftServerConfigKeys.Write.elementLimit(properties);
-    double followerGapRatioMax = RaftServerConfigKeys.Write.followerGapRatioMax(properties);
+    this.logMetadataEnabled = Log.logMetadataEnabled(properties);
+    long maxPendingRequests = Write.elementLimit(properties);
+    double followerGapRatioMax = Write.followerGapRatioMax(properties);
 
     if (followerGapRatioMax == -1) {
       this.followerMaxGapThreshold = -1;

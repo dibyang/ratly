@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -7,7 +6,10 @@ import net.xdob.ratly.server.protocol.TermIndex;
 
 import java.util.Comparator;
 
-/** The header of a {@link LogEntryProto} including {@link TermIndex} and {@link LogEntryBodyCase}. */
+/**
+ * The header of a {@link LogEntryProto} including {@link TermIndex} and {@link LogEntryBodyCase}.
+ * 封装了日志条目相关的元数据（任期和索引）以及其具体的日志体类型。
+ */
 public interface LogEntryHeader extends Comparable<LogEntryHeader> {
   LogEntryHeader[] EMPTY_ARRAY = {};
 

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog;
 
 import net.xdob.ratly.protocol.exceptions.RaftException;

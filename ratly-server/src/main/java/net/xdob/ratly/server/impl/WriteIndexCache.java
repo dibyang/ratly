@@ -4,9 +4,9 @@ package net.xdob.ratly.server.impl;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.RaftClientRequest;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import net.xdob.ratly.server.config.Read;
 import net.xdob.ratly.util.TimeDuration;
 
 import java.util.concurrent.CompletableFuture;
@@ -18,7 +18,7 @@ class WriteIndexCache {
   private final Cache<ClientId, AtomicReference<CompletableFuture<Long>>> cache;
 
   WriteIndexCache(RaftProperties properties) {
-    this(RaftServerConfigKeys.Read.ReadAfterWriteConsistent.writeIndexCacheExpiryTime(properties));
+    this(Read.ReadAfterWriteConsistent.writeIndexCacheExpiryTime(properties));
   }
 
   /**

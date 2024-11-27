@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 
 /**
- * A general server interface.
+ * RPC 服务器的基本接口，包含处理 RPC 请求的方法。
  */
 public interface ServerRpc extends Closeable {
   /** Start the RPC service. */

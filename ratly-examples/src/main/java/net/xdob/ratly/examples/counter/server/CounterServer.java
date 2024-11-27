@@ -6,7 +6,8 @@ import net.xdob.ratly.examples.common.Constants;
 import net.xdob.ratly.grpc.GrpcConfigKeys;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Read;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.util.NetUtils;
 import net.xdob.ratly.util.TimeDuration;
@@ -44,9 +45,9 @@ public final class CounterServer implements Closeable {
     //the Default policy will route read-only requests to leader and directly query leader statemachine.
     //Linearizable Read allows to route read-only requests to any group member
     //and uses ReadIndex to guarantee strong consistency.
-    RaftServerConfigKeys.Read.setOption(properties, RaftServerConfigKeys.Read.Option.LINEARIZABLE);
+    Read.setOption(properties, Read.Option.LINEARIZABLE);
     //set the linearizable read timeout
-    RaftServerConfigKeys.Read.setTimeout(properties, TimeDuration.ONE_MINUTE);
+    Read.setTimeout(properties, TimeDuration.ONE_MINUTE);
 
     //set the port (different for each peer) in RaftProperty object
     final int port = NetUtils.createSocketAddr(peer.getAddress()).getPort();

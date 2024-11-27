@@ -5,9 +5,9 @@ import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
 import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
+import net.xdob.ratly.server.Division;
 import net.xdob.ratly.server.protocol.RaftServerProtocol;
 import net.xdob.ratly.rpc.CallId;
-import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.util.ServerStringUtils;
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * using {@link RaftServerProtocol}.
  */
 class LogAppenderDefault extends LogAppenderBase {
-  LogAppenderDefault(RaftServer.Division server, LeaderState leaderState, FollowerInfo f) {
+  LogAppenderDefault(Division server, LeaderState leaderState, FollowerInfo f) {
     super(server, leaderState, f);
   }
 

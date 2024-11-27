@@ -4,8 +4,8 @@ package net.xdob.ratly.server.raftlog.segmented;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.metrics.Timekeeper;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.Division;
+import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogEntryHeader;
@@ -147,9 +147,9 @@ public final class SegmentedRaftLog extends RaftLogBase {
    * When the server is null, return the dummy instance of {@link ServerLogMethods}.
    * Otherwise, the server is non-null, return the implementation using the given server.
    */
-  private ServerLogMethods newServerLogMethods(RaftServer.Division impl,
-      Consumer<LogEntryProto> notifyTruncatedLogEntry,
-      BiFunction<LogEntryProto, Boolean, TransactionContext> getTransactionContext) {
+  private ServerLogMethods newServerLogMethods(Division impl,
+                                               Consumer<LogEntryProto> notifyTruncatedLogEntry,
+                                               BiFunction<LogEntryProto, Boolean, TransactionContext> getTransactionContext) {
     if (impl == null) {
       return ServerLogMethods.DUMMY;
     }
@@ -206,12 +206,12 @@ public final class SegmentedRaftLog extends RaftLogBase {
     this.server = newServerLogMethods(b.server, b.notifyTruncatedLogEntry, b.getTransactionContext);
     this.storage = b.storage;
     this.stateMachine = b.stateMachine;
-    this.segmentMaxSize = RaftServerConfigKeys.Log.segmentSizeMax(b.properties).getSize();
+    this.segmentMaxSize = Log.segmentSizeMax(b.properties).getSize();
     this.cache = new SegmentedRaftLogCache(b.memberId, storage, b.properties, getRaftLogMetrics());
     this.cacheEviction = new AwaitToRun(b.memberId + "-cacheEviction", this::checkAndEvictCache).start();
     this.fileLogWorker = new SegmentedRaftLogWorker(b.memberId, stateMachine,
         b.submitUpdateCommitEvent, b.server, storage, b.properties, getRaftLogMetrics());
-    stateMachineCachingEnabled = RaftServerConfigKeys.Log.StateMachineData.cachingEnabled(b.properties);
+    stateMachineCachingEnabled = Log.StateMachineData.cachingEnabled(b.properties);
   }
 
   @Override
@@ -576,7 +576,7 @@ public final class SegmentedRaftLog extends RaftLogBase {
 
   public static final class Builder {
     private RaftGroupMemberId memberId;
-    private RaftServer.Division server;
+    private Division server;
     private StateMachine stateMachine;
     private Consumer<LogEntryProto> notifyTruncatedLogEntry;
     private BiFunction<LogEntryProto, Boolean, TransactionContext> getTransactionContext;
@@ -592,7 +592,7 @@ public final class SegmentedRaftLog extends RaftLogBase {
       return this;
     }
 
-    public Builder setServer(RaftServer.Division server) {
+    public Builder setServer(Division server) {
       this.server = server;
       this.stateMachine = server.getStateMachine();
       return this;

@@ -11,7 +11,7 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rpc.SupportedRpcType;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.storage.RaftStorage;
 import com.google.common.base.MoreObjects;
 import net.xdob.ratly.util.FileUtils;

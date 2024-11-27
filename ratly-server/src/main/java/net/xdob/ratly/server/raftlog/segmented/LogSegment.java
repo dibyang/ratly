@@ -2,7 +2,7 @@
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.server.RaftServerConfigKeys.Log.CorruptionPolicy;
+import net.xdob.ratly.server.config.Log.CorruptionPolicy;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogEntryHeader;

@@ -11,11 +11,7 @@ import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.RaftStorage;
-import net.xdob.ratly.statemachine.SnapshotInfo;
-import net.xdob.ratly.statemachine.SnapshotRetentionPolicy;
-import net.xdob.ratly.statemachine.StateMachine;
-import net.xdob.ratly.statemachine.StateMachineStorage;
-import net.xdob.ratly.statemachine.TransactionContext;
+import net.xdob.ratly.statemachine.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.LifeCycle;
@@ -31,8 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Base implementation for StateMachines.
  */
-public class BaseStateMachine implements StateMachine, StateMachine.DataApi,
-    StateMachine.EventApi, StateMachine.LeaderEventApi, StateMachine.FollowerEventApi {
+public class BaseStateMachine implements StateMachine, DataApi,
+    EventApi, LeaderEventApi, FollowerEventApi {
   private final CompletableFuture<RaftServer> server = new CompletableFuture<>();
   @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
   private volatile RaftGroupId groupId;

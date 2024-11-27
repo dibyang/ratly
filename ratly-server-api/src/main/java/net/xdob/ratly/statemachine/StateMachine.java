@@ -1,40 +1,31 @@
-
 package net.xdob.ratly.statemachine;
 
 import net.xdob.ratly.proto.raft.*;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroupId;
-import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.protocol.RaftPeer;
-import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
+import net.xdob.ratly.server.config.Snapshot;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.RaftStorage;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.LifeCycle;
-import net.xdob.ratly.util.ReferenceCountedObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 /**
- * StateMachine is the entry point for the custom implementation of replicated state as defined in
- * the "State Machine Approach" in the literature
- * (see https://en.wikipedia.org/wiki/State_machine_replication).
- *
+ * Raft 协议中用于处理日志条目和更新的核心组件，代表了应用状态的封装和管理。
+ * 它是用户自定义的状态机实现的入口，所有的状态机操作都可以通过这个接口定义和执行。
+ * Raft 协议的主要思想是将集群中的一致性操作（例如日志条目的复制）交给状态机去应用，从而实现数据的一致性和容错。
+ * (see <a href="https://en.wikipedia.org/wiki/State_machine_replication">https://en.wikipedia.org/wiki/State_machine_replication</a>).
+ * <p>
  *  A {@link StateMachine} implementation must be threadsafe.
  *  For example, the {@link #applyTransaction(TransactionContext)} method and the {@link #query(Message)} method
  *  can be invoked in parallel.
@@ -47,368 +38,9 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * An optional API for managing data outside the raft log.
-   * For data intensive applications, it can be more efficient to implement this API
-   * in order to support zero buffer coping and a light-weighted raft log.
-   */
-  interface DataApi {
-    /** A noop implementation of {@link DataApi}. */
-    DataApi DEFAULT = new DataApi() {};
-
-    /**
-     * Read asynchronously the state machine data from this state machine.
-     *
-     * @return a future for the read task.
-     */
-    default CompletableFuture<ByteString> read(LogEntryProto entry) {
-      throw new UnsupportedOperationException("This method is NOT supported.");
-    }
-
-    /**
-     * Read asynchronously the state machine data from this state machine.
-     *
-     * @return a future for the read task.
-     */
-    default CompletableFuture<ByteString> read(LogEntryProto entry, TransactionContext context) {
-      return read(entry);
-    }
-
-    /**
-     * Read asynchronously the state machine data from this state machine.
-     * StateMachines implement this method when the read result contains retained resources that should be released
-     * after use.
-     *
-     * @return a future for the read task. The result of the future is a {@link ReferenceCountedObject} wrapping the
-     * read result. Client code of this method must call  {@link ReferenceCountedObject#release()} after
-     * use.
-     */
-    default CompletableFuture<ReferenceCountedObject<ByteString>> retainRead(LogEntryProto entry,
-        TransactionContext context) {
-      return read(entry, context).thenApply(r -> {
-        if (r == null) {
-          return null;
-        }
-        ReferenceCountedObject<ByteString> ref = ReferenceCountedObject.wrap(r);
-        ref.retain();
-        return ref;
-
-      });
-    }
-
-    /**
-     * Write asynchronously the state machine data in the given log entry to this state machine.
-     *
-     * @return a future for the write task
-     * @deprecated Applications should implement {@link #write(ReferenceCountedObject, TransactionContext)} instead.
-     */
-    @Deprecated
-    default CompletableFuture<?> write(LogEntryProto entry) {
-      return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Write asynchronously the state machine data in the given log entry to this state machine.
-     *
-     * @return a future for the write task
-     * @deprecated Applications should implement {@link #write(ReferenceCountedObject, TransactionContext)} instead.
-     */
-    @Deprecated
-    default CompletableFuture<?> write(LogEntryProto entry, TransactionContext context) {
-      return write(entry);
-    }
-
-    /**
-     * Write asynchronously the state machine data in the given log entry to this state machine.
-     *
-     * @param entryRef Reference to a log entry.
-     *                 Implementations of this method may call {@link ReferenceCountedObject#get()}
-     *                 to access the log entry before this method returns.
-     *                 If the log entry is needed after this method returns,
-     *                 e.g. for asynchronous computation or caching,
-     *                 the implementation must invoke {@link ReferenceCountedObject#retain()}
-     *                 and {@link ReferenceCountedObject#release()}.
-     * @return a future for the write task
-     */
-    default CompletableFuture<?> write(ReferenceCountedObject<LogEntryProto> entryRef, TransactionContext context) {
-      final LogEntryProto entry = entryRef.get();
-      try {
-        final LogEntryProto copy = LogEntryProto.parseFrom(entry.toByteString());
-        return write(copy, context);
-      } catch (InvalidProtocolBufferException e) {
-        return JavaUtils.completeExceptionally(new IllegalStateException(
-            "Failed to copy log entry " + TermIndex.valueOf(entry), e));
-      }
-    }
-
-    /**
-     * Create asynchronously a {@link DataStream} to stream state machine data.
-     * The state machine may use the first message (i.e. request.getMessage()) as the header to create the stream.
-     *
-     * @return a future of the stream.
-     */
-    default CompletableFuture<DataStream> stream(RaftClientRequest request) {
-      return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Link asynchronously the given stream with the given log entry.
-     * The given stream can be null if it is unavailable due to errors.
-     * In such case, the state machine may either recover the data by itself
-     * or complete the returned future exceptionally.
-     *
-     * @param stream the stream, which can possibly be null, to be linked.
-     * @param entry the log entry to be linked.
-     * @return a future for the link task.
-     */
-    default CompletableFuture<?> link(DataStream stream, LogEntryProto entry) {
-      return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Flush the state machine data till the given log index.
-     *
-     * @param logIndex The log index to flush.
-     * @return a future for the flush task.
-     */
-    default CompletableFuture<Void> flush(long logIndex) {
-      return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Truncates asynchronously the state machine data to the given log index.
-     * It is a noop if the corresponding log entry does not have state machine data.
-     *
-     * @param logIndex The last log index after truncation.
-     * @return a future for truncate task.
-     */
-    default CompletableFuture<Void> truncate(long logIndex) {
-      return CompletableFuture.completedFuture(null);
-    }
-  }
-
-  /**
-   * An optional API for event notifications.
-   */
-  interface EventApi {
-    /** A noop implementation of {@link EventApi}. */
-    EventApi DEFAULT = new EventApi() {};
-
-    /**
-     * Notify the {@link StateMachine} that a new leader has been elected.
-     * Note that the new leader can possibly be this server.
-     *
-     * @param groupMemberId The id of this server.
-     * @param newLeaderId The id of the new leader.
-     */
-    default void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {}
-
-    /**
-     * Notify the {@link StateMachine} a term-index update event.
-     * This method will be invoked when a {@link MetadataProto}
-     * or {@link RaftConfigurationProto} is processed.
-     * For {@link StateMachineLogEntryProto}, this method will not be invoked.
-     *
-     * @param term The term of the log entry
-     * @param index The index of the log entry
-     */
-    default void notifyTermIndexUpdated(long term, long index) {}
-
-    /**
-     * Notify the {@link StateMachine} a configuration change.
-     * This method will be invoked when a {@link RaftConfigurationProto} is processed.
-     *
-     * @param term term of the current log entry
-     * @param index index which is being updated
-     * @param newRaftConfiguration new configuration
-     */
-    default void notifyConfigurationChanged(long term, long index, RaftConfigurationProto newRaftConfiguration) {}
-
-    /**
-     * Notify the {@link StateMachine} a group removal event.
-     * This method is invoked after all the pending transactions have been applied by the {@link StateMachine}.
-     */
-    default void notifyGroupRemove() {}
-
-    /**
-     * Notify the {@link StateMachine} that a log operation failed.
-     *
-     * @param cause The cause of the failure.
-     * @param failedEntry The failed log entry, if there is any.
-     */
-    default void notifyLogFailed(Throwable cause, LogEntryProto failedEntry) {}
-
-    /**
-     * Notify the {@link StateMachine} that the progress of install snapshot is
-     * completely done. Could trigger the cleanup of snapshots.
-     *
-     * @param result {@link InstallSnapshotResult}
-     * @param snapshotIndex the index of installed snapshot
-     * @param peer the peer who installed the snapshot
-     */
-    default void notifySnapshotInstalled(InstallSnapshotResult result, long snapshotIndex,  RaftPeer peer) {}
-
-    /**
-     * Notify the {@link StateMachine} that the server for this division has been shut down.
-     * @Deprecated please use/override {@link #notifyServerShutdown(RoleInfoProto, boolean)} instead
-     */
-    @Deprecated
-    default void notifyServerShutdown(RoleInfoProto roleInfo) {
-      notifyServerShutdown(roleInfo, false);
-    }
-
-    /**
-     * Notify the {@link StateMachine} that either the server for this division or all the servers have been shut down.
-     * @param roleInfo roleInfo this server
-     * @param allServer whether all raft servers will be shutdown at this time
-     */
-    default void notifyServerShutdown(RoleInfoProto roleInfo, boolean allServer) {}
-  }
-
-  /**
-   * An optional API for leader-only event notifications.
-   * The method in this interface will be invoked only when the server is the leader.
-   */
-  interface LeaderEventApi {
-    /** A noop implementation of {@link LeaderEventApi}. */
-    LeaderEventApi DEFAULT = new LeaderEventApi() {};
-
-    /**
-     * Notify the {@link StateMachine} that the given follower is slow.
-     * This notification is based on "raft.server.rpc.slowness.timeout".
-     *
-     * @param leaderInfo information about the current node role and rpc delay information
-     * @param slowFollower The follower being slow.
-     *
-     * @see RaftServerConfigKeys.Rpc#SLOWNESS_TIMEOUT_KEY
-     */
-    default void notifyFollowerSlowness(RoleInfoProto leaderInfo, RaftPeer slowFollower) {}
-
-    /** @deprecated Use {@link #notifyFollowerSlowness(RoleInfoProto, RaftPeer)}. */
-    @Deprecated
-    default void notifyFollowerSlowness(RoleInfoProto leaderInfo) {}
-
-    /**
-     * Notify {@link StateMachine} that this server is no longer the leader.
-     */
-    default void notifyNotLeader(Collection<TransactionContext> pendingEntries) throws IOException {}
-
-    /**
-     * Notify the {@link StateMachine} that this server becomes ready after changed to leader.
-     */
-    default void notifyLeaderReady() {}
-  }
-
-  /**
-   * An optional API for follower-only event notifications.
-   * The method in this interface will be invoked only when the server is a follower.
-   */
-  interface FollowerEventApi {
-    /** A noop implementation of {@link FollowerEventApi}. */
-    FollowerEventApi DEFAULT = new FollowerEventApi() {};
-
-    /**
-     * Notify the {@link StateMachine} that there is no leader in the group for an extended period of time.
-     * This notification is based on "raft.server.notification.no-leader.timeout".
-     *
-     * @param roleInfoProto information about the current node role and rpc delay information
-     *
-     * @see RaftServerConfigKeys.Notification#NO_LEADER_TIMEOUT_KEY
-     */
-    default void notifyExtendedNoLeader(RoleInfoProto roleInfoProto) {}
-
-    /**
-     * Notify the {@link StateMachine} that the leader has purged entries from its log.
-     * In order to catch up, the {@link StateMachine} has to install the latest snapshot asynchronously.
-     *
-     * @param roleInfoProto information about the current node role and rpc delay information.
-     * @param firstTermIndexInLog The term-index of the first append entry available in the leader's log.
-     * @return return the last term-index in the snapshot after the snapshot installation.
-     */
-    default CompletableFuture<TermIndex> notifyInstallSnapshotFromLeader(
-        RoleInfoProto roleInfoProto, TermIndex firstTermIndexInLog) {
-      return CompletableFuture.completedFuture(null);
-    }
-  }
-
-  /**
-   * For write state machine data.
-   */
-  interface DataChannel extends WritableByteChannel {
-    /**
-     * This method is the same as {@link WritableByteChannel#write(ByteBuffer)}.
-     *
-     * If the implementation has overridden {@link #write(ReferenceCountedObject)},
-     * then it does not have to override this method.
-     */
-    @Override
-    default int write(ByteBuffer buffer) throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Similar to {@link #write(ByteBuffer)}
-     * except that the parameter is a {@link ReferenceCountedObject}.
-     *
-     * This is an optional method.
-     * The default implementation is the same as write(referenceCountedBuffer.get()).
-     *
-     * The implementation may choose to override this method in order to retain the buffer for later use.
-     *
-     * - If the buffer is retained, it must be released afterward.
-     *   Otherwise, the buffer will not be returned, and it will cause a memory leak.
-     *
-     * - If the buffer is retained multiple times, it must be released the same number of time.
-     *
-     * - It is safe to access the buffer before this method returns with or without retaining it.
-     *
-     * - If the buffer is not retained but is accessed after this method returns,
-     *   the content of the buffer could possibly be changed unexpectedly, and it will cause data corruption.
-     */
-    default int write(ReferenceCountedObject<ByteBuffer> referenceCountedBuffer) throws IOException {
-      return write(referenceCountedBuffer.get());
-    }
-
-    /**
-     * Similar to {@link java.nio.channels.FileChannel#force(boolean)},
-     * the underlying implementation should force writing the data and/or metadata to the underlying storage.
-     *
-     * @param metadata Should the metadata be forced?
-     * @throws IOException If there are IO errors.
-     */
-    void force(boolean metadata) throws IOException;
-  }
-
-  /**
-   * For streaming state machine data.
-   */
-  interface DataStream {
-    /** @return a channel for streaming state machine data. */
-    DataChannel getDataChannel();
-
-    /**
-     * Clean up asynchronously this stream.
-     *
-     * When there is an error, this method is invoked to clean up the associated resources.
-     * If this stream is not yet linked (see {@link DataApi#link(DataStream, LogEntryProto)}),
-     * the state machine may choose to remove the data or to keep the data internally for future recovery.
-     * If this stream is already linked, the data must not be removed.
-     *
-     * @return a future for the cleanup task.
-     */
-    CompletableFuture<?> cleanUp();
-
-    /**
-     * @return an {@link Executor} for executing the streaming tasks of this stream.
-     *         If the returned value is null, the default {@link Executor} will be used.
-     */
-    default Executor getExecutor() {
-      return null;
-    }
-  }
-
-  /**
-   * Get the {@link DataApi} object.
-   *
+   * 功能：返回与状态机相关的 {@link DataApi} 对象，用于处理 Raft 日志外的数据管理。
+   * 说明：如果状态机支持 DataApi，该方法会返回状态机实例自身，否则会返回 DataApi.DEFAULT，即默认的无操作实现。
+   * <p>
    * If this {@link StateMachine} chooses to support the optional {@link DataApi},
    * it may either implement {@link DataApi} directly or override this method to return a {@link DataApi} object.
    * Otherwise, this {@link StateMachine} does not support {@link DataApi}.
@@ -421,8 +53,9 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * Get the {@link EventApi} object.
-   *
+   * 功能：返回与状态机相关的 {@link EventApi} 对象，用于处理事件的管理。
+   * 说明：与 data() 方法类似，如果状态机支持 EventApi，会返回其实现，否则返回 EventApi.DEFAULT。
+   * <p>
    * If this {@link StateMachine} chooses to support the optional {@link EventApi},
    * it may either implement {@link EventApi} directly or override this method to return an {@link EventApi} object.
    * Otherwise, this {@link StateMachine} does not support {@link EventApi}.
@@ -435,8 +68,9 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * Get the {@link LeaderEventApi} object.
-   *
+   * 功能：返回与领导者事件相关的 {@link LeaderEventApi} 对象，允许状态机实现领导者相关的事件处理。
+   * 说明：如果状态机支持 {@link LeaderEventApi}，返回状态机实例；否则返回默认的 LeaderEventApi.DEFAULT。
+   * <p>
    * If this {@link StateMachine} chooses to support the optional {@link LeaderEventApi},
    * it may either implement {@link LeaderEventApi} directly
    * or override this method to return an {@link LeaderEventApi} object.
@@ -450,8 +84,9 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * Get the {@link FollowerEventApi} object.
-   *
+   * 功能：返回与跟随者事件相关的 {@link FollowerEventApi} 对象，允许状态机处理跟随者相关的事件。
+   * 说明：如果状态机支持 {@link FollowerEventApi}，返回状态机实例；否则返回默认的 FollowerEventApi.DEFAULT。
+   * <p>
    * If this {@link StateMachine} chooses to support the optional {@link FollowerEventApi},
    * it may either implement {@link FollowerEventApi} directly
    * or override this method to return an {@link FollowerEventApi} object.
@@ -465,31 +100,34 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * Initializes the State Machine with the given parameter.
-   * The state machine must, if there is any, read the latest snapshot.
+   * 功能：初始化状态机，加载最新的快照并进行必要的设置。
+   * 说明：该方法必须读取存储中的最新快照（如果存在）并进行状态机的初始化。
    */
   void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftStorage storage) throws IOException;
 
   /**
-   * Returns the lifecycle state for this StateMachine.
+   * 功能：返回状态机的生命周期状态。
+   * 说明：用于了解状态机当前的生命周期状态，例如是否处于初始化、运行或暂停状态。
    * @return the lifecycle state.
    */
   LifeCycle.State getLifeCycleState();
 
   /**
-   * Pauses the state machine. On return, the state machine should have closed all open files so
-   * that a new snapshot can be installed.
+   * 功能：暂停状态机，关闭所有打开的文件以便可以安装新的快照。
+   * 说明：该方法可以在快照安装之前执行，确保当前的状态机数据被安全地保存。
    */
   void pause();
 
   /**
-   * Re-initializes the State Machine in PAUSED state. The
-   * state machine is responsible reading the latest snapshot from the file system (if any) and
-   * initialize itself with the latest term and index there including all the edits.
+   * 功能：在暂停状态下重新初始化状态机，读取文件系统中的最新快照并进行初始化。
+   * 说明：如果状态机被暂停，这个方法会恢复它的状态。
    */
   void reinitialize() throws IOException;
 
   /**
+   * 功能：将内存中的状态快照到 Raft 存储中，返回已应用的日志条目的最大索引。
+   * 说明：状态机可以决定何时、如何以及是否阻塞来进行快照。快照应该包含最新的 Raft 配置。
+   * <p>
    * Dump the in-memory state into a snapshot file in the RaftStorage. The
    * StateMachine implementation can decide 1) its own snapshot format, 2) when
    * a snapshot is taken, and 3) how the snapshot is taken (e.g., whether the
@@ -498,7 +136,7 @@ public interface StateMachine extends Closeable {
    *
    * In the meanwhile, when the size of raft log outside of the latest snapshot
    * exceeds certain threshold, the RaftServer may choose to trigger a snapshot
-   * if {@link RaftServerConfigKeys.Snapshot#AUTO_TRIGGER_ENABLED_KEY} is enabled.
+   * if {@link Snapshot#AUTO_TRIGGER_ENABLED_KEY} is enabled.
    *
    * The snapshot should include the latest raft configuration.
    *
@@ -510,27 +148,34 @@ public interface StateMachine extends Closeable {
   long takeSnapshot() throws IOException;
 
   /**
+   * 功能：返回与状态机相关的持久化存储对象。
+   * 说明：用于与状态机的持久化存储进行交互。
    * @return StateMachineStorage to interact with the durability guarantees provided by the
    * state machine.
    */
   StateMachineStorage getStateMachineStorage();
 
   /**
-   * Returns the information for the latest durable snapshot.
+   * 功能：返回最新的持久化快照信息。
+   * 说明：通过此方法可以查询到当前状态机的最新快照信息。
    */
   SnapshotInfo getLatestSnapshot();
 
   /**
-   * Query the state machine. The request must be read-only.
+   * 功能：查询状态机，查询请求必须是只读操作。
+   * 说明：该方法允许外部组件（例如客户端）通过查询访问状态机的只读数据。
    */
   CompletableFuture<Message> query(Message request);
 
   /**
+   * 功能：查询状态机，但请求的 minIndex 必须小于等于当前提交索引，可能返回过时数据。
+   * 说明：如果请求的日志条目尚未提交，可能会延迟查询，直到日志条目应用完毕。
+   * <p>
    * Query the state machine, provided minIndex <= commit index.
    * The request must be read-only.
    * Since the commit index of this server may lag behind the Raft service,
    * the returned result may possibly be stale.
-   *
+   * <p>
    * When minIndex > {@link #getLastAppliedTermIndex()},
    * the state machine may choose to either
    * (1) return exceptionally, or
@@ -539,6 +184,9 @@ public interface StateMachine extends Closeable {
   CompletableFuture<Message> queryStale(Message request, long minIndex);
 
   /**
+   * 功能：启动一个事务，用于处理请求并准备将内容写入日志。
+   * 说明：该方法用于创建一个新的事务并返回相关的 TransactionContext。
+   * <p>
    * Start a transaction for the given request.
    * This method can be invoked in parallel when there are multiple requests.
    * The implementation should validate the request,
@@ -554,6 +202,7 @@ public interface StateMachine extends Closeable {
   TransactionContext startTransaction(RaftClientRequest request) throws IOException;
 
   /**
+   *
    * Start a transaction for the given log entry for non-leaders.
    * This method can be invoked in parallel when there are multiple requests.
    * The implementation should prepare a {@link StateMachineLogEntryProto},
@@ -571,27 +220,24 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * This is called before the transaction passed from the StateMachine is appended to the raft log.
-   * This method is called with the same strict serial order as the transaction order in the raft log.
-   * Since this is called serially in the critical path of log append,
-   * it is important to do only required operations here.
+   * 功能：在事务被追加到 Raft 日志之前调用，用于执行必要的操作。
+   * 说明：该方法应该尽可能轻量，只做必须的操作。
    * @return The Transaction context.
    */
   TransactionContext preAppendTransaction(TransactionContext trx) throws IOException;
 
   /**
-   * Called to notify the state machine that the Transaction passed cannot be appended (or synced).
-   * The exception field will indicate whether there was an exception or not.
+   * 功能：通知状态机事务无法追加到日志中，事务将被取消。
+   * 说明：当事务无法同步时，应该调用此方法进行处理。
+   * <p>
    * @param trx the transaction to cancel
    * @return cancelled transaction
    */
   TransactionContext cancelTransaction(TransactionContext trx) throws IOException;
 
   /**
-   * Called for transactions that have been committed to the RAFT log. This step is called
-   * sequentially in strict serial order that the transactions have been committed in the log.
-   * The SM is expected to do only necessary work, and leave the actual apply operation to the
-   * applyTransaction calls that can happen concurrently.
+   * 功能：用于提交到日志的事务，顺序执行，并返回结果。
+   * 说明：该方法应顺序执行，并且只做必要的操作，避免并发执行。
    * @param trx the transaction state including the log entry that has been committed to a quorum
    *            of the raft peers
    * @return The Transaction context.
@@ -599,20 +245,17 @@ public interface StateMachine extends Closeable {
   TransactionContext applyTransactionSerial(TransactionContext trx) throws InvalidProtocolBufferException;
 
   /**
-   * Apply a committed log entry to the state machine. This method is called sequentially in
-   * strict serial order that the transactions have been committed in the log. Note that this
-   * method, which returns a future, is asynchronous. The state machine implementation may
-   * choose to apply the log entries in parallel. In that case, the order of applying entries to
-   * state machine could possibly be different from the log commit order.
-   *
-   * The implementation must be deterministic so that the raft log can be replayed in any raft peers.
-   * Note that, if there are three or more servers,
-   * the Raft algorithm makes sure the that log remains consistent
-   * even if there are hardware errors in one machine (or less than the majority number of machines).
-   *
-   * Any exceptions thrown in this method are treated as unrecoverable errors (such as hardware errors).
-   * The server will be shut down when it occurs.
-   * Administrators should manually fix the underlying problem and then restart the machine.
+   * 功能：提交已经复制到多数 Raft 节点的事务，返回结果消息。
+   * 说明：这是一个异步方法，执行日志应用操作时，可能需要并发处理多个日志条目，但最终返回的结果要保证一致性。
+   * <p>
+   * 将已提交的日志条目应用到状态机。此方法按严格的顺序依次调用，确保事务的提交顺序与日志中的顺序一致。请注意，
+   * 这个方法返回一个 `future`，是异步的。状态机的实现可以选择并行应用日志条目。在这种情况下，应用条目的顺序可能与日志提交的顺序不同。
+   * <p>
+   * 实现必须是确定性的，以确保 Raft 日志可以在任何 Raft 节点上重新播放。请注意，如果有三个或更多服务器，
+   * Raft 算法确保即使某台机器出现硬件故障（或机器数量少于多数），日志仍然保持一致。
+   * <p>
+   * 任何在此方法中抛出的异常都将被视为不可恢复的错误（例如硬件故障）。发生此类错误时，服务器将关闭。
+   * 管理员应手动修复底层问题，然后重新启动服务器。
    *
    * @param trx the transaction state including the log entry that has been replicated to a majority of the raft peers.
    *
@@ -625,11 +268,16 @@ public interface StateMachine extends Closeable {
    */
   CompletableFuture<Message> applyTransaction(TransactionContext trx);
 
-  /** @return the last term-index applied by this {@link StateMachine}. */
+  /**
+   * 功能：返回状态机最后应用的日志条目的 term 和 index。
+   * 说明：用于追踪状态机应用的日志条目。
+   * @return the last term-index applied by this {@link StateMachine}.
+   */
   TermIndex getLastAppliedTermIndex();
 
   /**
-   * Converts the given proto to a string.
+   * 功能：将给定的状态机日志条目 proto 转换为字符串表示。
+   * 说明：该方法用于生成日志条目的字符串表示，可以帮助调试和日志记录。
    *
    * @param proto state machine proto
    * @return the string representation of the proto.

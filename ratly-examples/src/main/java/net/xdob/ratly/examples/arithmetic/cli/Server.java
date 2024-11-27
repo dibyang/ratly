@@ -10,7 +10,7 @@ import net.xdob.ratly.protocol.RaftGroup;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.statemachine.StateMachine;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.LifeCycle;

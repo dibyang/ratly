@@ -58,12 +58,8 @@ import net.xdob.ratly.protocol.exceptions.SetConfigurationException;
 import net.xdob.ratly.protocol.exceptions.StaleReadException;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.protocol.exceptions.TransferLeadershipException;
-import net.xdob.ratly.server.DataStreamMap;
-import net.xdob.ratly.server.DivisionInfo;
-import net.xdob.ratly.server.DivisionProperties;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
-import net.xdob.ratly.server.RaftServerRpc;
+import net.xdob.ratly.server.*;
+import net.xdob.ratly.server.config.*;
 import net.xdob.ratly.server.impl.LeaderElection.Phase;
 import net.xdob.ratly.server.impl.RetryCacheImpl.CacheEntry;
 import net.xdob.ratly.server.leader.LeaderState;
@@ -134,7 +130,7 @@ import static net.xdob.ratly.server.util.ServerStringUtils.toAppendEntriesReplyS
 import static net.xdob.ratly.server.util.ServerStringUtils.toAppendEntriesRequestString;
 import static net.xdob.ratly.server.util.ServerStringUtils.toRequestVoteReplyString;
 
-class RaftServerImpl implements RaftServer.Division,
+class RaftServerImpl implements Division,
     RaftServerProtocol, RaftServerAsynchronousProtocol,
     RaftClientProtocol, RaftClientAsynchronousProtocol {
   private static final String CLASS_NAME = JavaUtils.getClassSimpleName(RaftServerImpl.class);
@@ -205,7 +201,7 @@ class RaftServerImpl implements RaftServer.Division,
   private final RoleInfo role;
 
   private final DataStreamMap dataStreamMap;
-  private final RaftServerConfigKeys.Read.Option readOption;
+  private final Read.Option readOption;
 
   private final TransactionManager transactionManager;
   private final RetryCacheImpl retryCache;
@@ -244,15 +240,15 @@ class RaftServerImpl implements RaftServer.Division,
 
     final RaftProperties properties = proxy.getProperties();
     this.divisionProperties = new DivisionPropertiesImpl(properties);
-    this.leaderStepDownWaitTime = RaftServerConfigKeys.LeaderElection.leaderStepDownWaitTime(properties);
-    this.memberMajorityAddEnabled = RaftServerConfigKeys.LeaderElection.memberMajorityAdd(properties);
+    this.leaderStepDownWaitTime = net.xdob.ratly.server.config.LeaderElection.leaderStepDownWaitTime(properties);
+    this.memberMajorityAddEnabled = net.xdob.ratly.server.config.LeaderElection.memberMajorityAdd(properties);
     this.sleepDeviationThreshold = RaftServerConfigKeys.sleepDeviationThreshold(properties);
     this.proxy = proxy;
 
     this.state = new ServerState(id, group, stateMachine, this, option, properties);
     this.retryCache = new RetryCacheImpl(properties);
     this.dataStreamMap = new DataStreamMapImpl(id);
-    this.readOption = RaftServerConfigKeys.Read.option(properties);
+    this.readOption = Read.option(properties);
     this.writeIndexCache = new WriteIndexCache(properties);
     this.transactionManager = new TransactionManager(id);
 
@@ -269,12 +265,12 @@ class RaftServerImpl implements RaftServer.Division,
     this.snapshotInstallationHandler = new SnapshotInstallationHandler(this, properties);
 
     this.serverExecutor = Concurrents3.newThreadPoolWithMax(
-        RaftServerConfigKeys.ThreadPool.serverCached(properties),
-        RaftServerConfigKeys.ThreadPool.serverSize(properties),
+        ThreadPool.serverCached(properties),
+        ThreadPool.serverSize(properties),
         id + "-server");
     this.clientExecutor = Concurrents3.newThreadPoolWithMax(
-        RaftServerConfigKeys.ThreadPool.clientCached(properties),
-        RaftServerConfigKeys.ThreadPool.clientSize(properties),
+        ThreadPool.clientCached(properties),
+        ThreadPool.clientSize(properties),
         id + "-client");
   }
 
@@ -302,8 +298,8 @@ class RaftServerImpl implements RaftServer.Division,
 
   private TimeDuration getFirstRandomElectionTimeout() {
     final RaftProperties properties = proxy.getProperties();
-    final int min = RaftServerConfigKeys.Rpc.firstElectionTimeoutMin(properties).toIntExact(TimeUnit.MILLISECONDS);
-    final int max = RaftServerConfigKeys.Rpc.firstElectionTimeoutMax(properties).toIntExact(TimeUnit.MILLISECONDS);
+    final int min = Rpc.firstElectionTimeoutMin(properties).toIntExact(TimeUnit.MILLISECONDS);
+    final int max = Rpc.firstElectionTimeoutMax(properties).toIntExact(TimeUnit.MILLISECONDS);
     final int mills = min + ThreadLocalRandom.current().nextInt(max - min + 1);
     return TimeDuration.valueOf(mills, TimeUnit.MILLISECONDS);
   }
@@ -1051,13 +1047,13 @@ class RaftServerImpl implements RaftServer.Division,
 
   private CompletableFuture<RaftClientReply> readAsync(RaftClientRequest request) {
     if (request.getType().getRead().getPreferNonLinearizable()
-        || readOption == RaftServerConfigKeys.Read.Option.DEFAULT) {
+        || readOption == Read.Option.DEFAULT) {
       final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);
        if (reply != null) {
          return reply;
        }
        return queryStateMachine(request);
-    } else if (readOption == RaftServerConfigKeys.Read.Option.LINEARIZABLE){
+    } else if (readOption == Read.Option.LINEARIZABLE){
       /*
         Linearizable read using ReadIndex. See Raft paper section 6.4.
         1. First obtain readIndex from Leader.
@@ -1259,7 +1255,7 @@ class RaftServerImpl implements RaftServer.Division,
     Preconditions.assertNotNull(request.getCreate(), "create");
 
     final long creationGap = request.getCreate().getCreationGap();
-    long minGapValue = creationGap > 0? creationGap : RaftServerConfigKeys.Snapshot.creationGap(proxy.getProperties());
+    long minGapValue = creationGap > 0? creationGap : Snapshot.creationGap(proxy.getProperties());
     final long lastSnapshotIndex = Optional.ofNullable(stateMachine.getLatestSnapshot())
         .map(SnapshotInfo::getIndex)
         .orElse(0L);

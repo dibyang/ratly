@@ -26,6 +26,9 @@ public final class RaftPeer {
     return EMPTY_ARRAY;
   }
 
+  /**
+   * 与 Raft 节点相关的添加操作接口。
+   */
   public interface Add {
     /** Add the given peers. */
     void addRaftPeers(Collection<RaftPeer> peers);

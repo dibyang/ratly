@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.util.function.LongUnaryOperator;
 
 /**
- * Information of a follower, provided the local server is the Leader
+ * 当前节点是 Leader 时，用于维护和更新 Follower 节点的状态
  */
 public interface FollowerInfo {
   Logger LOG = LoggerFactory.getLogger(FollowerInfo.class);
@@ -18,7 +18,9 @@ public interface FollowerInfo {
   /** @return the name of this object. */
   String getName();
 
-  /** @return this follower's peer id. */
+  /** 返回 Follower 的 RaftPeerId，这是 Follower 节点的唯一标识符
+   * @return Follower的RaftPeerId.
+   */
   RaftPeerId getId();
 
   /**
@@ -29,71 +31,120 @@ public interface FollowerInfo {
    */
   RaftPeer getPeer();
 
-  /** @return the matchIndex acknowledged by this follower. */
+  /**
+   * 返回 Follower 已确认的 matchIndex（即，Follower 已经复制的日志条目的最新索引）
+   * @return the matchIndex acknowledged by this follower.
+   */
   long getMatchIndex();
 
-  /** Update this follower's matchIndex. */
+  /**
+   * 更新 Follower 的 matchIndex。
+   */
   boolean updateMatchIndex(long newMatchIndex);
 
-  /** @return the commitIndex acknowledged by this follower. */
+  /**
+   * 返回 Follower 已确认的 commitIndex（即 Follower 已经提交的日志条目的索引）。
+   * @return the commitIndex acknowledged by this follower.
+   */
   long getCommitIndex();
 
-  /** Update follower's commitIndex. */
+  /**
+   * 更新 Follower 的 commitIndex。
+   */
   boolean updateCommitIndex(long newCommitIndex);
 
-  /** @return the snapshotIndex acknowledged by this follower. */
+  /**
+   * 返回 Follower 已确认的 snapshotIndex，表示已经应用的快照的索引。
+   * @return 已确认的 snapshotIndex
+   */
   long getSnapshotIndex();
 
-  /** Set follower's snapshotIndex. */
+  /**
+   * 设置 Follower 的 snapshotIndex。
+   */
   void setSnapshotIndex(long newSnapshotIndex);
 
-  /** Acknowledge that Follower attempted to install a snapshot. It does not guarantee that the installation was
-   * successful. This helps to determine whether Follower can come out of bootstrap process. */
+  /**
+   *  设置Follower 尝试过安装快照。
+   */
   void setAttemptedToInstallSnapshot();
 
-  /** Return true if install snapshot has been attempted by the Follower at least once. Used to verify if
-   * Follower tried to install snapshot during bootstrap process. */
+  /**
+   * 返回是否 Follower 尝试过安装快照。
+   * @return 是否 Follower 尝试过安装快照
+   */
   boolean hasAttemptedToInstallSnapshot();
 
-  /** @return the nextIndex for this follower. */
+  /**
+   * 返回 Follower 的 nextIndex，这是 Leader 用来知道下一个要复制到该 Follower 的日志条目的索引。
+   * @return the nextIndex for this follower.
+   */
   long getNextIndex();
 
-  /** Increase the nextIndex for this follower. */
+  /**
+   * 增加 Follower 的 nextIndex。
+   */
   void increaseNextIndex(long newNextIndex);
 
-  /** Decrease the nextIndex for this follower. */
+  /**
+   * 减少 Follower 的 nextIndex。
+   */
   void decreaseNextIndex(long newNextIndex);
 
-  /** Set the nextIndex for this follower. */
+  /**
+   * 设置 Follower 的 nextIndex。无条件设置新值
+   */
   void setNextIndex(long newNextIndex);
 
-  /** Update the nextIndex for this follower. */
+  /**
+   * 更新 Follower 的 nextIndex。
+   * 只能更新成比老的nextIndex更大的值
+   */
   void updateNextIndex(long newNextIndex);
 
-  /** Set the nextIndex for this follower. */
+  /**
+   * 通过传入的操作符更新 Follower 的 nextIndex。
+   */
   void computeNextIndex(LongUnaryOperator op);
+  //RPC 时间戳管理
 
-  /** @return the lastRpcResponseTime . */
+  /**
+   * 返回最后一次接收到 RPC 响应的时间戳。
+   */
   Timestamp getLastRpcResponseTime();
 
-  /** @return the lastRpcSendTime . */
+  /**
+   * 返回最后一次发送 RPC 请求的时间戳。
+   */
   Timestamp getLastRpcSendTime();
 
-  /** Update lastRpcResponseTime to the current time. */
+  /**
+   * 更新最后一次接收到 RPC 响应的时间戳为当前时间。
+   */
   void updateLastRpcResponseTime();
 
-  /** Update lastRpcSendTime to the current time. */
+  /**
+   * 更新最后一次发送 RPC 请求的时间戳，是否为心跳请求。
+   */
   void updateLastRpcSendTime(boolean isHeartbeat);
 
-  /** @return the latest of the lastRpcSendTime and the lastRpcResponseTime . */
+  /**
+   * 返回最后一次发送和接收 RPC 时间中的较晚时间戳。
+   */
   Timestamp getLastRpcTime();
 
-  /** @return the latest heartbeat send time. */
+  /**
+   * 返回最后一次发送心跳的时间戳。
+   */
   Timestamp getLastHeartbeatSendTime();
 
-  /** @return the send time of last responded rpc */
+  /**
+   * 返回上次响应的 AppendEntries RPC 请求的发送时间戳。
+   */
   Timestamp getLastRespondedAppendEntriesSendTime();
 
-  /** Update lastRpcResponseTime and LastRespondedAppendEntriesSendTime */
+  /**
+   * 更新 lastRpcResponseTime 和 LastRespondedAppendEntriesSendTime。
+   */
   void updateLastRespondedAppendEntriesSendTime(Timestamp sendTime);
 }

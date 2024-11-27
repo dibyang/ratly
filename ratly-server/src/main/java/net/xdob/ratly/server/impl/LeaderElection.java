@@ -8,7 +8,6 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.util.ServerStringUtils;
 import com.google.common.annotations.VisibleForTesting;
@@ -181,7 +180,7 @@ class LeaderElection implements Runnable {
         .setThreadGroup(server.getThreadGroup()).build();
     this.server = server;
     this.skipPreVote = force ||
-        !RaftServerConfigKeys.LeaderElection.preVote(
+        !net.xdob.ratly.server.config.LeaderElection.preVote(
             server.getRaftServer().getProperties());
     try {
       // increase term of the candidate in advance if it's forced to election

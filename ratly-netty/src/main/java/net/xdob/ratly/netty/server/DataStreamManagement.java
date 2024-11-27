@@ -29,11 +29,10 @@ import net.xdob.ratly.protocol.exceptions.AlreadyExistsException;
 import net.xdob.ratly.protocol.exceptions.DataStreamException;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServer.Division;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.Division;
 import net.xdob.ratly.statemachine.StateMachine;
-import net.xdob.ratly.statemachine.StateMachine.DataStream;
-import net.xdob.ratly.statemachine.StateMachine.DataChannel;
+import net.xdob.ratly.statemachine.DataStream;
+import net.xdob.ratly.statemachine.DataChannel;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
@@ -213,12 +212,12 @@ public class DataStreamManagement {
 
     this.channels = new ChannelMap();
     final RaftProperties properties = server.getProperties();
-    final boolean useCachedThreadPool = RaftServerConfigKeys.DataStream.asyncRequestThreadPoolCached(properties);
+    final boolean useCachedThreadPool = net.xdob.ratly.server.config.DataStream.asyncRequestThreadPoolCached(properties);
     this.requestExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
-          RaftServerConfigKeys.DataStream.asyncRequestThreadPoolSize(properties),
+          net.xdob.ratly.server.config.DataStream.asyncRequestThreadPoolSize(properties),
           name + "-request-");
     this.writeExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
-          RaftServerConfigKeys.DataStream.asyncWriteThreadPoolSize(properties),
+          net.xdob.ratly.server.config.DataStream.asyncWriteThreadPoolSize(properties),
           name + "-write-");
     this.requestTimeout = RaftClientConfigKeys.DataStream.requestTimeout(server.getProperties());
 

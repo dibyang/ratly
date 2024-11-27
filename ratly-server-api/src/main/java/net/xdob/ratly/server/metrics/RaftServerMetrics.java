@@ -1,9 +1,16 @@
-
-
 package net.xdob.ratly.server.metrics;
 
-/** Metrics for a raft Server. */
+/**
+ * 用于收集和记录与 Raft 服务器相关的指标，尤其是与快照安装操作相关的事件。
+ * 这个接口非常简洁，只有一个方法 onSnapshotInstalled()，用于在快照安装完成时触发事件。
+ */
 public interface RaftServerMetrics {
-  /** A snapshot just has been installed. */
+  /**
+   * 功能：当一个快照成功安装时触发该方法。
+   * 用途：用于记录快照安装的事件。例如，Raft 协议在将状态机的快照安装到本地存储时，可以调用该方法记录该操作。此操作的触发可以帮助跟踪 Raft 集群中快照的生命周期，进一步分析性能或健康状况。
+   * 应用场景：
+   *   1.性能监控：记录安装快照的时间，可以帮助分析集群在处理快照时的性能。
+   *   2.故障排查：如果 Raft 节点出现问题，查看快照安装的频率和成功与否，可能有助于发现某些潜在的问题。
+   */
   void onSnapshotInstalled();
 }

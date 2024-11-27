@@ -43,7 +43,9 @@ public interface RpcType {
   /** @return a new factory created using the given parameters. */
   RpcFactory newFactory(Parameters parameters);
 
-  /** An interface to get {@link RpcType}. */
+  /**
+   * 获取 RPC 类型 {@link RpcType}的接口。
+   */
   interface Get {
     /** @return the {@link RpcType}. */
     RpcType getRpcType();

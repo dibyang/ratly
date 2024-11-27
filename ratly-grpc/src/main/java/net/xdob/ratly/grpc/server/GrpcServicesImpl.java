@@ -1,7 +1,9 @@
 
 package net.xdob.ratly.grpc.server;
 
-import net.xdob.ratly.server.RaftServerRpc;
+import net.xdob.ratly.server.*;
+import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.Rpc;
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcConfigKeys;
@@ -15,9 +17,6 @@ import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rpc.SupportedRpcType;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
-import net.xdob.ratly.server.RaftServerRpcWithProxy;
 import net.xdob.ratly.server.protocol.RaftServerAsynchronousProtocol;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.ServerInterceptor;
@@ -122,18 +121,18 @@ public final class GrpcServicesImpl
       this.serverPort = GrpcConfigKeys.Server.port(properties);
       this.messageSizeMax = GrpcConfigKeys.messageSizeMax(properties, LOG::info);
       this.flowControlWindow = GrpcConfigKeys.flowControlWindow(properties, LOG::info);
-      this.requestTimeoutDuration = RaftServerConfigKeys.Rpc.requestTimeout(properties);
+      this.requestTimeoutDuration = Rpc.requestTimeout(properties);
       this.separateHeartbeatChannel = GrpcConfigKeys.Server.heartbeatChannel(properties);
       this.zeroCopyEnabled = GrpcConfigKeys.Server.zeroCopyEnabled(properties);
 
-      final SizeInBytes appenderBufferSize = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties);
+      final SizeInBytes appenderBufferSize = Log.Appender.bufferByteLimit(properties);
       final SizeInBytes gap = SizeInBytes.ONE_MB;
       final long diff = messageSizeMax.getSize() - appenderBufferSize.getSize();
       if (diff < gap.getSize()) {
         throw new IllegalArgumentException("Illegal configuration: "
             + GrpcConfigKeys.MESSAGE_SIZE_MAX_KEY + "(= " + messageSizeMax
             + ") must be " + gap + " larger than "
-            + RaftServerConfigKeys.Log.Appender.BUFFER_BYTE_LIMIT_KEY + "(= " + appenderBufferSize + ").");
+            + Log.Appender.BUFFER_BYTE_LIMIT_KEY + "(= " + appenderBufferSize + ").");
       }
 
       return this;

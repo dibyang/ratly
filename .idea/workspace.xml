@@ -4,8 +4,39 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="458b9310-ef8c-48b6-a80e-eea210a80cd1" name="Changes" comment="proto重构">
-      <change beforePath="$PROJECT_DIR$/ratly-proto/src/main/proto/Experiments.proto.bak" beforeDir="false" />
+    <list default="true" id="458b9310-ef8c-48b6-a80e-eea210a80cd1" name="Changes" comment="server-api重构">
+      <change afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/Division.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/protocol/RaftPeer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/rpc/RpcType.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-common/src/main/java/net/xdob/ratly/rpc/RpcType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/GrpcFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/GrpcFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcLogAppender.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-grpc/src/main/java/net/xdob/ratly/grpc/server/GrpcLogAppender.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/DataStreamManagement.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-netty/src/main/java/net/xdob/ratly/netty/server/DataStreamManagement.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServerFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServerFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServerRpc.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DataStreamServerRpc.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DivisionInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/DivisionInfo.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftConfiguration.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftConfiguration.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerMXBean.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerMXBean.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerRpc.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerRpc.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerRpcWithProxy.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RaftServerRpcWithProxy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RetryCache.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/RetryCache.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/ServerFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/ServerFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/ServerRpc.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/ServerRpc.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/leader/LogAppender.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server-api/src/main/java/net/xdob/ratly/server/leader/LogAppender.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/LeaderStateImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/LeaderStateImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerProxy.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/RaftServerProxy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/ServerState.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/impl/ServerState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/InstallSnapshotRequests.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/InstallSnapshotRequests.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LeaderProtoUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LeaderProtoUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LogAppenderBase.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LogAppenderBase.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LogAppenderDefault.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/leader/LogAppenderDefault.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLog.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLog.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLogWorker.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/raftlog/segmented/SegmentedRaftLogWorker.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/storage/StorageImplUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/ratly-server/src/main/java/net/xdob/ratly/server/storage/StorageImplUtils.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -145,12 +176,12 @@
   <component name="GitRewordedCommitMessages">
     <option name="commitMessagesMapping">
       <RewordedCommitMessageMapping>
-        <option name="originalMessage" value="proto重构" />
-        <option name="rewordedMessage" value="proto重构" />
+        <option name="originalMessage" value="server-api重构" />
+        <option name="rewordedMessage" value="server-api重构" />
       </RewordedCommitMessageMapping>
     </option>
     <option name="currentCommit" value="1" />
-    <option name="onto" value="5482e40b07a1bc36c49465671f4d941d073c7f2c" />
+    <option name="onto" value="60fb18ef5084a408e98c252c1d629b6ab73bbcc1" />
   </component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="CurrentFile" />
@@ -233,6 +264,9 @@
       <recent name="D:\work\java\raftx\raftx-proto\src\main" />
     </key>
     <key name="MoveInnerDialog.RECENTS_KEY">
+      <recent name="net.xdob.ratly.server" />
+      <recent name="net.xdob.ratly.server.config" />
+      <recent name="net.xdob.ratly.statemachine" />
       <recent name="net.xdob.ratly.retry" />
     </key>
   </component>
@@ -355,8 +389,8 @@
     <recent_temporary>
       <list>
         <item itemvalue="Gradle.ratly [build]" />
-        <item itemvalue="Gradle.ratly [clean]" />
         <item itemvalue="Gradle.ratly:ratly-proto [build]" />
+        <item itemvalue="Gradle.ratly [clean]" />
         <item itemvalue="Gradle.ratly:ratly-common [build]" />
         <item itemvalue="Gradle.ratly:ratly-proto [clean]" />
       </list>
@@ -389,7 +423,7 @@
       <workItem from="1732087412779" duration="2022000" />
       <workItem from="1732092412320" duration="4400000" />
       <workItem from="1732097191092" duration="24101000" />
-      <workItem from="1732505073705" duration="33169000" />
+      <workItem from="1732505073705" duration="63574000" />
     </task>
     <task id="LOCAL-00001" summary="初始项目代码">
       <option name="closed" value="true" />
@@ -487,7 +521,47 @@
       <option name="project" value="LOCAL" />
       <updated>1732685996278</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="proto重构">
+      <option name="closed" value="true" />
+      <created>1732686917558</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1732686917558</updated>
+    </task>
+    <task id="LOCAL-00014" summary="server-api重构">
+      <option name="closed" value="true" />
+      <created>1732701102742</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1732701102742</updated>
+    </task>
+    <task id="LOCAL-00015" summary="server-api重构">
+      <option name="closed" value="true" />
+      <created>1732760729149</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1732760729149</updated>
+    </task>
+    <task id="LOCAL-00016" summary="server-api重构">
+      <option name="closed" value="true" />
+      <created>1732767673620</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1732767673620</updated>
+    </task>
+    <task id="LOCAL-00017" summary="server-api重构">
+      <option name="closed" value="true" />
+      <created>1732768503237</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1732768503237</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -499,6 +573,7 @@
         <entry key="e8a17e24-765c-4092-b074-79c0059fc2c7" value="TOOL_WINDOW" />
         <entry key="3d26ca90-a51f-40c0-9133-4648889ea63a" value="TOOL_WINDOW" />
         <entry key="73478485-3f86-452c-9a4c-f5b957c480ee" value="TOOL_WINDOW" />
+        <entry key="6fc3536a-a180-464f-9988-1cd4bb111804" value="TOOL_WINDOW" />
       </map>
     </option>
     <option name="TAB_STATES">
@@ -519,6 +594,31 @@
                     <value>
                       <list>
                         <option value="$PROJECT_DIR$" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+              <option name="SHOW_ONLY_AFFECTED_CHANGES" value="true" />
+            </State>
+          </value>
+        </entry>
+        <entry key="6fc3536a-a180-464f-9988-1cd4bb111804">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                  <entry key="structure">
+                    <value>
+                      <list>
+                        <option value="dir:D:/work/java/ratly/ratly-server-api" />
                       </list>
                     </value>
                   </entry>
@@ -594,6 +694,7 @@
     <MESSAGE value="包名重构" />
     <MESSAGE value="common重构" />
     <MESSAGE value="proto重构" />
-    <option name="LAST_COMMIT_MESSAGE" value="proto重构" />
+    <MESSAGE value="server-api重构" />
+    <option name="LAST_COMMIT_MESSAGE" value="server-api重构" />
   </component>
 </project>

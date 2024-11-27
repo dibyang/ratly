@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.storage;
 
 import java.nio.file.Path;
@@ -6,9 +5,8 @@ import java.nio.file.Path;
 import net.xdob.ratly.io.MD5Hash;
 
 /**
- * Metadata about a file.
- *
- * The objects of this class are immutable.
+ * 描述了文件的元数据，主要用于存储与文件相关的路径、MD5 校验值和文件大小等信息。
+ * 它是不可变的，这意味着一旦创建后，文件的元数据就不可更改。
  */
 public class FileInfo {
   private final Path path;

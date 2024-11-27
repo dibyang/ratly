@@ -2,14 +2,14 @@
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.metrics.Timekeeper;
+import net.xdob.ratly.server.Division;
+import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.exceptions.TimeoutIOException;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -21,7 +21,7 @@ import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLogCache.TruncationS
 import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLog.Task;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.statemachine.StateMachine;
-import net.xdob.ratly.statemachine.StateMachine.DataStream;
+import net.xdob.ratly.statemachine.DataStream;
 import net.xdob.ratly.statemachine.TransactionContext;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
@@ -59,9 +59,9 @@ class SegmentedRaftLogWorker {
     private final SegmentedRaftLogMetrics metrics;
 
     StateMachineDataPolicy(RaftProperties properties, SegmentedRaftLogMetrics metricRegistry) {
-      this.sync = RaftServerConfigKeys.Log.StateMachineData.sync(properties);
-      this.syncTimeout = RaftServerConfigKeys.Log.StateMachineData.syncTimeout(properties);
-      this.syncTimeoutRetry = RaftServerConfigKeys.Log.StateMachineData.syncTimeoutRetry(properties);
+      this.sync = Log.StateMachineData.sync(properties);
+      this.syncTimeout = Log.StateMachineData.syncTimeout(properties);
+      this.syncTimeoutRetry = Log.StateMachineData.syncTimeoutRetry(properties);
       this.metrics = metricRegistry;
       Preconditions.assertTrue(syncTimeoutRetry >= -1);
     }
@@ -158,7 +158,7 @@ class SegmentedRaftLogWorker {
 
   private final long segmentMaxSize;
   private final long preallocatedSize;
-  private final RaftServer.Division server;
+  private final Division server;
 
   private final boolean asyncFlush;
   private final boolean unsafeFlush;
@@ -167,7 +167,7 @@ class SegmentedRaftLogWorker {
   private final StateMachineDataPolicy stateMachineDataPolicy;
 
   SegmentedRaftLogWorker(RaftGroupMemberId memberId, StateMachine stateMachine, Runnable submitUpdateCommitEvent,
-                         RaftServer.Division server, RaftStorage storage, RaftProperties properties,
+                         Division server, RaftStorage storage, RaftProperties properties,
                          SegmentedRaftLogMetrics metricRegistry) {
     this.name = memberId + "-" + JavaUtils.getClassSimpleName(getClass());
     LOG.info("new {} for {}", name, storage);
@@ -177,14 +177,14 @@ class SegmentedRaftLogWorker {
     this.raftLogMetrics = metricRegistry;
     this.storage = storage;
     this.server = server;
-    final SizeInBytes queueByteLimit = RaftServerConfigKeys.Log.queueByteLimit(properties);
-    final int queueElementLimit = RaftServerConfigKeys.Log.queueElementLimit(properties);
+    final SizeInBytes queueByteLimit = Log.queueByteLimit(properties);
+    final int queueElementLimit = Log.queueElementLimit(properties);
     this.queue =
         new DataBlockingQueue<>(name, queueByteLimit, queueElementLimit, Task::getSerializedSize);
 
-    this.segmentMaxSize = RaftServerConfigKeys.Log.segmentSizeMax(properties).getSize();
-    this.preallocatedSize = RaftServerConfigKeys.Log.preallocatedSize(properties).getSize();
-    this.forceSyncNum = RaftServerConfigKeys.Log.forceSyncNum(properties);
+    this.segmentMaxSize = Log.segmentSizeMax(properties).getSize();
+    this.preallocatedSize = Log.preallocatedSize(properties).getSize();
+    this.forceSyncNum = Log.forceSyncNum(properties);
 
     this.stateMachineDataPolicy = new StateMachineDataPolicy(properties, metricRegistry);
 
@@ -195,21 +195,21 @@ class SegmentedRaftLogWorker {
     metricRegistry.addLogWorkerQueueSizeGauge(writeTasks.q::size);
     metricRegistry.addFlushBatchSizeGauge(() -> flushBatchSize);
 
-    final int bufferSize = RaftServerConfigKeys.Log.writeBufferSize(properties).getSizeInt();
+    final int bufferSize = Log.writeBufferSize(properties).getSizeInt();
     this.writeBuffer = ByteBuffer.allocateDirect(bufferSize);
-    final int logEntryLimit = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties).getSizeInt();
+    final int logEntryLimit = Log.Appender.bufferByteLimit(properties).getSizeInt();
     // 4 bytes (serialized size) + logEntryLimit + 4 bytes (checksum)
     if (bufferSize < logEntryLimit + 8) {
-      throw new IllegalArgumentException(RaftServerConfigKeys.Log.WRITE_BUFFER_SIZE_KEY
+      throw new IllegalArgumentException(Log.WRITE_BUFFER_SIZE_KEY
           + " (= " + bufferSize
-          + ") is less than " + RaftServerConfigKeys.Log.Appender.BUFFER_BYTE_LIMIT_KEY
+          + ") is less than " + Log.Appender.BUFFER_BYTE_LIMIT_KEY
           + " + 8 (= " + (logEntryLimit + 8) + ")");
     }
-    this.unsafeFlush = RaftServerConfigKeys.Log.unsafeFlushEnabled(properties);
-    this.asyncFlush = RaftServerConfigKeys.Log.asyncFlushEnabled(properties);
+    this.unsafeFlush = Log.unsafeFlushEnabled(properties);
+    this.asyncFlush = Log.asyncFlushEnabled(properties);
     if (asyncFlush && unsafeFlush) {
-      throw new IllegalStateException("Cannot enable both " +  RaftServerConfigKeys.Log.UNSAFE_FLUSH_ENABLED_KEY +
-          " and " + RaftServerConfigKeys.Log.ASYNC_FLUSH_ENABLED_KEY);
+      throw new IllegalStateException("Cannot enable both " +  Log.UNSAFE_FLUSH_ENABLED_KEY +
+          " and " + Log.ASYNC_FLUSH_ENABLED_KEY);
     }
     this.flushExecutor = (!asyncFlush && !unsafeFlush)? null
         : Concurrents3.newSingleThreadExecutor(name + "-flush");
@@ -272,7 +272,7 @@ class SegmentedRaftLogWorker {
         Thread.currentThread().interrupt();
       } else {
         LOG.error("Failed to add IO task {}", task, e);
-        Optional.ofNullable(server).ifPresent(RaftServer.Division::close);
+        Optional.ofNullable(server).ifPresent(Division::close);
       }
       task.discard();
     }
@@ -335,7 +335,7 @@ class SegmentedRaftLogWorker {
               Thread.currentThread().getName(), e);
         } else {
           LOG.error("{} hit exception", Thread.currentThread().getName(), e);
-          Optional.ofNullable(server).ifPresent(RaftServer.Division::close);
+          Optional.ofNullable(server).ifPresent(Division::close);
         }
       }
     }

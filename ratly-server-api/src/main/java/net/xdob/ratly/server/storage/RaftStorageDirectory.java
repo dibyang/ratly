@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-/** The directory of a {@link RaftStorage}. */
+/**
+ * The directory of a {@link RaftStorage}.
+ */
 public interface RaftStorageDirectory {
   Logger LOG = LoggerFactory.getLogger(RaftStorageDirectory.class);
 

@@ -3,8 +3,8 @@ package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.RaftServerConfigKeys;
-import net.xdob.ratly.server.RaftServerConfigKeys.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.storage.RaftStorage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.util.SizeInBytes;
@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static net.xdob.ratly.server.RaftServer.Division.LOG;
+import static net.xdob.ratly.server.Division.LOG;
 
 public final class StorageImplUtils {
   private static final File[] EMPTY_FILE_ARRAY = {};
@@ -100,7 +100,7 @@ public final class StorageImplUtils {
       this.option = option;
 
       this.freeSpaceMin = RaftServerConfigKeys.storageFreeSpaceMin(properties);
-      this.logCorruptionPolicy = RaftServerConfigKeys.Log.corruptionPolicy(properties);
+      this.logCorruptionPolicy = Log.corruptionPolicy(properties);
       this.dirsInConf = RaftServerConfigKeys.storageDir(properties);
 
       this.existingSubs = getExistingStorageSubs(dirsInConf, this.storageDirName, dirsPerVol);

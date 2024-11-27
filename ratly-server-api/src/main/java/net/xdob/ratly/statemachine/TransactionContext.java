@@ -15,34 +15,40 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Context for a transaction.
- * The transaction might have originated from a client request, or it
- * maybe coming from another replica of the state machine through the RAFT log.
- * {@link TransactionContext} can be created from
- * either the {@link StateMachine} or the state machine updater.
- *
- * In the first case, the {@link StateMachine} is a leader. When it receives
- * a {@link StateMachine#startTransaction(RaftClientRequest)} request, it returns
- * a {@link TransactionContext} with the changes from the {@link StateMachine}.
- * The same context will be passed back to the {@link StateMachine}
- * via the {@link StateMachine#applyTransaction(TransactionContext)} call.
- *
- * In the second case, the {@link StateMachine} is a follower.
- * The {@link TransactionContext} will be a committed entry coming from
- * the RAFT log from the leader.
+ * 事务的上下文，主要用于描述 Raft 协议中的事务处理过程。
+ * TransactionContext 的主要作用是承载事务相关的数据，主要包括：
+ *    事务发起的角色（如领导者或跟随者）。
+ *    客户端请求（RaftClientRequest），当事务由客户端发起时。
+ *    状态机日志条目，即 Raft 协议中的日志条目。
+ *    事务是否已提交，以及在提交过程中是否出现异常。
+ * <p>
+ * 该事务可能源自客户端请求，或者可能来自通过 RAFT 日志传递的另一个状态机副本。
+ * {@link TransactionContext} 可以通过 {@link StateMachine} 或状态机更新器创建。
+ * <p>
+ * 在第一种情况下，{@link StateMachine} 是领导者。
+ * 当它收到 {@link StateMachine#startTransaction(RaftClientRequest)} 请求时，
+ * 它会返回一个包含来自 {@link StateMachine} 更改的 {@link TransactionContext}。
+ * 相同的上下文将通过 {@link StateMachine#applyTransaction(TransactionContext)}
+ * 调用传回 {@link StateMachine}。
+ * <p>
+ * 在第二种情况下，{@link StateMachine} 是跟随者。
+ * {@link TransactionContext} 将是来自领导者的 RAFT 日志中的已提交条目
  */
 public interface TransactionContext {
-  /** @return the role of the server when this context is created. */
+  /**
+   * 返回创建此事务上下文时的服务器角色，可能是 领导者（LEADER）或 跟随者（FOLLOWER）。
+   * @return the role of the server when this context is created.
+   */
   RaftPeerRole getServerRole();
 
   /**
-   * Returns the original request from the {@link RaftClientRequest}
+   * 返回发起此事务的客户端请求{@link RaftClientRequest}。
    * @return the original request from the {@link RaftClientRequest}
    */
   RaftClientRequest getClientRequest();
 
   /**
-   * Returns the data from the {@link StateMachine}
+   * 返回与状态机相关的日志条目，已被标记为废弃，推荐通过 getLogEntryRef() 或 getLogEntryUnsafe() 获取。
    * @return the data from the {@link StateMachine}
    * @deprecated access StateMachineLogEntry via {@link TransactionContext#getLogEntryRef()} or
    * {@link TransactionContext#getLogEntryUnsafe()}
@@ -50,30 +56,32 @@ public interface TransactionContext {
   @Deprecated
   StateMachineLogEntryProto getStateMachineLogEntry();
 
-  /** Set exception in case of failure. */
+  /**
+   * 如果事务执行失败，此方法将设置异常信息。
+   */
   TransactionContext setException(Exception exception);
 
   /**
-   * Returns the exception from the {@link StateMachine} or the log
+   * 获取与事务相关的异常，如果有的话。
    * @return the exception from the {@link StateMachine} or the log
    */
   Exception getException();
 
   /**
-   * Sets the {@link StateMachine} the {@link TransactionContext} is specific to, the method would
-   * not create a new transaction context, it updates the {@link StateMachine} it associates with
+   * 设置与事务相关联的状态机上下文。状态机上下文指的是事务所依赖的状态机的内部状态。
    * @param stateMachineContext state machine context
    * @return transaction context specific to the given {@link StateMachine}
    */
   TransactionContext setStateMachineContext(Object stateMachineContext);
 
   /**
-   * Returns the {@link StateMachine} the current {@link TransactionContext} specific to
+   * 获取与事务相关联的状态机上下文。状态机上下文指的是事务所依赖的状态机的内部状态。
    * @return the {@link StateMachine} the current {@link TransactionContext} specific to
    */
   Object getStateMachineContext();
 
   /**
+   * 初始化一个新的日志条目，通常用于将事务写入 RAFT 日志。
    * Initialize {@link LogEntryProto} using the internal {@link StateMachineLogEntryProto}.
    * @param term The current term.
    * @param index The index of the log entry.
@@ -82,6 +90,7 @@ public interface TransactionContext {
   LogEntryProto initLogEntry(long term, long index);
 
   /**
+   * 返回一个日志条目的副本
    * @return a copy of the committed log entry if it exists; otherwise, returns null
    *
    * @deprecated Use {@link #getLogEntryRef()} or {@link #getLogEntryUnsafe()} to avoid copying.
@@ -100,6 +109,7 @@ public interface TransactionContext {
   }
 
   /**
+   * 返回一个引用计数的对象，可以安全地访问日志条目
    * Get a {@link ReferenceCountedObject} to the committed log entry.
    *
    * It is safe to access the log entry by calling {@link ReferenceCountedObject#get()}
@@ -124,14 +134,14 @@ public interface TransactionContext {
   }
 
   /**
-   * Sets whether to commit the transaction to the RAFT log or not
+   * 设置事务应该被提交到 RAFT 日志中。
    * @param shouldCommit true if the transaction is supposed to be committed to the RAFT log
    * @return the current {@link TransactionContext} itself
    */
   TransactionContext setShouldCommit(boolean shouldCommit);
 
   /**
-   * It indicates if the transaction should be committed to the RAFT log
+   * 事务是否应该被提交到 RAFT 日志中。
    * @return true if it commits the transaction to the RAFT log, otherwise, false
    */
   boolean shouldCommit();
@@ -139,6 +149,8 @@ public interface TransactionContext {
   // proxy StateMachine methods. We do not want to expose the SM to the RaftLog
 
   /**
+   * 在事务被附加到 RAFT 日志之前调用，通常用于执行一些准备工作；
+   * <p>
    * This is called before the transaction passed from the StateMachine is appended to the raft log.
    * This method will be called from log append and having the same strict serial order that the
    * Transactions will have in the RAFT log. Since this is called serially in the critical path of
@@ -148,6 +160,8 @@ public interface TransactionContext {
   TransactionContext preAppendTransaction() throws IOException;
 
   /**
+   * 在事务无法附加时调用。
+   * <p>
    * Called to notify the state machine that the Transaction passed cannot be appended (or synced).
    * The exception field will indicate whether there was an exception or not.
    * @return cancelled transaction

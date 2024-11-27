@@ -9,8 +9,8 @@ import net.xdob.ratly.proto.example.ReadReplyProto;
 import net.xdob.ratly.proto.example.StreamWriteReplyProto;
 import net.xdob.ratly.proto.example.WriteReplyProto;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.statemachine.StateMachine;
-import net.xdob.ratly.statemachine.StateMachine.DataStream;
+import net.xdob.ratly.statemachine.DataChannel;
+import net.xdob.ratly.statemachine.DataStream;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.Collections3;
 import net.xdob.ratly.util.FileUtils;
@@ -303,7 +303,7 @@ public class FileStore implements Closeable {
     }, writer);
   }
 
-  static class FileStoreDataChannel implements StateMachine.DataChannel {
+  static class FileStoreDataChannel implements DataChannel {
     private final Path path;
     private final RandomAccessFile randomAccessFile;
 

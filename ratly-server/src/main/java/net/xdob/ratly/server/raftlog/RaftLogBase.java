@@ -7,8 +7,8 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
+import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.statemachine.TransactionContext;
 import com.google.protobuf.ByteString;
@@ -77,12 +77,12 @@ public abstract class RaftLogBase implements RaftLog {
     this.commitIndex = new RaftLogIndex("commitIndex", index);
     this.snapshotIndex = new RaftLogIndex("snapshotIndex", index);
     this.purgeIndex = new RaftLogIndex("purgeIndex", LEAST_VALID_LOG_INDEX - 1);
-    this.purgeGap = RaftServerConfigKeys.Log.purgeGap(properties);
-    this.maxBufferSize = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties).getSizeInt();
+    this.purgeGap = Log.purgeGap(properties);
+    this.maxBufferSize = Log.Appender.bufferByteLimit(properties).getSizeInt();
     this.state = new OpenCloseState(getName());
     this.getSnapshotIndexFromStateMachine = getSnapshotIndexFromStateMachine;
-    this.stateMachineDataReadTimeout = RaftServerConfigKeys.Log.StateMachineData.readTimeout(properties);
-    this.purgePreservation = RaftServerConfigKeys.Log.purgePreservationLogNum(properties);
+    this.stateMachineDataReadTimeout = Log.StateMachineData.readTimeout(properties);
+    this.purgePreservation = Log.purgePreservationLogNum(properties);
   }
 
   @Override

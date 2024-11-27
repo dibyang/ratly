@@ -15,7 +15,7 @@ import net.xdob.ratly.protocol.RaftGroup;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.rpc.SupportedRpcType;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Log;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.SizeInBytes;
@@ -81,17 +81,17 @@ public abstract class Client extends SubCommandBase {
     RaftConfigKeys.Rpc.setType(raftProperties, SupportedRpcType.GRPC);
     GrpcConfigKeys.setMessageSizeMax(raftProperties,
         SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.Appender.setBufferByteLimit(raftProperties,
+    Log.Appender.setBufferByteLimit(raftProperties,
         SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setWriteBufferSize(raftProperties,
+    Log.setWriteBufferSize(raftProperties,
         SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setPreallocatedSize(raftProperties,
+    Log.setPreallocatedSize(raftProperties,
         SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setSegmentSizeMax(raftProperties,
+    Log.setSegmentSizeMax(raftProperties,
         SizeInBytes.valueOf(1 * 1024 * 1024 * 1024L));
     RaftConfigKeys.DataStream.setType(raftProperties, SupportedDataStreamType.NETTY);
 
-    RaftServerConfigKeys.Log.setSegmentCacheNumMax(raftProperties, 2);
+    Log.setSegmentCacheNumMax(raftProperties, 2);
 
     RaftClientConfigKeys.Rpc.setRequestTimeout(raftProperties,
         TimeDuration.valueOf(50000, TimeUnit.MILLISECONDS));

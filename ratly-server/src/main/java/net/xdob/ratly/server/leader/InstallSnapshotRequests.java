@@ -5,7 +5,7 @@ import net.xdob.ratly.proto.raft.FileChunkProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto.SnapshotChunkProto;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.RaftServer;
+import net.xdob.ratly.server.Division;
 import net.xdob.ratly.server.storage.FileChunkReader;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorageDirectory;
@@ -30,7 +30,7 @@ import java.util.function.Function;
  * The number of requests is equal to the sum of the numbers of chunks of each file.
  */
 class InstallSnapshotRequests implements Iterable<InstallSnapshotRequestProto> {
-  private final RaftServer.Division server;
+  private final Division server;
   private final RaftPeerId followerId;
   private final Function<FileInfo, Path> getRelativePath;
 
@@ -47,8 +47,8 @@ class InstallSnapshotRequests implements Iterable<InstallSnapshotRequestProto> {
   private final int numFiles;
 
 
-  InstallSnapshotRequests(RaftServer.Division server, RaftPeerId followerId,
-      String requestId, SnapshotInfo snapshot, int snapshotChunkMaxSize) {
+  InstallSnapshotRequests(Division server, RaftPeerId followerId,
+                          String requestId, SnapshotInfo snapshot, int snapshotChunkMaxSize) {
     this.server = server;
     this.followerId = followerId;
     this.requestId = requestId;

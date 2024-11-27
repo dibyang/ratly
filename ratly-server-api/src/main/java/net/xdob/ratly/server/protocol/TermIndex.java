@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.protocol;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -8,7 +7,10 @@ import net.xdob.ratly.server.raftlog.RaftLog;
 import java.util.Comparator;
 import java.util.Optional;
 
-/** The term and the log index defined in the Raft consensus algorithm. */
+/**
+ * TermIndex 是 Raft 协议中的一个核心概念，结合任期号（term）和日志索引（index），用于唯一标识某一日志条目。
+ * 它在 Raft 的日志复制和一致性保证中扮演重要角色，比如用于比较日志的新旧程度和定位特定日志条目。
+ */
 public interface TermIndex extends Comparable<TermIndex> {
   /**
    * The initial value.
@@ -24,13 +26,16 @@ public interface TermIndex extends Comparable<TermIndex> {
   /** An empty {@link TermIndex} array. */
   TermIndex[] EMPTY_ARRAY = {};
 
-  /** @return the term. */
+  /** 返回当前 TermIndex 对象的任期号。*/
   long getTerm();
 
-  /** @return the index. */
+  /** 返回当前 TermIndex 对象的日志索引。*/
   long getIndex();
 
-  /** @return the {@link TermIndexProto}. */
+  /**
+   * 将当前对象转换为 Protobuf 格式，用于网络通信和持久化。
+   * @return the {@link TermIndexProto}.
+   */
   default TermIndexProto toProto() {
     return TermIndexProto.newBuilder()
         .setTerm(getTerm())
@@ -45,17 +50,26 @@ public interface TermIndex extends Comparable<TermIndex> {
         .compare(this, that);
   }
 
-  /** @return a {@link TermIndex} object from the given proto. */
+  /**
+   * 从 Protobuf 对象创建一个新的 TermIndex 实例。
+   * @return a {@link TermIndex} object from the given proto.
+   */
   static TermIndex valueOf(TermIndexProto proto) {
     return Optional.ofNullable(proto).map(p -> valueOf(p.getTerm(), p.getIndex())).orElse(null);
   }
 
-  /** @return a {@link TermIndex} object from the given proto. */
+  /**
+   * 从日志条目对象创建一个新的 TermIndex。
+   * @return a {@link TermIndex} object from the given proto.
+   */
   static TermIndex valueOf(LogEntryProto proto) {
     return Optional.ofNullable(proto).map(p -> valueOf(p.getTerm(), p.getIndex())).orElse(null);
   }
 
-  /** @return a {@link TermIndex} object. */
+  /**
+   * 创建一个新的 TermIndex 实例，内部通过匿名类实现。
+   * @return a {@link TermIndex} object.
+   */
   static TermIndex valueOf(long term, long index) {
     return new TermIndex() {
       @Override

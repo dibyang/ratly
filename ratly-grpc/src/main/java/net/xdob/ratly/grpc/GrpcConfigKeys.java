@@ -4,7 +4,7 @@ package net.xdob.ratly.grpc;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.server.GrpcServices;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.Rpc;
 import net.xdob.ratly.util.SizeInBytes;
 import net.xdob.ratly.util.TimeDuration;
 import org.slf4j.Logger;
@@ -236,7 +236,7 @@ public interface GrpcConfigKeys {
     }
 
     String INSTALL_SNAPSHOT_REQUEST_TIMEOUT_KEY = PREFIX + ".install_snapshot.request.timeout";
-    TimeDuration INSTALL_SNAPSHOT_REQUEST_TIMEOUT_DEFAULT = RaftServerConfigKeys.Rpc.REQUEST_TIMEOUT_DEFAULT;
+    TimeDuration INSTALL_SNAPSHOT_REQUEST_TIMEOUT_DEFAULT = Rpc.REQUEST_TIMEOUT_DEFAULT;
     static TimeDuration installSnapshotRequestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(INSTALL_SNAPSHOT_REQUEST_TIMEOUT_DEFAULT.getUnit()),
           INSTALL_SNAPSHOT_REQUEST_TIMEOUT_KEY, INSTALL_SNAPSHOT_REQUEST_TIMEOUT_DEFAULT, getDefaultLog());

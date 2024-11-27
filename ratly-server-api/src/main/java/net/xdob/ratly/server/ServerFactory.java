@@ -18,7 +18,7 @@ public interface ServerFactory extends RpcFactory {
   }
 
   /** Create a new {@link LogAppender}. */
-  default LogAppender newLogAppender(RaftServer.Division server, LeaderState state, FollowerInfo f) {
+  default LogAppender newLogAppender(Division server, LeaderState state, FollowerInfo f) {
     return LogAppender.newLogAppenderDefault(server, state, f);
   }
 

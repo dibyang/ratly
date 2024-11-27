@@ -19,7 +19,7 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.security.TlsConf;
 import net.xdob.ratly.server.DataStreamServerRpc;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.config.DataStream;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -107,7 +107,7 @@ public class NettyServerStreamRpc implements DataStreamServerRpc {
     private final List<Proxies> list;
 
     ProxiesPool(String name, RaftProperties properties, Parameters parameters) {
-      final int clientPoolSize = RaftServerConfigKeys.DataStream.clientPoolSize(properties);
+      final int clientPoolSize = DataStream.clientPoolSize(properties);
       final List<Proxies> proxies = new ArrayList<>(clientPoolSize);
       for (int i = 0; i < clientPoolSize; i++) {
         proxies.add(new Proxies(new PeerProxyMap<>(name, peer -> newClient(peer, properties, parameters))));

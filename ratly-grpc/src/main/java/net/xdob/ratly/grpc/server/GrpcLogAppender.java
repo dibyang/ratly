@@ -1,5 +1,8 @@
 package net.xdob.ratly.grpc.server;
 
+import net.xdob.ratly.server.Division;
+import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.Rpc;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.TimeDuration;
 import net.xdob.ratly.util.TimeoutExecutor;
@@ -13,8 +16,6 @@ import net.xdob.ratly.proto.raft.InstallSnapshotResult;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.retry.MultipleLinearRandomRetry;
 import net.xdob.ratly.retry.RetryPolicy;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.leader.FollowerInfo;
 import net.xdob.ratly.server.leader.LeaderState;
 import net.xdob.ratly.server.leader.LogAppenderBase;
@@ -154,19 +155,19 @@ public class GrpcLogAppender extends LogAppenderBase {
   private final RetryPolicy errorRetryWaitPolicy;
   private final ReplyState replyState = new ReplyState();
 
-  public GrpcLogAppender(RaftServer.Division server, LeaderState leaderState, FollowerInfo f) {
+  public GrpcLogAppender(Division server, LeaderState leaderState, FollowerInfo f) {
     super(server, leaderState, f);
 
     Preconditions.assertNotNull(getServerRpc(), "getServerRpc()");
 
     final RaftProperties properties = server.getRaftServer().getProperties();
     this.maxPendingRequestsNum = GrpcConfigKeys.Server.leaderOutstandingAppendsMax(properties);
-    this.requestTimeoutDuration = RaftServerConfigKeys.Rpc.requestTimeout(properties);
+    this.requestTimeoutDuration = Rpc.requestTimeout(properties);
     this.maxOutstandingInstallSnapshots = GrpcConfigKeys.Server.installSnapshotRequestElementLimit(properties);
     this.installSnapshotStreamTimeout = GrpcConfigKeys.Server.installSnapshotRequestTimeout(properties)
         .multiply(maxOutstandingInstallSnapshots);
     this.logMessageBatchDuration = GrpcConfigKeys.Server.logMessageBatchDuration(properties);
-    this.installSnapshotEnabled = RaftServerConfigKeys.Log.Appender.installSnapshotEnabled(properties);
+    this.installSnapshotEnabled = Log.Appender.installSnapshotEnabled(properties);
     this.useSeparateHBChannel = GrpcConfigKeys.Server.heartbeatChannel(properties);
 
     grpcServerMetrics = new GrpcServerMetrics(server.getMemberId().toString());
@@ -175,7 +176,7 @@ public class GrpcLogAppender extends LogAppenderBase {
     lock = new AutoCloseableReadWriteLock(this);
     caller = LOG.isTraceEnabled()? JavaUtils.getCallerStackTraceElement(): null;
     errorRetryWaitPolicy = MultipleLinearRandomRetry.parseCommaSeparated(
-        RaftServerConfigKeys.Log.Appender.retryPolicy(properties));
+        Log.Appender.retryPolicy(properties));
   }
 
   @Override
@@ -681,7 +682,7 @@ public class GrpcLogAppender extends LogAppenderBase {
           break;
         case CONF_MISMATCH:
           LOG.error("{}: Configuration Mismatch ({}): Leader {} has it set to {} but follower {} has it set to {}",
-              this, RaftServerConfigKeys.Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
+              this, Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
               getServer().getId(), installSnapshotEnabled, getFollowerId(), !installSnapshotEnabled);
           break;
         case SNAPSHOT_INSTALLED:

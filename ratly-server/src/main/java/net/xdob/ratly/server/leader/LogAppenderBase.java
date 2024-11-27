@@ -5,8 +5,8 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.RaftServerConfigKeys;
+import net.xdob.ratly.server.Division;
+import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLog.EntryWithData;
@@ -37,7 +37,7 @@ import java.util.function.LongUnaryOperator;
  */
 public abstract class LogAppenderBase implements LogAppender {
   private final String name;
-  private final RaftServer.Division server;
+  private final Division server;
   private final LeaderState leaderState;
   private final FollowerInfo follower;
 
@@ -50,22 +50,22 @@ public abstract class LogAppenderBase implements LogAppender {
   private final AtomicBoolean heartbeatTrigger = new AtomicBoolean();
   private final TimeDuration waitTimeMin;
 
-  protected LogAppenderBase(RaftServer.Division server, LeaderState leaderState, FollowerInfo f) {
+  protected LogAppenderBase(Division server, LeaderState leaderState, FollowerInfo f) {
     this.follower = f;
     this.name = follower.getName() + "-" + JavaUtils.getClassSimpleName(getClass());
     this.server = server;
     this.leaderState = leaderState;
 
     final RaftProperties properties = server.getRaftServer().getProperties();
-    this.snapshotChunkMaxSize = RaftServerConfigKeys.Log.Appender.snapshotChunkSizeMax(properties).getSizeInt();
+    this.snapshotChunkMaxSize = Log.Appender.snapshotChunkSizeMax(properties).getSizeInt();
 
-    final SizeInBytes bufferByteLimit = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties);
-    final int bufferElementLimit = RaftServerConfigKeys.Log.Appender.bufferElementLimit(properties);
+    final SizeInBytes bufferByteLimit = Log.Appender.bufferByteLimit(properties);
+    final int bufferElementLimit = Log.Appender.bufferElementLimit(properties);
     this.buffer = new DataQueue<>(this, bufferByteLimit, bufferElementLimit, EntryWithData::getSerializedSize);
     this.daemon = new LogAppenderDaemon(this);
     this.eventAwaitForSignal = new AwaitForSignal(name);
 
-    this.waitTimeMin = RaftServerConfigKeys.Log.Appender.waitTimeMin(properties);
+    this.waitTimeMin = Log.Appender.waitTimeMin(properties);
   }
 
   @Override
@@ -96,7 +96,7 @@ public abstract class LogAppenderBase implements LogAppender {
   }
 
   @Override
-  public final RaftServer.Division getServer() {
+  public final Division getServer() {
     return server;
   }
 

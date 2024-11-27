@@ -17,8 +17,12 @@ import java.util.stream.Stream;
  */
 public interface Concurrents3 {
   /**
-   * Similar to {@link AtomicReference#updateAndGet(java.util.function.UnaryOperator)}
-   * except that the update function is checked.
+   * 这个方法类似于 {@link AtomicReference#updateAndGet(java.util.function.UnaryOperator)}，
+   * 但是它支持检查并处理可能抛出的检查型异常（THROWABLE）。
+   * 它接受一个 AtomicReference<E> 和一个 CheckedFunction<E, E, THROWABLE> 类型的更新函数。
+   * CheckedFunction 允许你提供一个可能抛出检查型异常的更新操作。
+   * 如果更新函数抛出了异常，该异常将被捕获并重新抛出，确保操作的原子性，同时处理检查型异常。
+   * 使用场景：适用于需要在更新引用时同时处理检查型异常的情况。
    */
   static <E, THROWABLE extends Throwable> E updateAndGet(AtomicReference<E> reference,
       CheckedFunction<E, E, THROWABLE> update) throws THROWABLE {
@@ -42,8 +46,9 @@ public interface Concurrents3 {
   }
 
   /**
-   * Creates a {@link ThreadFactory} so that the threads created by the factory are named with the given name prefix.
-   *
+   * 该方法创建一个新的 {@link ThreadFactory}，并且所有由该工厂创建的线程都会有指定的前缀（namePrefix）作为线程名。
+   * 它使用 AtomicInteger 来确保每个线程都有一个唯一的 ID。
+   * 使用场景：当你需要为线程指定一致的命名规则时，特别是在调试或日志记录时，使用命名线程会更方便。
    * @param namePrefix the prefix used in the name of the threads created.
    * @return a new {@link ThreadFactory}.
    */
@@ -58,8 +63,8 @@ public interface Concurrents3 {
   }
 
   /**
-    * This method is similar to {@link Executors#newSingleThreadExecutor(ThreadFactory)}
-    * except that this method takes a specific thread name as there is only one thread.g
+    * 该方法创建一个新的 {@link ExecutorService}，并且该服务只会启动一个线程执行任务，且线程的名称是你指定的 name。
+   * 使用场景：当你需要一个单线程的执行器，并且希望这个线程有特定的名称，便于调试时使用。
     *
     * @param name the thread name for only one thread.
     * @return a new {@link ExecutorService}.
@@ -73,8 +78,10 @@ public interface Concurrents3 {
   }
 
   /**
-   * The same as {@link Executors#newCachedThreadPool(ThreadFactory)}
-   * except that this method takes a maximumPoolSize parameter.
+   * 类似于  {@link Executors#newCachedThreadPool(ThreadFactory)}，
+   * 但是它额外接受一个 maximumPoolSize 参数。如果 maximumPoolSize 为 0，它的行为与 newCachedThreadPool() 完全相同。
+   * 它会创建一个核心池大小为 0，最大池大小为 maximumPoolSize 的 ThreadPoolExecutor。也就是说，它会根据需要创建线程，但线程数有上限。
+   * 使用场景：当你需要一个带有线程数上限的缓存线程池时，可以用这个方法控制最大线程数。
    *
    * @param maximumPoolSize the maximum number of threads to allow in the pool.
    *                        When maximumPoolSize == 0, this method is the same as
@@ -88,9 +95,8 @@ public interface Concurrents3 {
   }
 
   /**
-   * Create a new {@link ExecutorService} with a maximum pool size.
-   * If it is cached, this method is similar to {@link #newCachedThreadPool(int, ThreadFactory)}.
-   * Otherwise, this method is similar to {@link Executors#newFixedThreadPool(int)}.
+   * 这个方法可以根据传入的 cached 参数来选择创建一个缓存线程池或固定线程池。它还允许你指定最大线程数和线程名称前缀。
+   * 使用场景：当你需要在固定线程池和缓存线程池之间选择时，可以使用这个方法，根据实际需求来灵活配置线程池。
    *
    * @param cached Use cached thread pool?  If not, use a fixed thread pool.
    * @param maximumPoolSize the maximum number of threads to allow in the pool.
@@ -130,6 +136,10 @@ public interface Concurrents3 {
   }
 
   /**
+   * 这个方法是对 Collection.parallelStream() 的扩展，支持异步执行，并且可以指定执行操作的线程池。它还允许处理带有检查异常的操作。
+   * 它有多个重载版本，可以接受流、集合或整数范围作为输入，并在异步执行时处理每个元素。
+   * 使用场景：当你需要并行处理集合或流中的每个元素时，并且每个操作可能会抛出异常时，这个方法非常有用。
+   * <p>
    * The same as {@link Collection#parallelStream()}.forEach(action) except that
    * (1) this method is asynchronous,
    * (2) this method has an executor parameter, and

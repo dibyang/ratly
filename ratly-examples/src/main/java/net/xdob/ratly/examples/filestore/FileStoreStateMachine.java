@@ -11,6 +11,8 @@ import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.statemachine.DataChannel;
+import net.xdob.ratly.statemachine.DataStream;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.statemachine.TransactionContext;
 import net.xdob.ratly.statemachine.impl.BaseStateMachine;

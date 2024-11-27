@@ -8,8 +8,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The metadata for a raft storage.
- *
+ * 存储 Raft 协议相关的元数据，包括 term（当前任期）和 votedFor（投票的服务器）
+ * <p>
  * This is a value-based class.
  */
 public final class RaftStorageMetadata {

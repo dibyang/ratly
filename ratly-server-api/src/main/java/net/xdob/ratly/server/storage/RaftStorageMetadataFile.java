@@ -3,13 +3,18 @@ package net.xdob.ratly.server.storage;
 import java.io.IOException;
 
 /**
- * Represent a file on disk which persistently stores the metadata of a raft storage.
+ * 持久化 Raft 存储元数据的接口
  * The file is updated atomically.
  */
 public interface RaftStorageMetadataFile {
-  /** @return the metadata persisted in this file. */
+  /**
+   * 读取持久化文件中的元数据。
+   * @return the metadata persisted in this file.
+   */
   RaftStorageMetadata getMetadata() throws IOException;
 
-  /** Persist the given metadata. */
+  /**
+   * 将给定的元数据持久化到文件中。
+   */
   void persist(RaftStorageMetadata newMetadata) throws IOException;
 }

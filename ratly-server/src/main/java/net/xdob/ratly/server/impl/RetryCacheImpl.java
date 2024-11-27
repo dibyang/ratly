@@ -6,7 +6,6 @@ import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftClientRequest;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.RetryCache;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -153,8 +152,8 @@ class RetryCacheImpl implements RetryCache {
   private final TimeDuration statisticsExpiryTime;
 
   RetryCacheImpl(RaftProperties properties) {
-    this(RaftServerConfigKeys.RetryCache.expiryTime(properties),
-         RaftServerConfigKeys.RetryCache.statisticsExpiryTime(properties));
+    this(net.xdob.ratly.server.config.RetryCache.expiryTime(properties),
+         net.xdob.ratly.server.config.RetryCache.statisticsExpiryTime(properties));
   }
 
   /**

@@ -3,7 +3,7 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.protocol.ClientInvocationId;
 import net.xdob.ratly.server.DataStreamMap;
-import net.xdob.ratly.statemachine.StateMachine.DataStream;
+import net.xdob.ratly.statemachine.DataStream;
 import net.xdob.ratly.util.JavaUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -2,6 +2,8 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.protocol.RaftGroupMemberId;
+import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.Notification;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.server.storage.RaftStorageMetadata;
 import net.xdob.ratly.conf.RaftProperties;
@@ -9,7 +11,6 @@ import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.RaftServerConfigKeys;
 import net.xdob.ratly.server.impl.LeaderElection.Phase;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
@@ -39,7 +40,7 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
-import static net.xdob.ratly.server.RaftServer.Division.LOG;
+import static net.xdob.ratly.server.Division.LOG;
 
 /**
  * Common states of a raft peer. Protected by RaftServer's lock.
@@ -109,7 +110,7 @@ class ServerState {
 
     // On start the leader is null, start the clock now
     this.lastNoLeaderTime = new AtomicReference<>(Timestamp.currentTime());
-    this.noLeaderTimeout = RaftServerConfigKeys.Notification.noLeaderTimeout(prop);
+    this.noLeaderTimeout = Notification.noLeaderTimeout(prop);
 
     final LongSupplier getSnapshotIndexFromStateMachine = () -> Optional.ofNullable(stateMachine.getLatestSnapshot())
         .map(SnapshotInfo::getIndex)
@@ -164,7 +165,7 @@ class ServerState {
       Consumer<LogEntryProto> logConsumer, LongSupplier getSnapshotIndexFromStateMachine,
       RaftProperties prop) throws IOException {
     final RaftLog log;
-    if (RaftServerConfigKeys.Log.useMemory(prop)) {
+    if (Log.useMemory(prop)) {
       log = new MemoryRaftLog(memberId, getSnapshotIndexFromStateMachine, prop);
     } else {
       log = SegmentedRaftLog.newBuilder()

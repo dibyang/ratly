@@ -10,6 +10,7 @@ import net.xdob.ratly.grpc.server.GrpcServices;
 import net.xdob.ratly.grpc.server.GrpcServicesImpl;
 import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.rpc.SupportedRpcType;
+import net.xdob.ratly.server.Division;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.leader.LogAppender;
 import net.xdob.ratly.server.ServerFactory;
@@ -108,7 +109,7 @@ public class GrpcFactory implements ServerFactory, ClientFactory {
   }
 
   @Override
-  public LogAppender newLogAppender(RaftServer.Division server, LeaderState state, FollowerInfo f) {
+  public LogAppender newLogAppender(Division server, LeaderState state, FollowerInfo f) {
     return new GrpcLogAppender(server, state, f);
   }
 
