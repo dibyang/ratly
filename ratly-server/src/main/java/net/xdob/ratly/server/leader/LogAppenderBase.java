@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.leader;
 
 import net.xdob.ratly.conf.RaftProperties;

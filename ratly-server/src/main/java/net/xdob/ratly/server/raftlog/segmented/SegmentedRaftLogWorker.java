@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.metrics.Timekeeper;
@@ -41,8 +40,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * This class takes the responsibility of all the raft log related I/O ops for a
- * raft peer.
+ * 该类负责处理 Raft 节点所有与 Raft 日志相关的 I/O 操作。
  */
 class SegmentedRaftLogWorker {
   static final Logger LOG = LoggerFactory.getLogger(SegmentedRaftLogWorker.class);
@@ -126,7 +124,7 @@ class SegmentedRaftLogWorker {
 
   private final String name;
   /**
-   * The task queue accessed by rpc handler threads and the io worker thread.
+   * rpc处理程序线程和io工作线程访问的任务队列。
    */
   private final DataBlockingQueue<Task> queue;
   private final WriteLogTasks writeTasks = new WriteLogTasks();
@@ -140,18 +138,18 @@ class SegmentedRaftLogWorker {
   private final SegmentedRaftLogMetrics raftLogMetrics;
   private final ByteBuffer writeBuffer;
 
-  /**
-   * The number of entries that have been written into the SegmentedRaftLogOutputStream but
-   * has not been flushed.
+ /**
+   * 已写入 SegmentedRaftLogOutputStream 但未刷新的条目数。
    */
   private int pendingFlushNum = 0;
-  /** the index of the last entry that has been written */
+  /** 已写入的最后一个条目的索引 */
   private long lastWrittenIndex;
   private volatile int flushBatchSize = 0;
-  /** the largest index of the entry that has been flushed */
+  /** 已刷新的条目的最大索引 */
   private final RaftLogIndex flushIndex = new RaftLogIndex("flushIndex", 0);
-  /** the index up to which cache can be evicted - max of snapshotIndex and
-   * largest index in a closed segment */
+  /** 可以逐出缓存的索引 - snapshotIndex 的最大值
+   * 封闭段中的最大索引
+   */
   private final RaftLogIndex safeCacheEvictIndex = new RaftLogIndex("safeCacheEvictIndex", 0);
 
   private final int forceSyncNum;
@@ -190,7 +188,7 @@ class SegmentedRaftLogWorker {
 
     this.workerThreadExecutor = Concurrents3.newSingleThreadExecutor(name);
 
-    // Server Id can be null in unit tests
+    // 服务器 ID 在单元测试中可以为 null
     metricRegistry.addDataQueueSizeGauge(queue::getNumElements);
     metricRegistry.addLogWorkerQueueSizeGauge(writeTasks.q::size);
     metricRegistry.addFlushBatchSizeGauge(() -> flushBatchSize);
@@ -239,8 +237,7 @@ class SegmentedRaftLogWorker {
   }
 
   /**
-   * A snapshot has just been installed on the follower. Need to update the IO
-   * worker's state accordingly.
+   * 刚刚在 follower 上安装了快照。需要更新 IO worker的相应状态。
    */
   void syncWithSnapshot(long lastSnapshotIndex) {
     queue.clear();
@@ -615,7 +612,7 @@ class SegmentedRaftLogWorker {
 
     @Override
     void failed(IOException e) {
-      // not failed for a specific log entry, but an entire segment
+      // 不是特定日志条目的失败，而是整个段的失败
       stateMachine.event().notifyLogFailed(e, null);
       super.failed(e);
     }
@@ -663,11 +660,9 @@ class SegmentedRaftLogWorker {
     TruncateLog(TruncationSegments ts, long index) {
       this.segments = ts;
       if (stateMachine != null) {
-        // TruncateLog and WriteLog instance is created while taking a RaftLog write lock.
-        // StateMachine call is made inside the constructor so that it is lock
-        // protected. This is to make sure that stateMachine can determine which
-        // indexes to truncate as stateMachine calls would happen in the sequence
-        // of log operations.
+        // 在获取 RaftLog 写锁时创建 TruncateLog 和 WriteLog 实例。
+        // 状态机调用是在构造函数内部进行的，以确保它受锁保护。
+        // 这是为了确保状态机能够确定需要截断的索引，因为状态机的调用将按日志操作的顺序进行。
         stateMachineFuture = stateMachine.data().truncate(index);
       }
     }
@@ -705,7 +700,7 @@ class SegmentedRaftLogWorker {
         LOG.info("{}: Truncated log file {} to length {} and moved it to {}", name,
             fileToTruncate, segments.getToTruncate().getTargetLength(), dstFile);
 
-        // update lastWrittenIndex
+        // 更新 lastWrittenIndex
         lastWrittenIndex = segments.getToTruncate().getNewEndIndex();
       }
 

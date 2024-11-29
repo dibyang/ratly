@@ -125,24 +125,18 @@ public interface StateMachine extends Closeable {
   void reinitialize() throws IOException;
 
   /**
-   * 功能：将内存中的状态快照到 Raft 存储中，返回已应用的日志条目的最大索引。
-   * 说明：状态机可以决定何时、如何以及是否阻塞来进行快照。快照应该包含最新的 Raft 配置。
+   * 将内存中的状态转储到 RaftStorage 中的快照文件。
+   * 状态机实现可以决定：
+   *    1）自己的快照格式，
+   *    2）何时创建快照，
+   *    3）如何创建快照（例如，快照是否阻塞状态机，以及快照完成后是否清除日志条目）。
    * <p>
-   * Dump the in-memory state into a snapshot file in the RaftStorage. The
-   * StateMachine implementation can decide 1) its own snapshot format, 2) when
-   * a snapshot is taken, and 3) how the snapshot is taken (e.g., whether the
-   * snapshot blocks the state machine, and whether to purge log entries after
-   * a snapshot is done).
-   *
-   * In the meanwhile, when the size of raft log outside of the latest snapshot
-   * exceeds certain threshold, the RaftServer may choose to trigger a snapshot
-   * if {@link Snapshot#AUTO_TRIGGER_ENABLED_KEY} is enabled.
-   *
-   * The snapshot should include the latest raft configuration.
-   *
-   * @return the largest index of the log entry that has been applied to the
-   *         state machine and also included in the snapshot. Note the log purge
-   *         should be handled separately.
+   * 与此同时，当最新快照之外的 Raft 日志大小超过某个阈值时，
+   * 如果 {@link Snapshot#AUTO_TRIGGER_ENABLED_KEY} 启用，RaftServer 可能会选择触发快照。
+   * <p>
+   * 快照应包含最新的 Raft 配置。
+   * @return 已应用到状态机并且已包含在快照中的日志条目的最大索引。
+   *         请注意，日志清理应单独处理。
    */
   // TODO: refactor this
   long takeSnapshot() throws IOException;
@@ -150,8 +144,7 @@ public interface StateMachine extends Closeable {
   /**
    * 功能：返回与状态机相关的持久化存储对象。
    * 说明：用于与状态机的持久化存储进行交互。
-   * @return StateMachineStorage to interact with the durability guarantees provided by the
-   * state machine.
+   * @return 与状态机相关的持久化存储对象。
    */
   StateMachineStorage getStateMachineStorage();
 
@@ -168,48 +161,37 @@ public interface StateMachine extends Closeable {
   CompletableFuture<Message> query(Message request);
 
   /**
-   * 功能：查询状态机，但请求的 minIndex 必须小于等于当前提交索引，可能返回过时数据。
-   * 说明：如果请求的日志条目尚未提交，可能会延迟查询，直到日志条目应用完毕。
+   * 查询状态机，前提是 minIndex <= 提交索引。
+   * 请求必须是只读的。
+   * 由于该服务器的提交索引可能落后于 Raft 服务，返回的结果可能会过时。
    * <p>
-   * Query the state machine, provided minIndex <= commit index.
-   * The request must be read-only.
-   * Since the commit index of this server may lag behind the Raft service,
-   * the returned result may possibly be stale.
-   * <p>
-   * When minIndex > {@link #getLastAppliedTermIndex()},
-   * the state machine may choose to either
-   * (1) return exceptionally, or
-   * (2) wait until minIndex <= {@link #getLastAppliedTermIndex()} before running the query.
+   * 当 minIndex > {@link #getLastAppliedTermIndex()} 时，
+   * 状态机可以选择以下两种方式之一：
+   *    (1) 异常返回，或
+   *    (2) 等待直到 minIndex <= {@link #getLastAppliedTermIndex()} 再执行查询。
    */
   CompletableFuture<Message> queryStale(Message request, long minIndex);
 
   /**
-   * 功能：启动一个事务，用于处理请求并准备将内容写入日志。
-   * 说明：该方法用于创建一个新的事务并返回相关的 TransactionContext。
-   * <p>
-   * Start a transaction for the given request.
-   * This method can be invoked in parallel when there are multiple requests.
-   * The implementation should validate the request,
-   * prepare a {@link StateMachineLogEntryProto},
-   * and then build a {@link TransactionContext}.
-   * The implementation should also be light-weighted.
    *
-   * @return a transaction with the content to be written to the log.
-   * @throws IOException thrown by the state machine while validation
-   *
+   * 为给定请求启动一个事务。
+   * 当有多个请求时，此方法可以并行调用。
+   * 实现应验证请求，准备一个 {@link StateMachineLogEntryProto}，
+   * 然后构建一个 {@link TransactionContext}。
+   * 实现应保持轻量级。
+   * @return 包含将写入日志的内容的事务。
+   * @throws IOException 由状态机在验证时抛出
    * @see TransactionContext.Builder
    */
   TransactionContext startTransaction(RaftClientRequest request) throws IOException;
 
   /**
-   *
-   * Start a transaction for the given log entry for non-leaders.
-   * This method can be invoked in parallel when there are multiple requests.
-   * The implementation should prepare a {@link StateMachineLogEntryProto},
-   * and then build a {@link TransactionContext}.
-   * The implementation should also be light-weighted.
-   *
-   * @return a transaction with the content to be written to the log.
+   * 为非领导者的给定日志条目启动一个事务。
+   * 当有多个请求时，此方法可以并行调用。
+   * 实现应准备一个 {@link StateMachineLogEntryProto}，
+   * 然后构建一个 {@link TransactionContext}。
+   * 实现应保持轻量级。
+   * @return 包含将写入日志的内容的事务。
    */
   default TransactionContext startTransaction(LogEntryProto entry, RaftPeerRole role) {
     return TransactionContext.newBuilder()

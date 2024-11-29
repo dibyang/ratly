@@ -1,8 +1,7 @@
-package net.xdob.ratly.examples.h2db;
+package net.xdob.ratly.jdbc;
 
-import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.Message;
-import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.TransactionContext;
 import net.xdob.ratly.statemachine.impl.BaseStateMachine;
 
@@ -10,7 +9,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.concurrent.CompletableFuture;
 
-public class H2dbStateMachine extends BaseStateMachine {
+public class JdbcStateMachine extends BaseStateMachine {
 
   public static final String DEFAULT_USER = "sa";
   public static final String DEFAULT_PASSWORD = "";
@@ -21,14 +20,14 @@ public class H2dbStateMachine extends BaseStateMachine {
 
   private Connection connection;
 
-  public H2dbStateMachine(String path, String db, String username, String password) {
+  public JdbcStateMachine(String path, String db, String username, String password) {
     this.path = path;
     this.db = db;
     this.username = username;
     this.password = password;
   }
 
-  public H2dbStateMachine(String path, String db){
+  public JdbcStateMachine(String path, String db){
     this(path,db, DEFAULT_USER, DEFAULT_PASSWORD);
   }
 

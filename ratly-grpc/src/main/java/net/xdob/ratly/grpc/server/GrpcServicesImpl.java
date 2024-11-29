@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.server.*;
@@ -45,7 +44,12 @@ import java.util.function.Supplier;
 
 import static io.netty.handler.ssl.SslProvider.OPENSSL;
 
-/** A grpc implementation of {@link RaftServerRpc}. */
+/**
+ * {@link RaftServerRpc} 接口的具体实现。
+ * 主要功能：
+ *    1.提供 gRPC 服务的启动、配置和管理。
+ *    2.管理客户端、服务器、管理服务的 gRPC 通信。
+ */
 public final class GrpcServicesImpl
     extends RaftServerRpcWithProxy<GrpcServerProtocolClient, PeerProxyMap<GrpcServerProtocolClient>>
     implements GrpcServices {
@@ -53,6 +57,9 @@ public final class GrpcServicesImpl
   public static final String GRPC_SEND_SERVER_REQUEST =
       JavaUtils.getClassSimpleName(GrpcServicesImpl.class) + ".sendRequest";
 
+  /**
+   * 实现了 RaftServerAsynchronousProtocol，提供异步的 RPC 处理能力。
+   */
   class AsyncService implements RaftServerAsynchronousProtocol {
 
     @Override

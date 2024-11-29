@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.conf.RaftProperties;
@@ -44,30 +43,25 @@ import java.util.function.LongSupplier;
 import net.xdob.ratly.util.UncheckedAutoCloseable;
 
 /**
- * The RaftLog implementation that writes log entries into segmented files in
- * local disk.
  *
- * The max log segment size is 8MB. The real log segment size may not be
- * exactly equal to this limit. If a log entry's size exceeds 8MB, this entry
- * will be stored in a single segment.
- *
- * There are two types of segments: closed segment and open segment. The former
- * is named as "log_startindex-endindex", the later is named as
- * "log_inprogress_startindex".
- *
- * There can be multiple closed segments but there is at most one open segment.
- * When the open segment reaches the size limit, or the log term increases, we
- * close the open segment and start a new open segment. A closed segment cannot
- * be appended anymore, but it can be truncated in case that a follower's log is
- * inconsistent with the current leader.
- *
- * Every closed segment should be non-empty, i.e., it should contain at least
- * one entry.
- *
- * There should not be any gap between segments. The first segment may not start
- * from index 0 since there may be snapshots as log compaction. The last index
- * in segments should be no smaller than the last index of snapshot, otherwise
- * we may have hole when append further log.
+ * 这是一个将日志条目写入本地磁盘分段文件的 RaftLog 实现。
+ * <p>
+ * 最大日志段大小为 8MB。实际的日志段大小可能不会完全等于此限制。如果一个日志条目的大小超过 8MB，
+ * 则该条目将存储在一个单独的段中。
+ * <p>
+ * 日志存储分为两种段：
+ *    1.已完成的日志段，命名为“log_startindex-endindex”，不可再追加日志，但可被截断。
+ *    2.当前正在写入的日志段，命名为“log_inprogress_startindex”。
+ * <p>
+ * 可以有多个已关闭的日志段，但最多只能有一个开放的日志段。
+ * 当开放的日志段达到大小限制，或者日志的任期增加时，
+ * 我们会关闭当前的开放段并启动一个新的开放段。
+ * 已关闭的日志段不能再追加内容，但如果某个跟随者的日志与当前领导者不一致，可以对其进行截断。
+ * <p>
+ * 每个已关闭的日志段应该是非空的，即至少包含一个条目。
+ * <p>
+ * 段与段之间不应有任何间隙。第一个段可能不会从索引 0 开始，因为可能存在作为日志压缩的快照。
+ * 段中的最后一个索引应该不小于快照的最后一个索引，否则在进一步追加日志时可能会产生空洞。
  */
 public final class SegmentedRaftLog extends RaftLogBase {
   /**
@@ -122,7 +116,9 @@ public final class SegmentedRaftLog extends RaftLogBase {
     }
   }
 
-  /** The server methods used in {@link SegmentedRaftLog}. */
+  /**
+   * 在 {@link SegmentedRaftLog} 中使用的服务器方法。
+   */
   interface ServerLogMethods {
     ServerLogMethods DUMMY = new ServerLogMethods() {};
 
@@ -134,7 +130,7 @@ public final class SegmentedRaftLog extends RaftLogBase {
       return INVALID_LOG_INDEX;
     }
 
-    /** Notify the server that a log entry is being truncated. */
+    /** 通知服务器日志条目正在被截断。 */
     default void notifyTruncatedLogEntry(TermIndex ti) {
     }
 
@@ -144,8 +140,8 @@ public final class SegmentedRaftLog extends RaftLogBase {
   }
 
   /**
-   * When the server is null, return the dummy instance of {@link ServerLogMethods}.
-   * Otherwise, the server is non-null, return the implementation using the given server.
+   * 当服务器为 null 时，返回 {@link ServerLogMethods} 的虚拟实例。
+   * 否则，服务器非 null，返回使用给定服务器的实现。
    */
   private ServerLogMethods newServerLogMethods(Division impl,
                                                Consumer<LogEntryProto> notifyTruncatedLogEntry,
@@ -239,23 +235,18 @@ public final class SegmentedRaftLog extends RaftLogBase {
       final List<LogSegmentPath> paths = LogSegmentPath.getLogSegmentPaths(storage);
       int i = 0;
       for (LogSegmentPath pi : paths) {
-        // During the initial loading, we can only confirm the committed
-        // index based on the snapshot. This means if a log segment is not kept
-        // in cache after the initial loading, later we have to load its content
-        // again for updating the state machine.
-        // TODO we should let raft peer persist its committed index periodically
-        // so that during the initial loading we can apply part of the log
-        // entries to the state machine
+        // 在初始加载过程中，我们只能基于快照确认已提交的索引。
+        // 这意味着，如果日志段在初始加载后没有保留在缓存中，之后我们必须重新加载其内容以更新状态机。
+        // TODO：我们应该让 Raft 节点定期持久化其已提交的索引，
+        //  这样在初始加载时，我们可以将部分日志条目应用到状态机中。
         boolean keepEntryInCache = (paths.size() - i++) <= cache.getMaxCachedSegments();
         try(UncheckedAutoCloseable ignored = getRaftLogMetrics().startLoadSegmentTimer()) {
           cache.loadSegment(pi, keepEntryInCache, logConsumer);
         }
       }
 
-      // if the largest index is smaller than the last index in snapshot, we do
-      // not load the log to avoid holes between log segments. This may happen
-      // when the local I/O worker is too slow to persist log (slower than
-      // committing the log and taking snapshot)
+      // 如果最大索引小于快照中的最后一个索引，我们将不会加载日志，以避免日志段之间出现空洞。
+      // 这种情况可能发生在本地 I/O 工作线程持久化日志过慢（比提交日志和生成快照的速度还慢）时。
       if (!cache.isEmpty() && cache.getEndIndex() < lastIndexInSnapshot) {
         LOG.warn("End log index {} is smaller than last index in snapshot {}",
             cache.getEndIndex(), lastIndexInSnapshot);
@@ -295,12 +286,11 @@ public final class SegmentedRaftLog extends RaftLogBase {
         getRaftLogMetrics().onRaftLogCacheHit();
         return entry;
       } catch (IllegalStateException ignored) {
-        // The entry could be removed from the cache and released.
-        // The exception can be safely ignored since it is the same as cache miss.
+        // 条目可以从缓存中移除并释放。
+        // 这个异常可以安全地忽略，因为它与缓存未命中的情况相同。
       }
     }
-
-    // the entry is not in the segment's cache. Load the cache without holding the lock.
+    //// 条目不在段的缓存中。在不持有锁的情况下加载缓存。
     getRaftLogMetrics().onRaftLogCacheMiss();
     cacheEviction.signal();
     return segment.loadCache(record);
@@ -343,9 +333,7 @@ public final class SegmentedRaftLog extends RaftLogBase {
   private void checkAndEvictCache() {
     if (cache.shouldEvict()) {
       try (AutoCloseableLock ignored = writeLock()){
-        // TODO if the cache is hitting the maximum size and we cannot evict any
-        // segment's cache, should block the new entry appending or new segment
-        // allocation.
+        // TODO：如果缓存达到了最大大小且无法驱逐任何段的缓存，应阻止新条目的追加或新段的分配。
         cache.evictCache(server.getFollowerNextIndices(), fileLogWorker.getSafeCacheEvictIndex(),
             server.getLastAppliedIndex());
       }
@@ -435,12 +423,11 @@ public final class SegmentedRaftLog extends RaftLogBase {
         cacheEviction.signal();
       }
 
-      // If the entry has state machine data, then the entry should be inserted
-      // to statemachine first and then to the cache. Not following the order
-      // will leave a spurious entry in the cache.
+      // 如果条目包含状态机数据，则应首先将该条目插入到状态机中，然后再插入到缓存中。
+      // 未按照此顺序操作会导致缓存中留下一个无效条目。
       final Task write = fileLogWorker.writeLogEntry(entryRef, removedStateMachineData, context);
       if (stateMachineCachingEnabled) {
-        // The stateMachineData will be cached inside the StateMachine itself.
+        // 状态机数据将被缓存到状态机内部。
         if (removedStateMachineData != entry) {
           cache.appendEntry(LogSegment.Op.WRITE_CACHE_WITH_STATE_MACHINE_CACHE,
               ReferenceCountedObject.wrap(removedStateMachineData));
@@ -465,8 +452,7 @@ public final class SegmentedRaftLog extends RaftLogBase {
       return true;
     } else {
       final long entrySize = LogSegment.getEntrySize(entry, LogSegment.Op.CHECK_SEGMENT_FILE_FULL);
-      // if entry size is greater than the max segment size, write it directly
-      // into the current segment
+      // 如果条目大小大于最大段大小，则直接写入当前段。
       return entrySize <= segmentMaxSize &&
           segment.getTotalFileSize() + entrySize > segmentMaxSize;
     }
@@ -524,12 +510,10 @@ public final class SegmentedRaftLog extends RaftLogBase {
   public CompletableFuture<Long> onSnapshotInstalled(long lastSnapshotIndex) {
     updateSnapshotIndex(lastSnapshotIndex);
     fileLogWorker.syncWithSnapshot(lastSnapshotIndex);
-    // TODO purge normal/tmp/corrupt snapshot files
-    // if the last index in snapshot is larger than the index of the last
-    // log entry, we should delete all the log entries and their cache to avoid
-    // gaps between log segments.
+    // TODO：清理正常/临时/损坏的快照文件。
+    // 如果快照中的最后一个索引大于最后一个日志条目的索引，我们应该删除所有日志条目及其缓存，以避免日志段之间的间隙。
 
-    // Close open log segment if entries are already included in snapshot
+    // 如果条目已经包含在快照中，关闭打开的日志段。
     LogSegment openSegment = cache.getOpenSegment();
     if (openSegment != null && openSegment.hasEntries()) {
       if (LOG.isDebugEnabled()) {

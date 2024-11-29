@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.Parameters;
@@ -16,7 +15,7 @@ import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
-import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.JavaUtils;
@@ -35,7 +34,7 @@ public final class ServerImplUtils {
 
   /** Create a {@link RaftServerProxy}. */
   public static RaftServerProxy newRaftServer(
-      RaftPeerId id, RaftGroup group, RaftStorage.StartupOption option, StateMachine.Registry stateMachineRegistry,
+      RaftPeerId id, RaftGroup group, StartupOption option, StateMachine.Registry stateMachineRegistry,
       ThreadGroup threadGroup, RaftProperties properties, Parameters parameters) throws IOException {
     RaftServer.LOG.debug("newRaftServer: {}, {}", id, group);
     if (group != null && !group.getPeers().isEmpty()) {
@@ -97,7 +96,7 @@ public final class ServerImplUtils {
 
   static void assertEntries(AppendEntriesRequestProto proto, TermIndex previous, ServerState state) {
     final List<LogEntryProto> entries = proto.getEntriesList();
-    if (entries != null && !entries.isEmpty()) {
+    if (!entries.isEmpty()) {
       final long index0 = entries.get(0).getIndex();
       // Check if next entry's index is 1 greater than the snapshotIndex. If yes, then
       // we do not have to check for the existence of previous.

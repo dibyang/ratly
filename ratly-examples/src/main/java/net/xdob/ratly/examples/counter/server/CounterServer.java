@@ -8,7 +8,7 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.config.Read;
-import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.util.NetUtils;
 import net.xdob.ratly.util.TimeDuration;
 
@@ -62,7 +62,7 @@ public final class CounterServer implements Closeable {
         .setProperties(properties)
         .setServerId(peer.getId())
         .setStateMachine(counterStateMachine)
-        .setOption(RaftStorage.StartupOption.RECOVER)
+        .setOption(StartupOption.RECOVER)
         .build();
   }
 

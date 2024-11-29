@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.util.AtomicFileOutputStream;
@@ -19,6 +18,10 @@ import java.util.Objects;
 
 import static java.nio.file.Files.newDirectoryStream;
 
+/**
+ * 用于管理和操作 Raft 协议的存储目录。
+ * 它提供了目录管理、存储一致性检查、空间检查、锁定和解锁等功能。
+ */
 class RaftStorageDirectoryImpl implements RaftStorageDirectory {
 
   private static final String IN_USE_LOCK_NAME = "in_use.lock";
@@ -26,16 +29,18 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   private static final String CONF_EXTENSION = ".conf";
   private static final String JVM_NAME = ManagementFactory.getRuntimeMXBean().getName();
 
-  enum StorageState {
-    UNINITIALIZED,
-    NON_EXISTENT,
-    NOT_FORMATTED,
-    NO_SPACE,
-    NORMAL
-  }
-
-  private final File root; // root directory
-  private FileLock lock;   // storage lock
+  /**
+   * root 是存储目录的根目录，存储所有 Raft 数据。
+   */
+  private final File root;
+  /**
+   * 该字段用于管理存储的独占锁，确保只有一个进程能够访问存储目录。
+   * lock 使用 FileLock 对象来管理存储目录的访问权限。
+   */
+  private FileLock lock;
+  /**
+   * 用于设置 Raft 存储目录所需的最小空闲空间。
+   */
   private final SizeInBytes freeSpaceMin;
 
   /**
@@ -54,10 +59,11 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   }
 
   /**
+   * 用于清除存储目录中的内容并重新创建空目录。
    * Clear and re-create storage directory.
    * <p>
    * Removes contents of the current directory and creates an empty directory.
-   *
+   * <p>
    * This does not fully format storage directory.
    * It cannot write the version file since it should be written last after
    * all other storage type dependent files are written.
@@ -77,11 +83,17 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
     FileUtils.createDirectories(dir);
   }
 
-
+  /**
+   * @return 当前目录中的元数据文件。
+   */
   File getMetaFile() {
     return new File(getCurrentDir(), META_FILE_NAME);
   }
 
+  /**
+   *
+   * @return
+   */
   File getMetaTmpFile() {
     return AtomicFileOutputStream.getTemporaryFile(getMetaFile());
   }
@@ -91,7 +103,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   }
 
   /**
-   * Check to see if current/ directory is empty.
+   * 检查 current/ 目录是否为空。如果目录不存在，认为可以进行格式化。
    */
   boolean isCurrentEmpty() throws IOException {
     File currentDir = getCurrentDir();
@@ -109,7 +121,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   }
 
   /**
-   * Check consistency of the storage directory.
+   * 分析存储目录的状态。检查存储目录是否存在、是否可写、是否有足够的空间以及目录是否有效。
    *
    * @return state {@link StorageState} of the storage directory
    */
@@ -234,7 +246,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   }
 
   /**
-   * Unlock storage.
+   * 释放存储目录的锁，确保其他进程可以访问存储目录。
    */
   void unlock() throws IOException {
     if (this.lock == null) {

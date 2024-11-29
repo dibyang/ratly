@@ -21,7 +21,7 @@ import net.xdob.ratly.server.config.DataStream;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.config.Rpc;
 import net.xdob.ratly.server.config.Write;
-import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachine;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.LifeCycle;
@@ -103,12 +103,12 @@ public class Server extends SubCommandBase {
         .setServerId(RaftPeerId.valueOf(id))
         .setStateMachine(stateMachine).setProperties(properties)
         .setGroup(raftGroup)
-        .setOption(RaftStorage.StartupOption.RECOVER)
+        .setOption(StartupOption.RECOVER)
         .build();
 
     raftServer.start();
 
-    for (; raftServer.getLifeCycleState() != LifeCycle.State.CLOSED; ) {
+    while (raftServer.getLifeCycleState() != LifeCycle.State.CLOSED) {
       TimeUnit.SECONDS.sleep(1);
     }
   }

@@ -9,31 +9,26 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * A reference-counted object can be retained for later use
- * and then be released for returning the resource.
+ * 接口提供了一种基于引用计数管理对象生命周期的机制，可以确保对象的资源在使用后正确释放，并防止资源泄漏。
  * <p>
- * - When the object is retained, the reference count is incremented by 1.
+ * 必须释放：所有调用 retain() 的地方都必须匹配调用 release()，以避免资源泄漏。
  * <p>
- * - When the object is released, the reference count is decremented by 1.
+ * 完全释放后不可再用：对象引用计数归零后，不可再次访问或保留。
  * <p>
- * - If the object is retained, it must be released afterward.
- *   Otherwise, the object will not be returned, and it will cause a resource leak.
- * <p>
- * - If the object is retained multiple times,
- *   it must be released the same number of times.
- * <p>
- * - If the object has been retained and then completely released (i.e. the reference count becomes 0),
- *   it must not be retained/released/accessed anymore since it may have been allocated for other use.
+ * 复合引用：通过 delegateFrom 方法，可以管理多个对象之间复杂的引用依赖关系。
  *
  * @param <T> The object type.
  */
 public interface ReferenceCountedObject<T> {
 
-  /** @return the object. */
+  /**
+   * 获取被包装的对象。
+   * @return the object.
+   */
   T get();
 
   /**
-   * Retain the object for later use.
+   * 增加对象的引用计数，表示需要继续保留对象的使用权。
    * The reference count will be increased by 1.
    * <p>
    * The {@link #release()} method must be invoked afterward.
@@ -44,6 +39,8 @@ public interface ReferenceCountedObject<T> {
   T retain();
 
   /**
+   * 返回一个实现了 UncheckedAutoCloseableSupplier 的包装器。调用 close() 会自动调用 release()，
+   * 非常适合在 try-with-resources 块中使用，确保对象被正确释放。
    * The same as {@link #retain()} except that this method returns a {@link UncheckedAutoCloseableSupplier}.
    *
    * @return a {@link UncheckedAutoCloseableSupplier}
@@ -74,7 +71,7 @@ public interface ReferenceCountedObject<T> {
   }
 
   /**
-   * Release the object.
+   * 减少对象的引用计数。如果引用计数归零，返回 true，表示对象完全释放。
    * The reference count will be decreased by 1.
    *
    * @return true if the object is completely released (i.e. reference count becomes 0); otherwise, return false.
@@ -86,6 +83,9 @@ public interface ReferenceCountedObject<T> {
     return wrap(value, () -> {}, ignored -> {});
   }
 
+  /**
+   * 包装一个新的对象，该对象的生命周期依赖于一组 {@link ReferenceCountedObject}
+   */
   static <T, V> ReferenceCountedObject<V> delegateFrom(Collection<ReferenceCountedObject<T>> fromRefs, V value) {
     return new ReferenceCountedObject<V>() {
       @Override
@@ -113,6 +113,7 @@ public interface ReferenceCountedObject<T> {
   }
 
   /**
+   * 创建一个新的 ReferenceCountedObject，对 retain 和 release 的调用委托给原始对象。
    * @return a {@link ReferenceCountedObject} of the given value by delegating to this object.
    */
   default <V> ReferenceCountedObject<V> delegate(V value) {
@@ -137,6 +138,7 @@ public interface ReferenceCountedObject<T> {
   }
 
   /**
+   * 对当前对象应用一个函数，将结果包装为新的 {@link ReferenceCountedObject}。
    * @return a {@link ReferenceCountedObject} by apply the given function to this object.
    */
   default <V> ReferenceCountedObject<V> apply(Function<T, V> function) {
@@ -144,8 +146,8 @@ public interface ReferenceCountedObject<T> {
   }
 
   /**
-   * Wrap the given value as a {@link ReferenceCountedObject}.
-   *
+   * 简单地将对象包装为一个引用计数对象{@link ReferenceCountedObject}。
+   * 允许自定义 retain 和 release 行为，通过 Runnable 或 Consumer<Boolean> 实现。
    * @param value the value being wrapped.
    * @param retainMethod a method to run when {@link #retain()} is invoked.
    * @param releaseMethod a method to run when {@link #release()} is invoked,

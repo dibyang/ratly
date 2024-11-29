@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.statemachine.impl;
 
 import java.util.ArrayList;
@@ -11,9 +10,10 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.util.JavaUtils;
 
 /**
- * Each snapshot has a list of files.
+ * 一个不可变的类，用于表示 Raft 状态机的快照信息。
  * <p>
- * The objects of this class are immutable.
+ * 每个快照包含一个日志条目的 Term 和 Index 以及与该快照相关的文件列表。
+ * 该类实现了 SnapshotInfo 接口，提供了获取 Term 和文件列表等功能。
  */
 public class FileListSnapshotInfo implements SnapshotInfo {
   private final TermIndex termIndex;

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.util.Preconditions;
@@ -19,9 +18,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Provides a buffering layer in front of a FileChannel for writing.
+ * 在 FileChannel 前提供一个缓冲层用于写入。
  * <p>
- * This class is NOT threadsafe.
+ * 该类不是线程安全的。
  */
 class BufferedWriteChannel implements Closeable {
   static final Logger LOG = LoggerFactory.getLogger(BufferedWriteChannel.class);
@@ -111,8 +110,7 @@ class BufferedWriteChannel implements Closeable {
   }
 
   /**
-   * Write any data in the buffer to the file and force a
-   * sync operation so that data is persisted to the disk.
+   * 将缓冲区中的所有数据写入文件，并强制执行同步操作，以确保数据持久化到磁盘。
    *
    * @throws IOException if the write or sync operation fails.
    */
@@ -143,7 +141,9 @@ class BufferedWriteChannel implements Closeable {
     return null;
   }
 
-  /** Flush the data from the {@link #writeBuffer} to {@link #fileChannel}. */
+  /**
+   * 将数据从 {@link #writeBuffer} 刷新到 {@link #fileChannel}。
+   */
   private void flushBuffer() throws IOException {
     if (writeBufferPosition() == 0) {
       return; // nothing to flush

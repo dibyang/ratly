@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -10,9 +9,9 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * The start index and an end index of a log segment.
+ * 日志 Segment 的开始索引和结束索引。
  * <p>
- * This is a value-based class.
+ * 这是一个基于价值的类。
  */
 public final class LogSegmentStartEnd implements Comparable<LogSegmentStartEnd> {
   private static final String LOG_FILE_NAME_PREFIX = "log";

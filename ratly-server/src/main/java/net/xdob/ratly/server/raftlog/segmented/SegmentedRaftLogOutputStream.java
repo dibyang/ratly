@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -56,16 +55,16 @@ public class SegmentedRaftLogOutputStream implements Closeable {
   }
 
   /**
-   * Write the given entry to this output stream.
+   * 将给定条目写入此输出流。
    * <p>
-   * Format:
-   *   (1) The serialized size of the entry.
-   *   (2) The entry.
-   *   (3) 4-byte checksum of the entry.
+   * 格式：
+   *   (1) 条目的序列化大小。
+   *   (2) 条目本身。
+   *   (3) 条目的 4 字节校验和。
    * <p>
-   * Size in bytes to be written:
-   *   (size to encode n) + n + (checksum size),
-   *   where n is the entry serialized size and the checksum size is 4.
+   * 要写入的字节大小：
+   *    (编码 n 的大小) + n + (校验和大小)，
+   *    其中 n 是条目的序列化大小，校验和大小为 4。
    */
   public void write(LogEntryProto entry) throws IOException {
     final int serialized = entry.getSerializedSize();
@@ -103,8 +102,8 @@ public class SegmentedRaftLogOutputStream implements Closeable {
   }
 
   /**
-   * Flush data to persistent store.
-   * Collect sync metrics.
+   * 刷新数据到持久化存储。
+   * 收集同步指标。
    */
   public void flush() throws IOException {
     try {

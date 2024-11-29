@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.storage;
 
 import java.io.InputStream;
@@ -9,7 +8,6 @@ import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.config.Log.CorruptionPolicy;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
-import net.xdob.ratly.server.storage.RaftStorageDirectoryImpl.StorageState;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.JavaUtils;

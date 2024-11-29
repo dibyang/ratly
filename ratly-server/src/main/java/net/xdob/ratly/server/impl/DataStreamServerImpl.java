@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import java.io.IOException;

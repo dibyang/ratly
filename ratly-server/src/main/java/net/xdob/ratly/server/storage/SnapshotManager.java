@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.io.CorruptedFileException;
@@ -31,7 +30,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Manage snapshots of a raft peer.
+ * 负责管理 Raft 协议中的快照，并处理快照的安装和验证。
  * TODO: snapshot should be treated as compaction log thus can be merged into
  *       RaftLog. In this way we can have a unified getLastTermIndex interface.
  */
@@ -40,12 +39,27 @@ public class SnapshotManager {
 
   private static final String CORRUPT = ".corrupt";
   private static final String TMP = ".tmp";
-
+  /**
+   * 表示当前节点的 ID。
+   */
   private final RaftPeerId selfId;
 
+  /**
+   * 快照的存储目录
+   */
   private final Supplier<File> snapshotDir;
+  /**
+   * 快照的临时目录
+   */
   private final Supplier<File> snapshotTmpDir;
+  /**
+   * 一个函数，接受一个 FileChunkProto 类型的参数，并返回文件相对路径。
+   * 这个路径是通过将文件的绝对路径与根目录路径进行比较得到的。
+   */
   private final Function<FileChunkProto, String> getRelativePath;
+  /**
+   * 用于计算文件的 MD5 校验和，用来验证快照的完整性。
+   */
   private MessageDigest digester;
 
   SnapshotManager(RaftPeerId selfId, Supplier<RaftStorageDirectory> dir, StateMachineStorage smStorage) {
@@ -60,7 +74,11 @@ public class SnapshotManager {
         new File(dir.get().getRoot(), c.getFilename()).toPath()).toString();
   }
 
-  @SuppressWarnings({"squid:S2095"}) // Suppress closeable  warning
+  /**
+   * 该方法用于打开一个文件通道，并根据 chunk 的偏移量决定如何处理文件。
+   * 如果偏移量为 0，它会创建一个新的临时文件，并将文件内容写入其中。
+   * 如果偏移量不为 0，它会在现有的文件中追加内容。
+   */
   private FileChannel open(FileChunkProto chunk, File tmpSnapshotFile) throws IOException {
     final FileChannel out;
     final boolean exists = tmpSnapshotFile.exists();
@@ -83,6 +101,16 @@ public class SnapshotManager {
     return out;
   }
 
+  /**
+   * 该方法负责安装 Raft 协议的快照。它接收一个快照请求并将其中的文件块逐一写入到临时目录。具体步骤如下：
+   * <p>
+   * 1.检查快照的有效性：如果已有快照的 endIndex 大于等于当前请求的 lastIncludedIndex，则抛出异常。
+   * 2.为每个文件块打开文件通道：对于每个文件块，使用 open() 方法打开文件通道并将数据写入。
+   * 3.校验 MD5 摘要：当文件块传输完成后，计算文件的 MD5 摘要，并与请求中的预期摘要进行比较。如果不匹配，抛出 CorruptedFileException 异常并重命名文件为 .corrupt 文件。
+   * 4.完成快照安装：如果所有文件块都成功写入并验证通过，最终将临时目录重命名为快照目录。
+   * <p>
+   * 该方法的关键点在于处理文件的分块传输，并在写入完成后进行数据的完整性校验。
+   */
   public void installSnapshot(InstallSnapshotRequestProto request, StateMachine stateMachine) throws IOException {
     final InstallSnapshotRequestProto.SnapshotChunkProto snapshotChunkRequest = request.getSnapshotChunk();
     final long lastIncludedIndex = snapshotChunkRequest.getTermIndex().getIndex();
@@ -154,7 +182,20 @@ public class SnapshotManager {
     }
   }
 
-  private static void rename(File tmpDir, File stateMachineDir) throws IOException {
+   /**
+    * 该方法负责将临时目录重命名为正式的状态机目录。具体步骤如下：
+    * <p>
+    *    1.重命名现有状态机目录：如果状态机目录已存在，先将其重命名为 .tmp 后缀的目录。
+    *    2.重命名临时目录：将安装的快照临时目录重命名为状态机目录。
+    *    3.删除旧的目录：如果现有目录已被重命名，则尝试删除它。
+    * <p>
+    * 异常处理
+    * <p>
+    *    1.MD5 校验失败：如果快照文件的 MD5 校验失败，会将临时文件重命名为 .corrupt 后缀，并抛出 CorruptedFileException 异常。
+    *    2.文件缺失：如果在写入文件块时遇到文件缺失的情况，将抛出 FileNotFoundException。
+    *    3.写入失败：在文件写入过程中，如果发生错误，将抛出 IOException。
+   */
+  private void rename(File tmpDir, File stateMachineDir) throws IOException {
     LOG.info("Installed snapshot, renaming temporary dir {} to {}", tmpDir, stateMachineDir);
 
     // rename stateMachineDir to tmp, if it exists.

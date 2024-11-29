@@ -53,20 +53,6 @@ public interface RaftStorage extends Closeable {
     return new Builder();
   }
 
-  /**
-   * 存储的启动选项
-   */
-  enum StartupOption {
-    /**
-     * 表示格式化存储。这通常在存储初始化时使用，清空现有数据并重新创建存储结构。
-     */
-    FORMAT,
-    /**
-     * 表示恢复存储。这通常用于从现有存储中恢复数据，处理日志异常等情况。
-     */
-    RECOVER
-  }
-
   class Builder {
 
     private static final Method NEW_RAFT_STORAGE_METHOD = initNewRaftStorageMethod();

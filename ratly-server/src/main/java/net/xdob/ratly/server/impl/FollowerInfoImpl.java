@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.protocol.RaftGroupMemberId;

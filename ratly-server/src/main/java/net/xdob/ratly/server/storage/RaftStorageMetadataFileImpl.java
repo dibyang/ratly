@@ -19,25 +19,41 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Represent a file on disk which persistently stores the metadata of a raft storage.
- * The file is updated atomically.
+ * 用于持久化存储 Raft协议元数据的实现类。
+ * 该类通过原子操作将 Raft 存储的元数据写入磁盘上的文件，并支持加载、更新
+ * 和存储 Raft 协议的关键元数据（例如当前任期号 term 和投票信息 votedFor）。
  */
 class RaftStorageMetadataFileImpl implements RaftStorageMetadataFile {
   private static final String TERM_KEY = "term";
   private static final String VOTED_FOR_KEY = "votedFor";
 
+  /**
+   * 该字段表示用于存储 Raft 存储元数据的文件。
+   */
   private final File file;
+  /**
+   * 使用 AtomicReference<RaftStorageMetadata> 来存储和操作元数据对象。
+   * 通过 Concurrents3.updateAndGet 来确保元数据更新的原子性。
+   */
   private final AtomicReference<RaftStorageMetadata> metadata = new AtomicReference<>();
 
   RaftStorageMetadataFileImpl(File file) {
     this.file = file;
   }
 
+  /**
+   * 获取存储的元数据。如果元数据尚未加载，它会从文件中加载元数据。
+   * @return 存储的元数据
+   */
   @Override
   public RaftStorageMetadata getMetadata() throws IOException {
     return Concurrents3.updateAndGet(metadata, value -> value != null? value: load(file));
   }
 
+  /**
+   * 将新的元数据持久化到文件中。如果新元数据与当前存储的元数据不同，则进行原子写入操作。
+   * @param newMetadata 新的元数据
+   */
   @Override
   public void persist(RaftStorageMetadata newMetadata) throws IOException {
     Concurrents3.updateAndGet(metadata,
@@ -50,8 +66,8 @@ class RaftStorageMetadataFileImpl implements RaftStorageMetadataFile {
   }
 
   /**
-   * Atomically write the given term and votedFor information to the given file,
-   * including fsyncing.
+   * 原子地将 RaftStorageMetadata（包括 term 和 votedFor）写入指定文件。
+   * 写入完成后，确保通过 fsync 将数据同步到磁盘。
    *
    * @throws IOException if the file cannot be written
    */

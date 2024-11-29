@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.util;
 
 import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
@@ -16,13 +15,17 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- *  This class provides convenient utilities for converting Protocol Buffers messages to strings.
- *  The output strings are for information purpose only.
- *  They are concise and compact compared to the Protocol Buffers implementations of {@link Object#toString()}.
+ *  一个用于将 Protocol Buffers 消息对象转换为简洁、紧凑的字符串表示的工具类。
+ *  它提供了一些静态方法，将不同类型的 Raft 协议消息（如 AppendEntriesRequestProto、
+ *  InstallSnapshotRequestProto 等）转换为易于阅读和调试的字符串格式
  * <p>
- *  The output messages or the output formats may be changed without notice.
- *  Callers of this class should not try to parse the output strings for any purposes.
- *  Instead, they should use the public APIs provided by Protocol Buffers.
+ *  目的：
+ * 该类主要用于将 Protocol Buffers 消息转换为易于阅读的字符串。
+ * 它们并不是标准的 toString() 方法输出，而是根据特定格式生成的字符串，通常用于日志记录或调试信息显示。
+ * <p>
+ * 注意：
+ * 输出的字符串只是信息性字符串，不能用于其他目的，如解析或反序列化。
+ * 如果需要处理消息，应该使用 Protocol Buffers 提供的 API。
  */
 public final class ServerStringUtils {
   private ServerStringUtils() {}

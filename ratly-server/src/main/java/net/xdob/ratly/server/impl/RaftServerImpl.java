@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import java.util.concurrent.CountDownLatch;
@@ -73,6 +72,7 @@ import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.server.storage.RaftStorageDirectory;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.TransactionContext;
@@ -230,7 +230,7 @@ class RaftServerImpl implements Division,
   private final AtomicBoolean firstElectionSinceStartup = new AtomicBoolean(true);
   private final ThreadGroup threadGroup;
 
-  RaftServerImpl(RaftGroup group, StateMachine stateMachine, RaftServerProxy proxy, RaftStorage.StartupOption option)
+  RaftServerImpl(RaftGroup group, StateMachine stateMachine, RaftServerProxy proxy, StartupOption option)
       throws IOException {
     final RaftPeerId id = proxy.getId();
     LOG.info("{}: new RaftServerImpl for {} with {}", id, group, stateMachine);

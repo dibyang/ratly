@@ -1,0 +1,78 @@
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto.jdbc";
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+
+package ratly.jdbc;
+
+// 用于表示数组类型的参数
+message array_string {
+  repeated string string = 1;
+}
+
+message array_int {
+  repeated int32 int = 1;
+}
+
+message array_long {
+  repeated int64 long = 1;
+}
+
+message array_double {
+  repeated double double = 1;
+}
+
+message array_bool {
+  repeated bool bool = 1;
+}
+
+message array_date {
+  repeated int64 date = 1;
+}
+
+message array_timestamp {
+  repeated int64 timestamp = 1;
+}
+
+// 参数结构
+message ParamProto {
+  int32 index = 1;           // 参数索引
+  oneof value{
+    // 单一值参数
+    string string = 10;   // 对应 JDBC 中的 VARCHAR, CHAR, 等
+    int32 int = 11;       // 对应 JDBC 中的 INTEGER
+    int64 long = 12;      // 对应 JDBC 中的 BIGINT
+    double double = 13;   // 对应 JDBC 中的 DOUBLE
+    bool bool = 14;       // 对应 JDBC 中的 BOOLEAN
+    int64 date = 15;     // 对应 JDBC 中的 DATE
+    int64 timestamp = 16; // 对应 JDBC 中的 TIMESTAMP
+    bytes blob = 17;      // 对应 JDBC 中的 BLOB
+    array_string array_string = 30;
+    array_int array_int = 31;
+    array_long array_long = 32;
+    array_double array_double = 33;
+    array_bool array_bool = 34;
+    array_date array_date = 35;
+    array_timestamp array_timestamp = 36;
+
+  }
+
+}
+
+message SqlPackProto {
+  string sql = 1;
+  repeated ParamProto param = 2;
+}
+
+message QueryRequestProto {
+  SqlPackProto sql = 1;
+}
+
+message QueryReplyProto {
+
+}
+
+message UpdateRequestProto {
+  string db = 1;
+}
+

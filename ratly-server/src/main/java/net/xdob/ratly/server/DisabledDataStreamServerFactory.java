@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server;
 
 import net.xdob.ratly.conf.Parameters;

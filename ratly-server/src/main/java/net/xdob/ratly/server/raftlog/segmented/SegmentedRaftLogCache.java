@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.conf.RaftProperties;
@@ -29,9 +28,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * In-memory RaftLog Cache. Currently we provide a simple implementation that
- * caches all the segments in the memory. The cache is not thread-safe and
- * requires external lock protection.
+ * 内存中的 RaftLog 缓存。目前我们提供一个简单的实现，将所有段缓存到内存中。
+ * 该缓存不是线程安全的，需要外部锁保护。
  */
 public class SegmentedRaftLogCache {
   public static final Logger LOG = LoggerFactory.getLogger(SegmentedRaftLogCache.class);
@@ -499,7 +497,7 @@ public class SegmentedRaftLogCache {
   }
 
   /**
-   * finalize the current open segment, and start a new open segment
+   * 完成当前打开的段，并开始一个新的打开段。
    */
   void rollOpenSegment(boolean createNewOpen) {
     Preconditions.assertTrue(openSegment != null && openSegment.numOfEntries() > 0,
@@ -597,14 +595,14 @@ public class SegmentedRaftLogCache {
   }
 
   void appendEntry(LogSegment.Op op, ReferenceCountedObject<LogEntryProto> entry) {
-    // SegmentedRaftLog does the segment creation/rolling work. Here we just
-    // simply append the entry into the open segment.
+    // SegmentedRaftLog 负责段的创建和滚动工作。
+    // 这里我们只是简单地将条目追加到打开的段中。
     Preconditions.assertNotNull(openSegment, "openSegment");
     openSegment.appendToOpenSegment(op, entry);
   }
 
   /**
-   * truncate log entries starting from the given index (inclusive)
+   * 从给定索引（包含该索引）开始截断日志条目。
    */
   TruncationSegments truncate(long index) {
     return closedSegments.truncate(index, openSegment, this::clearOpenSegment);
@@ -686,9 +684,8 @@ public class SegmentedRaftLogCache {
         if (segmentIndex == closedSegments.size()) {
           currentSegment = openSegment;
         } else {
-          // the start index is smaller than the first closed segment's start
-          // index. We no longer keep the log entry (because of the snapshot) or
-          // the start index is invalid.
+          // 起始索引小于第一个已关闭段的起始索引。
+          // 我们不再保留日志条目（因为快照的原因），或者说起始索引是无效的。
           Preconditions.assertTrue(segmentIndex == 0,
               () -> "segmentIndex is expected to be 0 but segmentIndex = " + segmentIndex);
           throw new IndexOutOfBoundsException();

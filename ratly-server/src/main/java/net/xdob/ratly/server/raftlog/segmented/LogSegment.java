@@ -37,10 +37,10 @@ import java.util.function.Consumer;
 
 
 /**
- * In-memory cache for a log segment file. All the updates will be first written
- * into LogSegment then into corresponding files in the same order.
- *
- * This class will be protected by the {@link SegmentedRaftLog}'s read-write lock.
+ * 日志段文件的内存缓存。
+ * 将首先写入所有更新放入 LogSegment 中，然后以相同的顺序放入相应的文件中。
+ * <p>
+ * 此类将受到 {@link SegmentedRaftLog} 的读写锁的保护。
  */
 public final class LogSegment {
 

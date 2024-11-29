@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import java.io.Closeable;
@@ -167,16 +166,14 @@ public class SegmentedRaftLogInputStream implements Closeable {
   }
 
   /**
-   * Find the last valid entry index in the stream.
-   * If there are invalid or corrupt entries in the middle of the stream,
-   * scanEditLog will skip over them.
+   * 查找流中最后一个有效条目的索引。
+   * 如果流中间存在无效或损坏的条目，scanEditLog 将跳过它们。
+   * <p>
+   * 该方法会读取流中的数据，但不会关闭流。
    *
-   * This reads through the stream but does not close it.
-   *
-   * @param maxIndexToScan Maximum entry index to try to scan. The scan returns
-   *                       after reading this or a higher index. The file
-   *                       portion beyond this index is potentially being
-   *                       updated.
+   * @param maxIndexToScan 尝试扫描的最大条目索引。
+   *                       扫描将在读取到该索引或更高的索引后返回。
+   *                       该索引之后的文件部分可能正在被更新。
    */
   static LogValidation scanEditLog(SegmentedRaftLogInputStream in, long maxIndexToScan) {
     long lastPos = 0;

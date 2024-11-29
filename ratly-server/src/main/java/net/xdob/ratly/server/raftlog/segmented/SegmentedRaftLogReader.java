@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.io.CorruptedFileException;
@@ -32,10 +31,9 @@ import java.util.zip.Checksum;
 class SegmentedRaftLogReader implements Closeable {
   static final Logger LOG = LoggerFactory.getLogger(SegmentedRaftLogReader.class);
   /**
-   * InputStream wrapper that keeps track of the current stream position.
+   * 跟踪当前流位置的 InputStream 包装器。
    * <p>
-   * This stream also allows us to set a limit on how many bytes we can read
-   * without getting an exception.
+   * 此流还允许我们设置一个限制，在不抛出异常的情况下可以读取的字节数。
    */
   static class LimitedInputStream extends FilterInputStream {
     private long curPos = 0;
@@ -143,13 +141,10 @@ class SegmentedRaftLogReader implements Closeable {
   }
 
   /**
-   * Read header from the log file:
-   * (1) The header in file is verified successfully.
-   *     Then, return true.
-   * (2) The header in file is partially written.
-   *     Then, return false.
-   * (3) The header in file is corrupted or there is some other {@link IOException}.
-   *     Then, throw an exception.
+   * 从日志文件读取头部：
+   * (1) 文件中的头部验证成功，返回 true。
+   * (2) 文件中的头部部分写入，返回 false。
+   * (3) 文件中的头部损坏或发生其他 {@link IOException}，抛出异常。
    */
   boolean verifyHeader() throws IOException {
     final int headerLength = SegmentedRaftLogFormat.getHeaderLength();
@@ -173,12 +168,9 @@ class SegmentedRaftLogReader implements Closeable {
   }
 
   /**
-   * Read a log entry from the input stream.
-   *
-   * @return the operation read from the stream, or null at the end of the
-   *         file
-   * @throws IOException on error.  This function should only throw an
-   *         exception when skipBrokenEdits is false.
+   * 从输入流读取日志条目。
+   * @return 从流中读取的操作，或在文件末尾返回 null。
+   * @throws IOException 发生错误时抛出。
    */
   LogEntryProto readEntry() throws IOException {
     final Timekeeper timekeeper = Optional.ofNullable(raftLogMetrics)
@@ -201,24 +193,24 @@ class SegmentedRaftLogReader implements Closeable {
 
       throw e;
     } catch (Exception e) {
-      // raft log requires no gap between any two entries. thus if an entry is
-      // broken, throw the exception instead of skipping broken entries
+      // Raft 日志要求任何两个条目之间没有间隙。
+      // 因此，如果条目损坏，应该抛出异常，而不是跳过损坏的条目。
       in.reset();
       throw new IOException("got unexpected exception " + e.getMessage(), e);
     }
   }
 
   /**
-   * Scan and validate a log entry.
-   * @return the index of the log entry
+   * 扫描并验证日志条目。
+   * @return 日志条目的索引
    */
   long scanEntry() throws IOException {
     return Optional.ofNullable(decodeEntry()).map(LogEntryProto::getIndex).orElse(RaftLog.INVALID_LOG_INDEX);
   }
 
   void verifyTerminator() throws IOException {
-     // The end of the log should contain 0x00 bytes.
-     // If it contains other bytes, the log itself may be corrupt.
+    // 日志的结尾应该包含 0x00 字节。
+    // 如果包含其他字节，则日志本身可能已损坏。
     limiter.clearLimit();
     int numRead = -1, idx = 0;
     while (true) {
@@ -234,9 +226,8 @@ class SegmentedRaftLogReader implements Closeable {
           }
         }
       } finally {
-        // After reading each group of bytes, we reposition the mark one
-        // byte before the next group. Similarly, if there is an error, we
-        // want to reposition the mark one byte before the error
+        // 在读取每组字节后，我们将标记位置重新设置到下一组字节之前的一位。
+        // 类似地，如果发生错误，我们希望将标记重新设置到错误发生前的一位。
         if (numRead != -1) {
           in.reset();
           IOUtils.skipFully(in, idx);
@@ -248,13 +239,9 @@ class SegmentedRaftLogReader implements Closeable {
   }
 
   /**
-   * Decode the log entry "frame". This includes reading the log entry, and
-   * validating the checksum.
-   *
-   * The input stream will be advanced to the end of the op at the end of this
-   * function.
-   *
-   * @return The log entry, or null if we hit EOF.
+   * 解码日志条目的“帧”。这包括读取日志条目并验证校验和。
+   * 输入流将在此函数结束时推进到操作的末尾。
+   * @return 日志条目，如果遇到文件末尾（EOF）则返回 null。
    */
   private LogEntryProto decodeEntry() throws IOException {
     final int max = maxOpSize.getSizeInt();
@@ -265,19 +252,17 @@ class SegmentedRaftLogReader implements Closeable {
     try {
       nextByte = in.readByte();
     } catch (EOFException eof) {
-      // EOF at an opcode boundary is expected.
+      // 在操作码边界遇到 EOF 是预期的。
       return null;
     }
-    // Each log entry starts with a var-int. Thus a valid entry's first byte
-    // should not be 0. So if the terminate byte is 0, we should hit the end
-    // of the segment.
+    // 每个日志条目以一个变长整数（var-int）开始。因此，一个有效条目的第一个字节不应为 0。
+    // 所以，如果终止字节为 0，我们应该到达段的末尾。
     if (SegmentedRaftLogFormat.isTerminator(nextByte)) {
       verifyTerminator();
       return null;
     }
 
-    // Here, we verify that the Op size makes sense and that the
-    // data matches its checksum before attempting to construct an Op.
+    // 在这里，我们验证操作的大小是否合理，并且数据与其校验和匹配，然后再尝试构建操作。
     int entryLength = CodedInputStream.readRawVarint32(nextByte, in);
     if (entryLength > max) {
       throw new IOException("Entry has size " + entryLength

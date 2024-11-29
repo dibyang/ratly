@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.server.metrics;
 
 import java.util.concurrent.ConcurrentHashMap;

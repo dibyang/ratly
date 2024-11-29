@@ -1,0 +1,18 @@
+
+
+dependencies {
+    api project(':ratly-proto')
+    api project(':ratly-tools')
+    api project(':ratly-common')
+    api project(':ratly-client')
+    api project(':ratly-server')
+    //api project(':ratly-metrics-default')
+    api project(':ratly-grpc')
+    api("net.xdob.h2db:h2db:${h2db_version}")
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}

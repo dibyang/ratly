@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog;
 
 import java.util.Objects;
@@ -30,7 +29,8 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 /**
- * Base class of RaftLog. Currently we provide two types of RaftLog
+ * Raft 日志的基础实现。Raft 协议的日志组件用于存储和管理日志条目（Log Entries），
+ * 并实现了对这些条目的各种操作，包括追加日志、提交日志、清除日志等。
  * implementation:
  * 1. MemoryRaftLog: all the log entries are stored in memory. This is only used
  *    for testing.
@@ -47,25 +47,42 @@ public abstract class RaftLogBase implements RaftLog {
 
   private final String name;
   /**
+   * 表示最新的已提交的日志索引。
+   * <p>
    * The largest committed index. Note the last committed log may be included
    * in the latest snapshot file.
    */
   private final RaftLogIndex commitIndex;
-  /** The last log index in snapshot */
+  /**
+   * 表示最新的快照索引。
+   * The last log index in snapshot
+   */
   private final RaftLogIndex snapshotIndex;
+  /**
+   * 表示日志清理的索引。
+   */
   private final RaftLogIndex purgeIndex;
   private final int purgeGap;
 
   private final RaftGroupMemberId memberId;
+  /**
+   * 日志缓冲区的最大大小。
+   */
   private final int maxBufferSize;
 
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
   private final Runner runner = new Runner(this::getName);
+  /**
+   * 表示日志的打开/关闭状态。
+   */
   private final OpenCloseState state;
   private final LongSupplier getSnapshotIndexFromStateMachine;
   private final TimeDuration stateMachineDataReadTimeout;
   private final long purgePreservation;
 
+  /**
+   * 最后的元数据条目。
+   */
   private final AtomicReference<LogEntryProto> lastMetadataEntry = new AtomicReference<>();
 
   protected RaftLogBase(RaftGroupMemberId memberId,
@@ -104,6 +121,12 @@ public abstract class RaftLogBase implements RaftLog {
     return state.isOpened();
   }
 
+  /**
+   * 根据多数节点的日志索引更新当前的提交索引，只有在领导者时才会更新。
+   * @param majorityIndex the index that has achieved majority.
+   * @param currentTerm the current term.
+   * @param isLeader Is this server the leader?
+   */
   @Override
   public boolean updateCommitIndex(long majorityIndex, long currentTerm, boolean isLeader) {
     try(AutoCloseableLock writeLock = writeLock()) {
@@ -124,6 +147,10 @@ public abstract class RaftLogBase implements RaftLog {
     return false;
   }
 
+  /**
+   * 更新日志清理索引。
+   * @param purged 日志清理索引
+   */
   protected void updatePurgeIndex(Long purged) {
     try (AutoCloseableLock writeLock = writeLock()) {
       if (purged != null) {
@@ -136,6 +163,10 @@ public abstract class RaftLogBase implements RaftLog {
       updateSnapshotIndex(getSnapshotIndexFromStateMachine.getAsLong());
   }
 
+  /**
+   * 更新快照索引。
+   * @param newSnapshotIndex 快照索引
+   */
   @Override
   public void updateSnapshotIndex(long newSnapshotIndex) {
     try(AutoCloseableLock writeLock = writeLock()) {
@@ -150,6 +181,9 @@ public abstract class RaftLogBase implements RaftLog {
     }
   }
 
+  /**
+   * 用于将一条新的日志条目追加到日志中，操作会先被预处理，然后被序列化并追加。
+   */
   @Override
   public final long append(long term, TransactionContext transaction) throws StateMachineException {
     return runner.runSequentially(() -> appendImpl(term, transaction));
@@ -199,6 +233,9 @@ public abstract class RaftLogBase implements RaftLog {
     }
   }
 
+  /**
+   * 追加一个元数据条目，通常用于记录提交索引等信息。
+   */
   @Override
   public final long appendMetadata(long term, long newCommitIndex) {
     return runner.runSequentially(() -> appendMetadataImpl(term, newCommitIndex));
@@ -231,6 +268,9 @@ public abstract class RaftLogBase implements RaftLog {
     return last == null || newCommitIndex > last.getMetadataEntry().getCommitIndex();
   }
 
+  /**
+   * 追加配置变更条目。
+   */
   @Override
   public final long append(long term, RaftConfiguration configuration) {
     return runner.runSequentially(() -> appendImpl(term, configuration));
@@ -268,6 +308,7 @@ public abstract class RaftLogBase implements RaftLog {
   }
 
   /**
+   * 验证日志条目的索引和任期是否有效。
    * Validate the term and index of entry w.r.t RaftLog
    */
   protected void validateLogEntry(LogEntryProto entry) {
@@ -293,6 +334,11 @@ public abstract class RaftLogBase implements RaftLog {
     }
   }
 
+  /**
+   * 根据指定的索引进行日志截断。
+   * @param index
+   * @return
+   */
   @Override
   public final CompletableFuture<Long> truncate(long index) {
     return runner.runSequentially(() -> truncateImpl(index));
@@ -300,6 +346,10 @@ public abstract class RaftLogBase implements RaftLog {
 
   protected abstract CompletableFuture<Long> truncateImpl(long index);
 
+  /**
+   * 根据建议的索引清除老旧的日志条目。
+   * @param suggestedIndex the suggested index (inclusive) to be purged.
+   */
   @Override
   public final CompletableFuture<Long> purge(long suggestedIndex) {
     if (purgePreservation > 0) {
@@ -322,11 +372,18 @@ public abstract class RaftLogBase implements RaftLog {
 
   protected abstract CompletableFuture<Long> purgeImpl(long index);
 
+  /**
+   * 将一个日志条目追加到日志中。
+   * @param entry 日志条目
+   */
   @Override
   public final CompletableFuture<Long> appendEntry(LogEntryProto entry) {
     return appendEntry(ReferenceCountedObject.wrap(entry), null);
   }
 
+  /**
+   * 带有引用计数的日志条目追加操作，支持异步执行。
+   */
   @Override
   public final CompletableFuture<Long> appendEntry(ReferenceCountedObject<LogEntryProto> entry,
       TransactionContext context) {
@@ -422,6 +479,8 @@ public abstract class RaftLogBase implements RaftLog {
   }
 
   /**
+   * 类用于存储日志条目及其关联的状态机数据。
+   * <p>
    * Holds proto entry along with future which contains read state machine data
    */
   class EntryWithDataImpl implements EntryWithData {

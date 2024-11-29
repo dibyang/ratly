@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.io.MD5Hash;

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -19,8 +18,8 @@ import java.util.regex.Matcher;
 
 /**
  * {@link LogSegmentStartEnd} with a {@link Path}.
- *
- * This is a value-based class.
+ * <p>
+ * 这是一个基于值的类。
  */
 public final class LogSegmentPath {
   static final Logger LOG = LoggerFactory.getLogger(LogSegmentPath.class);

@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.memory;
 
 import net.xdob.ratly.conf.RaftProperties;

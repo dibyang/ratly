@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.protocol.RaftGroupMemberId;
@@ -86,7 +85,7 @@ class ServerState {
   private final AtomicReference<TermIndex> latestInstalledSnapshot = new AtomicReference<>();
 
   ServerState(RaftPeerId id, RaftGroup group, StateMachine stateMachine, RaftServerImpl server,
-              RaftStorage.StartupOption option, RaftProperties prop) {
+              StartupOption option, RaftProperties prop) {
     this.memberId = RaftGroupMemberId.valueOf(id, group.getGroupId());
     this.server = server;
     Collection<RaftPeer> followerPeers = group.getPeers().stream()

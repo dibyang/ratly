@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.RaftConfigKeys;
@@ -24,7 +23,7 @@ import net.xdob.ratly.rpc.RpcType;
 import net.xdob.ratly.server.*;
 import net.xdob.ratly.server.config.LeaderElection;
 import net.xdob.ratly.server.config.ThreadPool;
-import net.xdob.ratly.server.storage.RaftStorage.StartupOption;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JvmPauseMonitor;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
@@ -55,6 +54,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 
 class RaftServerProxy implements RaftServer {
   /**

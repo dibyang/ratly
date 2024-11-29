@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.statemachine.impl;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -19,53 +18,67 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
- * Implementation of {@link TransactionContext}
- *
- * This is a private API.  Applications should use {@link TransactionContext} and {@link TransactionContext.Builder}.
+ * 是 {@link TransactionContext} 接口的一个实现类，
+ * 用于表示一个与 Raft 协议相关的事务上下文。
+ * 它封装了与事务相关的各种信息，包括请求、状态机日志条目、异常、日志条目等，并提供了处理事务的各种操作。
  */
 public class TransactionContextImpl implements TransactionContext {
-  /** The role of the server when this object is created. */
+  /**
+   * 创建此对象时服务器的角色（如 LEADER、FOLLOWER）。
+   */
   private final RaftPeerRole serverRole;
-  /** The {@link StateMachine} that originated the transaction. */
+  /**
+   * 关联的状态机对象{@link StateMachine}。
+   * 这个状态机发起了事务请求。
+   */
   private final StateMachine stateMachine;
 
-  /** Original request from the client */
+  /**
+   * 客户端的请求对象，它发起了事务。
+   */
   private final RaftClientRequest clientRequest;
 
-  /** Exception from the {@link StateMachine} or from the log */
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
+  /**
+   * 可能在状态机{@link StateMachine}处理过程中抛出的异常，用于在事务中进行错误处理。
+   */
   private volatile Exception exception;
 
-  /** Data from the {@link StateMachine} */
+  /**
+   * 状态机{@link StateMachine}日志条目，包含了关于事务的数据。
+   */
   private final StateMachineLogEntryProto stateMachineLogEntry;
 
   /**
-   * Context specific to the state machine.
+   * 用于携带状态机在事务过程中的额外上下文，通常是状态机内部的自定义数据。
    * The {@link StateMachine} can use this object to carry state between
    * {@link StateMachine#startTransaction(RaftClientRequest)} and
    * {@link StateMachine#applyTransaction(TransactionContext)}.
    */
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
   private volatile Object stateMachineContext;
 
   /**
-   * Whether to commit the transaction to the RAFT Log.
-   * In some cases the {@link StateMachine} may want to indicate
-   * that the transaction should not be committed
+   * 表示是否应该将事务提交到 Raft 日志。
+   * 如果为 false，则该事务将不会提交。
    */
   private boolean shouldCommit = true;
 
-  /** Committed LogEntry. */
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
+  /**
+   * 已提交的日志条目，表示这个事务已经成功写入 Raft 日志。
+   */
   private volatile LogEntryProto logEntry;
-  /** Committed LogEntry copy. */
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
+  /**
+   * 日志条目的副本，用于延迟计算和缓存条目的数据。
+   */
   private volatile Supplier<LogEntryProto> logEntryCopy;
 
-  /** For wrapping {@link #logEntry} in order to release the underlying buffer. */
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
+  /**
+   * 用于包装 {@link #logEntry}  的引用计数对象，以便在事务结束时释放底层缓冲区。
+   */
   private volatile ReferenceCountedObject<?> delegatedRef;
 
+  /**
+   * 记录日志条目的索引，通过 CompletableFuture 异步计算。
+   */
   private final CompletableFuture<Long> logIndexFuture = new CompletableFuture<>();
 
   private TransactionContextImpl(RaftPeerRole serverRole, RaftClientRequest clientRequest, StateMachine stateMachine,
@@ -124,6 +137,9 @@ public class TransactionContextImpl implements TransactionContext {
     this.delegatedRef = ref;
   }
 
+  /**
+   * 用于包装日志条目。
+   */
   @Override
   public ReferenceCountedObject<LogEntryProto> wrap(LogEntryProto entry) {
     if (delegatedRef == null) {

@@ -11,7 +11,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * A utility to detect leaks from @{@link ReferenceCountedObject}.
+ * 用于检测引用计数对象（@{@link ReferenceCountedObject}）潜在资源泄漏问题的工具，尤其适用于调试和测试环境中。
+ * 它通过引用计数的管理和追踪，对资源的分配和释放进行严格的监控，从而有效地发现泄漏的根源。
  */
 public final class ReferenceCountedLeakDetector {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceCountedLeakDetector.class);
@@ -40,15 +41,22 @@ public final class ReferenceCountedLeakDetector {
     <V> ReferenceCountedObject<V> create(V value, Runnable retainMethod, Consumer<Boolean> releaseMethod);
   }
 
+  /**
+   * 泄漏检测模式
+   */
   private enum Mode implements Factory {
-    /** Leak detector is not enable in production to avoid performance impacts. */
+    /**
+     * 禁用泄漏检测，仅用于生产环境。
+     */
     NONE {
       @Override
       public <V> ReferenceCountedObject<V> create(V value, Runnable retainMethod, Consumer<Boolean> releaseMethod) {
         return new Impl<>(value, retainMethod, releaseMethod);
       }
     },
-    /** Leak detector is enabled to detect leaks. This is intended to use in every tests. */
+    /**
+     * 基本的泄漏检测，适合一般测试。
+     */
     SIMPLE {
       @Override
       public <V> ReferenceCountedObject<V> create(V value, Runnable retainMethod, Consumer<Boolean> releaseMethod) {
@@ -56,8 +64,7 @@ public final class ReferenceCountedLeakDetector {
       }
     },
     /**
-     * Leak detector is enabled to detect leaks and report object creation stacktrace as well as every retain and
-     * release stacktraces. This has severe impact in performance and only used to debug specific test cases.
+     * 高级泄漏检测，记录对象创建、每次保留和释放的调用栈，适合用于调试特定问题。
      */
     ADVANCED {
       @Override
@@ -124,6 +131,13 @@ public final class ReferenceCountedLeakDetector {
     }
   }
 
+  /**
+   * 增强了 Impl 的功能，添加了泄漏跟踪机制。
+   * 每次引用计数增加到 1 时，调用 LeakDetector.track() 注册对象。
+   * 释放时，通过 removeMethod.run() 从泄漏跟踪中移除。
+   * 检测未释放的对象并记录相关信息。
+   * @param <T>
+   */
   private static class SimpleTracing<T> extends Impl<T> {
     private final LeakDetector leakDetector;
     private final Class<?> valueClass;
@@ -192,6 +206,11 @@ public final class ReferenceCountedLeakDetector {
     }
   }
 
+  /**
+   * 扩展了 SimpleTracing，记录详细的调用栈和操作历史。
+   * 每次 retain 和 release 都会生成 TraceInfo，记录线程信息、调用栈以及引用计数变化。
+   * @param <T>
+   */
   private static class AdvancedTracing<T> extends SimpleTracing<T> {
     enum Op {CREATION, RETAIN, RELEASE, CURRENT}
 

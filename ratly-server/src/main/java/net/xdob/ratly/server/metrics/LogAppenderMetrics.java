@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.metrics;
 
 import net.xdob.ratly.metrics.MetricRegistryInfo;

@@ -6,6 +6,9 @@ import net.xdob.ratly.server.storage.RaftStorage;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * 状态机存储接口
+ */
 public interface StateMachineStorage {
   /**
    * 功能: 初始化存储。接收一个 RaftStorage 对象，

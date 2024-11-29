@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.server.raftlog.segmented;
 
 import java.util.ArrayList;
@@ -10,7 +9,7 @@ import net.xdob.ratly.util.AutoCloseableLock;
 
 public interface CacheInvalidationPolicy {
   /**
-   * Determine which log segments should evict their log entry cache
+   * 确定哪些日志 Segment 应逐出其日志条目缓存
    * @param followerNextIndices the next indices of all the follower peers. Null
    *                            if the local peer is not a leader.
    * @param safeEvictIndex the index up to which cache can be evicted. This
@@ -45,17 +44,14 @@ public interface CacheInvalidationPolicy {
       int safeIndex = segments.size() - 1;
       for (; safeIndex >= 0; safeIndex--) {
         LogSegment segment = segments.get(safeIndex);
-        // a segment's cache can be invalidated only if it's close and all its
-        // entries have been flushed to the local disk and the local disk
-        // segment is also closed.
+        // 只有当段已关闭且所有条目已刷新到本地磁盘，并且本地磁盘段也已关闭时，段的缓存才能被作废。
         if (!segment.isOpen() && segment.getEndIndex() <= safeEvictIndex) {
           break;
         }
       }
       if (followerNextIndices == null || followerNextIndices.length == 0) {
-        // no followers, determine the eviction based on lastAppliedIndex
-        // first scan from the oldest segment to the one that is right before
-        // lastAppliedIndex. All these segment's cache can be invalidated.
+        // 没有跟随者，根据 lastAppliedIndex 确定驱逐。
+        // 首先从最旧的段扫描到紧挨着 lastAppliedIndex 的段。所有这些段的缓存都可以被作废。
         int j = 0;
         for (; j <= safeIndex; j++) {
           LogSegment segment = segments.get(j);

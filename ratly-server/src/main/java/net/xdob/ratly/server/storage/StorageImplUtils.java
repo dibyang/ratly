@@ -5,7 +5,6 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.config.Log;
-import net.xdob.ratly.server.storage.RaftStorage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.util.SizeInBytes;
 
@@ -36,7 +35,7 @@ public final class StorageImplUtils {
   /** Create a {@link RaftStorageImpl}. */
   @SuppressWarnings("java:S2095") // return Closable
   public static RaftStorageImpl newRaftStorage(File dir, SizeInBytes freeSpaceMin,
-      RaftStorage.StartupOption option, Log.CorruptionPolicy logCorruptionPolicy) {
+                                               StartupOption option, Log.CorruptionPolicy logCorruptionPolicy) {
     return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy);
   }
 

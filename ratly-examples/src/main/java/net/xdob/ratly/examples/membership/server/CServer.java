@@ -12,8 +12,8 @@ import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rpc.SupportedRpcType;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
-import net.xdob.ratly.server.storage.RaftStorage;
 import com.google.common.base.MoreObjects;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.util.FileUtils;
 
 import java.io.File;
@@ -49,7 +49,7 @@ public class CServer {
         .setProperties(properties)
         .setServerId(serverId)
         .setStateMachine(counterStateMachine)
-        .setOption(RaftStorage.StartupOption.FORMAT)
+        .setOption(StartupOption.FORMAT)
         .build();
   }
 

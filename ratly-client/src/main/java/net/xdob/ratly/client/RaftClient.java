@@ -67,6 +67,8 @@ public interface RaftClient extends Closeable {
   /** @return the {@link DataStreamApi}. */
   DataStreamApi getDataStreamApi();
 
+  boolean isClosed();
+
   /** @return a {@link Builder}. */
   static Builder newBuilder() {
     return new Builder();

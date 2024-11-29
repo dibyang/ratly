@@ -436,7 +436,8 @@ public final class RaftClientImpl implements RaftClient {
     return clientRpc;
   }
 
-  boolean isClosed() {
+  @Override
+  public boolean isClosed() {
     return closed.get();
   }
 

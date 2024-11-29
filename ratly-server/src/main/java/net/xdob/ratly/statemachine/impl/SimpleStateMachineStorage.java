@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.statemachine.impl;
 
 import static net.xdob.ratly.util.MD5FileUtil.MD5_SUFFIX;
@@ -32,40 +31,70 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A StateMachineStorage that stores the snapshot in a single file.
+ * 用于管理存储在单个文件中的状态机快照。
+ * 该类提供了多种操作，包括获取、更新和清理快照文件。
+ * 它的设计思路是将每个快照存储为一个单独的文件，并提供清理和管理旧快照的机制。
  */
 public class SimpleStateMachineStorage implements StateMachineStorage {
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleStateMachineStorage.class);
-
+  /**
+   * 快照文件的前缀名
+   */
   static final String SNAPSHOT_FILE_PREFIX = "snapshot";
+  /**
+   * 用于标记损坏快照文件的后缀
+   */
   static final String CORRUPT_SNAPSHOT_FILE_SUFFIX = ".corrupt";
-  /** snapshot.term_index */
+  /**
+   * 用于匹配快照文件名的正则表达式，包含了 term 和 index 信息。
+   * snapshot.term_index
+   */
   public static final Pattern SNAPSHOT_REGEX =
       Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)");
+  /**
+   * 用于匹配包含 MD5 校验的快照文件名的正则表达式
+   */
   public static final Pattern SNAPSHOT_MD5_REGEX =
       Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)" + MD5_SUFFIX);
+  /**
+   * 过滤器，用于在目录中查找符合 MD5 校验规则的文件。
+   */
   private static final DirectoryStream.Filter<Path> SNAPSHOT_MD5_FILTER
       = entry -> Optional.ofNullable(entry.getFileName())
       .map(Path::toString)
       .map(SNAPSHOT_MD5_REGEX::matcher)
       .filter(Matcher::matches)
       .isPresent();
-
+  /**
+   * 存储状态机的目录，存储所有快照文件。
+   */
   private volatile File stateMachineDir = null;
+  /**
+   * 使用 AtomicReference 存储最新的快照信息，确保线程安全。
+   */
   private final AtomicReference<SingleFileSnapshotInfo> latestSnapshot = new AtomicReference<>();
 
+  /**
+   * 初始化状态机存储目录，并尝试加载最新的快照。
+   */
   @Override
   public void init(RaftStorage storage) throws IOException {
     this.stateMachineDir = storage.getStorageDir().getStateMachineDir();
     getLatestSnapshot();
   }
 
+  /**
+   * 暂不实现，但通常用于格式化存储（例如清空或重置存储）。
+   */
   @Override
   public void format() throws IOException {
     // TODO
   }
 
+  /**
+   * 扫描指定目录下的所有文件，并根据文件名解析出符合规则的快照信息。
+   */
   static List<SingleFileSnapshotInfo> getSingleFileSnapshotInfos(Path dir) throws IOException {
     final List<SingleFileSnapshotInfo> infos = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
@@ -85,6 +114,13 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     return infos;
   }
 
+  /**
+   * 功能：根据快照保留策略清理过期的快照文件。如果快照数量超过保留的数量，它会删除旧的快照文件。
+   * 步骤：
+   *    1.获取所有的快照文件信息。
+   *    2.按照 index 排序，保留最新的快照，删除旧的快照。
+   *    3.删除没有对应快照文件的 MD5 文件。
+   */
   @Override
   public void cleanupOldSnapshots(SnapshotRetentionPolicy snapshotRetentionPolicy) throws IOException {
     if (stateMachineDir == null) {
@@ -97,9 +133,9 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     if (numSnapshotsRetained <= 0) {
       return;
     }
-
+    //获取所有的快照文件信息。
     final List<SingleFileSnapshotInfo> allSnapshotFiles = getSingleFileSnapshotInfos(stateMachineDir.toPath());
-
+    //按照 index 排序，保留最新的快照，删除旧的快照。
     if (allSnapshotFiles.size() > numSnapshotsRetained) {
       allSnapshotFiles.sort(Comparator.comparing(SingleFileSnapshotInfo::getIndex).reversed());
       allSnapshotFiles.subList(numSnapshotsRetained, allSnapshotFiles.size())
@@ -110,7 +146,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
             LOG.info("Deleting old snapshot at {}", snapshotPath.toAbsolutePath());
             FileUtils.deletePathQuietly(snapshotPath);
           });
-      // clean up the md5 files if the corresponding snapshot file does not exist
+      // 删除没有对应快照文件的 MD5 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
           SNAPSHOT_MD5_FILTER)) {
         for (Path md5path : stream) {
@@ -129,6 +165,9 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     }
   }
 
+  /**
+   * 根据快照文件的命名规则，解析出文件的 term 和 index，并返回对应的 TermIndex。
+   */
   public static TermIndex getTermIndexFromSnapshotFile(File file) {
     final String name = file.getName();
     final Matcher m = SNAPSHOT_REGEX.matcher(name);
@@ -142,29 +181,44 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     return TermIndex.valueOf(term, index);
   }
 
+  /**
+   * 生成临时快照文件名。
+   */
   protected static String getTmpSnapshotFileName(long term, long endIndex) {
     return getSnapshotFileName(term, endIndex) + AtomicFileOutputStream.TMP_EXTENSION;
   }
-
+  /**
+   * 生成损坏快照文件名。
+   */
   protected static String getCorruptSnapshotFileName(long term, long endIndex) {
     return getSnapshotFileName(term, endIndex) + CORRUPT_SNAPSHOT_FILE_SUFFIX;
   }
 
+  /**
+   * 生成对应 term 和 endIndex 的快照文件路径。
+   */
   public File getSnapshotFile(long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
     return new File(dir, getSnapshotFileName(term, endIndex));
   }
-
+  /**
+   * 生成对应 term 和 endIndex 的临时文件路径。
+   */
   protected File getTmpSnapshotFile(long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
     return new File(dir, getTmpSnapshotFileName(term, endIndex));
   }
-
+  /**
+   * 生成对应 term 和 endIndex 的损坏文件路径。
+   */
   protected File getCorruptSnapshotFile(long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
     return new File(dir, getCorruptSnapshotFileName(term, endIndex));
   }
 
+  /**
+   * 查找目录下最新的快照文件，并返回对应的 SingleFileSnapshotInfo 对象。
+   */
   static SingleFileSnapshotInfo findLatestSnapshot(Path dir) throws IOException {
     final Iterator<SingleFileSnapshotInfo> i = getSingleFileSnapshotInfos(dir).iterator();
     if (!i.hasNext()) {
@@ -172,7 +226,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     }
 
     SingleFileSnapshotInfo latest = i.next();
-    for(; i.hasNext(); ) {
+    while (i.hasNext()) {
       final SingleFileSnapshotInfo info = i.next();
       if (info.getIndex() > latest.getIndex()) {
         latest = info;
@@ -195,6 +249,9 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     return SNAPSHOT_FILE_PREFIX + "." + term + "_" + endIndex;
   }
 
+  /**
+   * 获取当前存储中的最新快照。如果已有缓存，则直接返回缓存中的快照信息，否则加载最新的快照。
+   */
   @Override
   public SingleFileSnapshotInfo getLatestSnapshot() {
     final SingleFileSnapshotInfo s = latestSnapshot.get();
@@ -204,6 +261,9 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     return loadLatestSnapshot();
   }
 
+  /**
+   * 加载最新的快照。如果目录为空或加载失败，返回 null。
+   */
   public SingleFileSnapshotInfo loadLatestSnapshot() {
     final File dir = stateMachineDir;
     if (dir == null) {

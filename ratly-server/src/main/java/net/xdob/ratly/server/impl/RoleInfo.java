@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.proto.raft.CandidateInfoProto;

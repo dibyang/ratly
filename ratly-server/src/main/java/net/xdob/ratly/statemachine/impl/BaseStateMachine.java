@@ -1,5 +1,3 @@
-
-
 package net.xdob.ratly.statemachine.impl;
 
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -25,19 +23,38 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Base implementation for StateMachines.
+ * 一个基础实现，用于实现 Raft 状态机的核心功能，集成了状态管理、事务应用、查询等功能。
+ * 该类实现了多个接口，包括 StateMachine、DataApi、EventApi、LeaderEventApi
+ * 和 FollowerEventApi，这些接口定义了状态机与 Raft 协议及其他组件交互的方法。
  */
 public class BaseStateMachine implements StateMachine, DataApi,
     EventApi, LeaderEventApi, FollowerEventApi {
+  /**
+   * 一个 CompletableFuture<RaftServer> 对象，表示当前状态机的 Raft 服务器实例。
+   * 当状态机初始化时，服务器会被设置到 server 字段中。
+   */
   private final CompletableFuture<RaftServer> server = new CompletableFuture<>();
-  @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
+
+  /**
+   * Raft 集群的 ID，表示当前状态机所在的 Raft 集群。
+   */
   private volatile RaftGroupId groupId;
+  /**
+   * 状态机的生命周期管理器，跟踪状态机的生命周期状态。
+   */
   private final LifeCycle lifeCycle = new LifeCycle(JavaUtils.getClassSimpleName(getClass()));
-
+  /**
+   * 保存最近应用的日志条目的 TermIndex，它是一个原子引用，确保在多线程环境中安全操作。
+   */
   private final AtomicReference<TermIndex> lastAppliedTermIndex = new AtomicReference<>();
-
+  /**
+   * 一个有序的 TreeMap，用于存储待完成的事务 CompletableFuture 对象，按照日志索引排序。
+   */
   private final SortedMap<Long, CompletableFuture<Void>> transactionFutures = new TreeMap<>();
 
+  /**
+   * 构造函数初始化 lastAppliedTermIndex 为 TermIndex.INITIAL_VALUE，确保状态机从初始状态开始。
+   */
   public BaseStateMachine() {
     setLastAppliedTermIndex(TermIndex.INITIAL_VALUE);
   }

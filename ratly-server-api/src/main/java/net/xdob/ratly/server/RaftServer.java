@@ -19,7 +19,7 @@ import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rpc.RpcType;
 import net.xdob.ratly.server.protocol.RaftServerAsynchronousProtocol;
 import net.xdob.ratly.server.protocol.RaftServerProtocol;
-import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.LifeCycle;
@@ -120,7 +120,7 @@ public interface RaftServer extends Closeable, RpcType.Get,
 
     private static Method initNewRaftServerMethod() {
       final String className = RaftServer.class.getPackage().getName() + ".impl.ServerImplUtils";
-      final Class<?>[] argClasses = {RaftPeerId.class, RaftGroup.class, RaftStorage.StartupOption.class,
+      final Class<?>[] argClasses = {RaftPeerId.class, RaftGroup.class, StartupOption.class,
           StateMachine.Registry.class, ThreadGroup.class, RaftProperties.class, Parameters.class};
       try {
         final Class<?> clazz = ReflectionUtils.getClassByName(className);
@@ -130,7 +130,7 @@ public interface RaftServer extends Closeable, RpcType.Get,
       }
     }
 
-    private static RaftServer newRaftServer(RaftPeerId serverId, RaftGroup group, RaftStorage.StartupOption option,
+    private static RaftServer newRaftServer(RaftPeerId serverId, RaftGroup group, StartupOption option,
         StateMachine.Registry stateMachineRegistry, ThreadGroup threadGroup, RaftProperties properties,
         Parameters parameters) throws IOException {
       try {
@@ -146,7 +146,7 @@ public interface RaftServer extends Closeable, RpcType.Get,
     private RaftPeerId serverId;
     private StateMachine.Registry stateMachineRegistry ;
     private RaftGroup group = null;
-    private RaftStorage.StartupOption option = RaftStorage.StartupOption.FORMAT;
+    private StartupOption option = StartupOption.FORMAT;
     private RaftProperties properties;
     private Parameters parameters;
     private ThreadGroup threadGroup;
@@ -188,7 +188,7 @@ public interface RaftServer extends Closeable, RpcType.Get,
     }
 
     /** Set the startup option for the group. */
-    public Builder setOption(RaftStorage.StartupOption option) {
+    public Builder setOption(StartupOption option) {
       this.option = option;
       return this;
     }
