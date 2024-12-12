@@ -11,6 +11,10 @@ import java.util.Map;
 
 public class JdbcCallableStatement extends JdbcPreparedStatement implements CallableStatement {
 
+  public JdbcCallableStatement(SqlClient client, String sql) {
+    super(client, sql);
+  }
+
   @Override
   public void registerOutParameter(int parameterIndex, int sqlType) throws SQLException {
 

@@ -1,0 +1,17 @@
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-XDignore.symbol.file'
+    options.compilerArgs << '-nowarn'
+}
+
+dependencies {
+    api "com.fasterxml.jackson.core:jackson-core:2.8.8"
+    api "org.javassist:javassist:3.21.0-GA"
+    api "org.objenesis:objenesis:2.5.1"
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}

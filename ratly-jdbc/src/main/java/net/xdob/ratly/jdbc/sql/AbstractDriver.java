@@ -9,29 +9,6 @@ import java.util.regex.Pattern;
 
 public abstract class AbstractDriver implements Driver
 {
-	/**
-	 * {@inheritDoc}
-	 * @see Driver#acceptsURL(String)
-	 */
-	@Override
-	public boolean acceptsURL(String url)
-	{
-		return (this.parse(url) != null);
-	}
-	
-	protected abstract Pattern getUrlPattern();
-	
-	protected String parse(String url)
-	{
-		Matcher matcher = this.getUrlPattern().matcher(url);
-		
-		if (!matcher.matches())
-		{
-			return null;
-		}
-		
-		return matcher.group(1);
-	}
 
 	/**
 	 * {@inheritDoc}

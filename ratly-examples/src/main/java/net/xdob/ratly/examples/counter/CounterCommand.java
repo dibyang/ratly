@@ -10,7 +10,7 @@ import com.google.protobuf.ByteString;
 public enum CounterCommand {
   /** Increment the counter by 1. */
   INCREMENT,
-  /** Get the counter value. */
+  /** Query the counter value. */
   GET;
 
   private final Message message = Message.valueOf(name());

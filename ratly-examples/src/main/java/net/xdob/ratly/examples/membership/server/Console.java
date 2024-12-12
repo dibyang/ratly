@@ -67,7 +67,7 @@ public class Console {
           System.out.println(USAGE_MSG);
         }
       } catch (Exception e) {
-        System.out.println("Get error " + e.getMessage());
+        System.out.println("Query error " + e.getMessage());
       }
     }
     try {

@@ -6,9 +6,14 @@ dependencies {
     api project(':ratly-common')
     api project(':ratly-client')
     api project(':ratly-server')
-    //api project(':ratly-metrics-default')
+    api project(':ratly-metrics-default')
     api project(':ratly-grpc')
+    api project(':ratly-fasts')
     api("net.xdob.h2db:h2db:${h2db_version}")
+    api("org.apache.commons:commons-dbcp2:2.13.0")
+    implementation "ch.qos.logback:logback-core:${logback_version}"
+    implementation "ch.qos.logback:logback-classic:${logback_version}"
+    //implementation 'com.github.jsqlparser:jsqlparser:4.9'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

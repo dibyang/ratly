@@ -5,6 +5,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import net.xdob.ratly.examples.arithmetic.cli.Arithmetic;
 import net.xdob.ratly.examples.filestore.cli.FileStore;
+import net.xdob.ratly.examples.jdbc.Db;
 import net.xdob.ratly.util.JavaUtils;
 
 import java.util.List;
@@ -60,6 +61,8 @@ public final class RatlyRunner {
       return FileStore.getSubCommands();
     } else if (command.equalsIgnoreCase(JavaUtils.getClassSimpleName(Arithmetic.class))) {
       return Arithmetic.getSubCommands();
+    } else if (command.equalsIgnoreCase(JavaUtils.getClassSimpleName(Db.class))) {
+      return Db.getSubCommands();
     }
     return null;
   }

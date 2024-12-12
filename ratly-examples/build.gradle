@@ -9,6 +9,7 @@ dependencies {
     api project(':ratly-metrics-default')
     api project(':ratly-grpc')
     api project(':ratly-netty')
+    api project(':ratly-jdbc')
     api("com.beust:jcommander:1.82")
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -23,6 +24,12 @@ tasks.register('cleanDist', Delete) {
     delete "$buildDir/dist/ratly-examples"
 }
 
+tasks.register('copyConf', Copy) {
+    group 'build'
+    from "$projectDir/src/main/conf"
+    into "$buildDir/dist/ratly-examples/conf"
+}
+
 tasks.register('copyJars', Copy) {
     group 'build'
     from configurations.runtimeClasspath
@@ -32,7 +39,7 @@ tasks.register('copyJars', Copy) {
 }
 
 tasks.register('buildDist', Copy) {
-    dependsOn build, cleanDist, copyJars
+    dependsOn build, cleanDist, copyJars, copyConf
     group 'build'
     from "$projectDir/src/main/bin/"
     into "$buildDir/dist/ratly-examples/bin"

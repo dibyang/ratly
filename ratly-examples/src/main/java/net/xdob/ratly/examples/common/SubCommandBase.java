@@ -22,7 +22,7 @@ public abstract class SubCommandBase {
   @Parameter(names = {"--peers", "-r"}, description =
       "Raft peers (format: name:host:port:dataStreamPort:clientPort:adminPort,"
           + "...)", required = true)
-  private String peers;
+  protected String peers;
 
   public static RaftPeer[] parsePeers(String peers) {
     return Stream.of(peers.split(",")).map(address -> {

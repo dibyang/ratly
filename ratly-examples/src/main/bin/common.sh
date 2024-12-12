@@ -28,7 +28,7 @@ QUORUM_OPTS="--peers n0:localhost:6000,n1:localhost:6001,n2:localhost:6002"
 
 CONF_DIR="$DIR/../conf"
 if [[ -d "${CONF_DIR}" ]]; then
-  LOGGER_OPTS="-Dlog4j.configuration=file:${CONF_DIR}/log4j.properties"
+  LOGGER_OPTS="-Dlogback.configuration=file:${CONF_DIR}/logback.xml"
 else
-  LOGGER_OPTS="-Dlog4j.configuration=file:${DIR}/../resources/log4j.properties"
+  LOGGER_OPTS="-Dlogback.configuration=file:${DIR}/../resources/logback.xml"
 fi

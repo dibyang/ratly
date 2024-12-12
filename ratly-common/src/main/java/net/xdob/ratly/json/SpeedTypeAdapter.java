@@ -17,7 +17,7 @@ public class SpeedTypeAdapter extends TypeAdapter<Speed> {
   public final static SpeedTypeAdapter SPEED = new SpeedTypeAdapter();
   public final static SpeedTypeAdapter CFG_SPEED = new SpeedTypeAdapter(false);
 
-  private boolean byteSize = true;
+  private final boolean byteSize;
 
   private SpeedTypeAdapter() {
     this(true);

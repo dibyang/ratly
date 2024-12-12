@@ -6,7 +6,7 @@ public class Version
 {
 	public static final String DASH = "-"; //$NON-NLS-1$
 	public static final String DOT = ".";
-	public static final Version CURRENT = new Version("1.2");
+	public static final Version CURRENT = new Version("1.0");
 
 	private final String version;
 	private final int major;
