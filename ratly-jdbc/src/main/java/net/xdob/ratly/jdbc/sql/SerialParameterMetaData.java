@@ -8,15 +8,15 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SimpleParameterMetaData implements ParameterMetaData, Serializable {
+public class SerialParameterMetaData implements ParameterMetaData, Serializable {
   private final List<ParamMetaData> parameters = new ArrayList<>();
 
 
-  public SimpleParameterMetaData(ParameterMetaData metaData) throws SQLException {
+  public SerialParameterMetaData(ParameterMetaData metaData) throws SQLException {
     fill(metaData);
   }
 
-  public SimpleParameterMetaData fill(ParameterMetaData metaData) throws SQLException {
+  public SerialParameterMetaData fill(ParameterMetaData metaData) throws SQLException {
     int parameterCount = metaData.getParameterCount();
     for (int param = 1; param <= parameterCount; param++) {
       ParamMetaData pmd = new ParamMetaData();

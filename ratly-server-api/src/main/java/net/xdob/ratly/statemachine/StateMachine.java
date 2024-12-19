@@ -6,7 +6,7 @@ import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.config.Snapshot;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.RaftStorage;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -132,7 +132,7 @@ public interface StateMachine extends Closeable {
    *    3）如何创建快照（例如，快照是否阻塞状态机，以及快照完成后是否清除日志条目）。
    * <p>
    * 与此同时，当最新快照之外的 Raft 日志大小超过某个阈值时，
-   * 如果 {@link Snapshot#AUTO_TRIGGER_ENABLED_KEY} 启用，RaftServer 可能会选择触发快照。
+   * 如果 {@link RaftServerConfigKeys.Snapshot#AUTO_TRIGGER_ENABLED_KEY} 启用，RaftServer 可能会选择触发快照。
    * <p>
    * 快照应包含最新的 Raft 配置。
    * @return 已应用到状态机并且已包含在快照中的日志条目的最大索引。

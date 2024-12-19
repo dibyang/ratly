@@ -76,9 +76,10 @@ subprojects {
 
     buildscript {
         repositories {
-            mavenLocal()
             mavenCentral()
+            maven { url "https://${nexus_host}:8082/repository/maven-public/" }
             maven { url 'https://maven.aliyun.com/repository/public/' }
+            mavenLocal()
         }
     }
 
@@ -111,6 +112,7 @@ subprojects {
 
     repositories {
         mavenCentral()
+        maven { url "https://${nexus_host}:8082/repository/maven-public/" }
         maven { url 'https://maven.aliyun.com/repository/public/' }
         mavenLocal()
     }

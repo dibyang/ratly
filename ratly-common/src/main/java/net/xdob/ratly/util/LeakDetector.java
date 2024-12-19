@@ -115,6 +115,7 @@ public class LeakDetector {
           final String leak = tracker.reportLeak();
           if (leak != null) {
             leakMessages.add(leak);
+            LOG.warn("#leaks = {}", leak);
           }
         }
       } catch (InterruptedException e) {
@@ -128,10 +129,9 @@ public class LeakDetector {
   }
 
   Runnable track(Object leakable, Supplier<String> reportLeak) {
-    // TODO: A rate filter can be put here to only track a subset of all objects, e.g. 5%, 10%,
-    // if we have proofs that leak tracking impacts performance, or a single LeakDetector
-    // thread can't keep up with the pace of object allocation.
-    // For now, it looks effective enough and let keep it simple.
+    //TODO：可以在此处放置一个速率过滤器，以仅跟踪所有对象的子集，例如 5%、10%、
+    //如果我们有证据表明泄漏跟踪会影响性能，或者单个 LeakDetector  thread 跟不上对象分配的步伐。
+    //目前，它看起来足够有效，暂时保持简单。
     return trackers.add(leakable, queue, reportLeak)::remove;
   }
 
@@ -164,12 +164,12 @@ public class LeakDetector {
       this.getLeakMessage = getLeakMessage;
     }
 
-    /** Called by the tracked resource when the object is completely released. */
+    /** 当对象完全释放时，由被跟踪的资源调用。*/
     void remove() {
       removeMethod.accept(this);
     }
 
-    /** @return the leak message if there is a leak; return null if there is no leak. */
+    /** @return 泄漏消息（如果有泄漏）;如果没有泄漏，则返回 null。 */
     String reportLeak() {
       return getLeakMessage.get();
     }

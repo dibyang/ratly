@@ -17,10 +17,7 @@ import net.xdob.ratly.protocol.RaftGroup;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
-import net.xdob.ratly.server.config.DataStream;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
-import net.xdob.ratly.server.config.Rpc;
-import net.xdob.ratly.server.config.Write;
 import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.statemachine.StateMachine;
 import com.google.protobuf.ByteString;
@@ -68,8 +65,8 @@ public class Server extends SubCommandBase {
     RaftProperties properties = new RaftProperties();
 
     // Avoid leader change affect the performance
-    Rpc.setTimeoutMin(properties, TimeDuration.valueOf(2, TimeUnit.SECONDS));
-    Rpc.setTimeoutMax(properties, TimeDuration.valueOf(3, TimeUnit.SECONDS));
+    RaftServerConfigKeys.Rpc.setTimeoutMin(properties, TimeDuration.valueOf(2, TimeUnit.SECONDS));
+    RaftServerConfigKeys.Rpc.setTimeoutMax(properties, TimeDuration.valueOf(3, TimeUnit.SECONDS));
 
     final int port = NetUtils.createSocketAddr(getPeer(peerId).getAddress()).getPort();
     GrpcConfigKeys.Server.setPort(properties, port);
@@ -86,11 +83,11 @@ public class Server extends SubCommandBase {
       RaftConfigKeys.DataStream.setType(properties, SupportedDataStreamType.NETTY);
     }
     RaftServerConfigKeys.setStorageDir(properties, storageDir);
-    Write.setElementLimit(properties, 40960);
-    Write.setByteLimit(properties, SizeInBytes.valueOf("1000MB"));
+    RaftServerConfigKeys.Write.setElementLimit(properties, 40960);
+    RaftServerConfigKeys.Write.setByteLimit(properties, SizeInBytes.valueOf("1000MB"));
     ConfUtils.setFiles(properties::setFiles, FileStoreCommon.STATEMACHINE_DIR_KEY, storageDir);
-    DataStream.setAsyncRequestThreadPoolSize(properties, writeThreadNum);
-    DataStream.setAsyncWriteThreadPoolSize(properties, writeThreadNum);
+    RaftServerConfigKeys.DataStream.setAsyncRequestThreadPoolSize(properties, writeThreadNum);
+    RaftServerConfigKeys.DataStream.setAsyncWriteThreadPoolSize(properties, writeThreadNum);
     ConfUtils.setInt(properties::setInt, FileStoreCommon.STATEMACHINE_WRITE_THREAD_NUM, writeThreadNum);
     ConfUtils.setInt(properties::setInt, FileStoreCommon.STATEMACHINE_READ_THREAD_NUM, readThreadNum);
     ConfUtils.setInt(properties::setInt, FileStoreCommon.STATEMACHINE_COMMIT_THREAD_NUM, commitThreadNum);

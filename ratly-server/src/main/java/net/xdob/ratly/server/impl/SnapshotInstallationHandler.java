@@ -14,7 +14,7 @@ import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.RaftServerProtocol;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
@@ -60,7 +60,7 @@ class SnapshotInstallationHandler {
   SnapshotInstallationHandler(RaftServerImpl server, RaftProperties properties) {
     this.server = server;
     this.state = server.getState();
-    this.installSnapshotEnabled = Log.Appender.installSnapshotEnabled(properties);
+    this.installSnapshotEnabled = RaftServerConfigKeys.Log.Appender.installSnapshotEnabled(properties);
   }
 
   RaftGroupMemberId getMemberId() {
@@ -137,7 +137,7 @@ class SnapshotInstallationHandler {
     final InstallSnapshotReplyProto failedReply = toInstallSnapshotReplyProto(
         leaderId, getMemberId(), state.getCurrentTerm(), InstallSnapshotResult.CONF_MISMATCH);
     LOG.error("{}: Configuration Mismatch ({}): Leader {} has it set to {} but follower {} has it set to {}",
-        getMemberId(), Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
+        getMemberId(), RaftServerConfigKeys.Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
         leaderId, request.hasSnapshotChunk(), server.getId(), installSnapshotEnabled);
     return failedReply;
   }

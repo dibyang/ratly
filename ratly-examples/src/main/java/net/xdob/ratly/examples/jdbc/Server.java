@@ -44,7 +44,6 @@ public class Server extends SubCommandBase {
         GrpcConfigKeys.Admin.setPort(properties, NetUtils.createSocketAddr(address).getPort()));
 
     RaftServerConfigKeys.setStorageDir(properties, Collections.singletonList(storageDir));
-    String dbPath = Paths.get(storageDir.getPath(), "db").toString();
     JdbcStateMachine stateMachine = new JdbcStateMachine("aio");
 
     final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(getRaftGroupId())),

@@ -99,14 +99,16 @@ public class JdbcConnection implements Connection {
 
   @Override
   public void commit() throws SQLException {
-    UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-        .setSender(Sender.connection)
-        .setTx(tx)
-        .setDb(ci.getDb())
-        .setType(UpdateType.commit);
-    sendUpdate(builder.build());
-    this.tx = UUID.randomUUID().toString();
-    updateCount.set(0);
+    if(updateCount.get()>0) {
+      UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
+          .setSender(Sender.connection)
+          .setTx(tx)
+          .setDb(ci.getDb())
+          .setType(UpdateType.commit);
+      sendUpdate(builder.build());
+      this.tx = UUID.randomUUID().toString();
+      updateCount.set(0);
+    }
   }
 
   public SQLException getSQLException(SQLExceptionProto ex) {
@@ -140,19 +142,21 @@ public class JdbcConnection implements Connection {
 
   @Override
   public void rollback() throws SQLException {
-    UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-        .setSender(Sender.connection)
-        .setTx(tx)
-        .setDb(ci.getDb())
-        .setType(UpdateType.rollback);
-    sendUpdate(builder.build());
-    this.tx = UUID.randomUUID().toString();
-    updateCount.set(0);
+    if(updateCount.get()>0) {
+      UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
+          .setSender(Sender.connection)
+          .setTx(tx)
+          .setDb(ci.getDb())
+          .setType(UpdateType.rollback);
+      sendUpdate(builder.build());
+      this.tx = UUID.randomUUID().toString();
+      updateCount.set(0);
+    }
   }
 
   @Override
   public void close() throws SQLException {
-    if(!this.autoCommit&&updateCount.get()>0){
+    if(!this.autoCommit){
       try {
         rollback();
       }catch (SQLException e){

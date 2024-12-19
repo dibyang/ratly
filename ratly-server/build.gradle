@@ -6,6 +6,7 @@ dependencies {
     api project(':ratly-client')
     api project(':ratly-server-api')
     api project(':ratly-metrics-api')
+    api("net.xdob.onlooker:onlooker-api:0.2.5")
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

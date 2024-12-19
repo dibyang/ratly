@@ -2,7 +2,7 @@ package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.metrics.Timekeeper;
 import net.xdob.ratly.server.Division;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
@@ -57,9 +57,9 @@ class SegmentedRaftLogWorker {
     private final SegmentedRaftLogMetrics metrics;
 
     StateMachineDataPolicy(RaftProperties properties, SegmentedRaftLogMetrics metricRegistry) {
-      this.sync = Log.StateMachineData.sync(properties);
-      this.syncTimeout = Log.StateMachineData.syncTimeout(properties);
-      this.syncTimeoutRetry = Log.StateMachineData.syncTimeoutRetry(properties);
+      this.sync = RaftServerConfigKeys.Log.StateMachineData.sync(properties);
+      this.syncTimeout = RaftServerConfigKeys.Log.StateMachineData.syncTimeout(properties);
+      this.syncTimeoutRetry = RaftServerConfigKeys.Log.StateMachineData.syncTimeoutRetry(properties);
       this.metrics = metricRegistry;
       Preconditions.assertTrue(syncTimeoutRetry >= -1);
     }
@@ -175,14 +175,14 @@ class SegmentedRaftLogWorker {
     this.raftLogMetrics = metricRegistry;
     this.storage = storage;
     this.server = server;
-    final SizeInBytes queueByteLimit = Log.queueByteLimit(properties);
-    final int queueElementLimit = Log.queueElementLimit(properties);
+    final SizeInBytes queueByteLimit = RaftServerConfigKeys.Log.queueByteLimit(properties);
+    final int queueElementLimit = RaftServerConfigKeys.Log.queueElementLimit(properties);
     this.queue =
         new DataBlockingQueue<>(name, queueByteLimit, queueElementLimit, Task::getSerializedSize);
 
-    this.segmentMaxSize = Log.segmentSizeMax(properties).getSize();
-    this.preallocatedSize = Log.preallocatedSize(properties).getSize();
-    this.forceSyncNum = Log.forceSyncNum(properties);
+    this.segmentMaxSize = RaftServerConfigKeys.Log.segmentSizeMax(properties).getSize();
+    this.preallocatedSize = RaftServerConfigKeys.Log.preallocatedSize(properties).getSize();
+    this.forceSyncNum = RaftServerConfigKeys.Log.forceSyncNum(properties);
 
     this.stateMachineDataPolicy = new StateMachineDataPolicy(properties, metricRegistry);
 
@@ -193,21 +193,21 @@ class SegmentedRaftLogWorker {
     metricRegistry.addLogWorkerQueueSizeGauge(writeTasks.q::size);
     metricRegistry.addFlushBatchSizeGauge(() -> flushBatchSize);
 
-    final int bufferSize = Log.writeBufferSize(properties).getSizeInt();
+    final int bufferSize = RaftServerConfigKeys.Log.writeBufferSize(properties).getSizeInt();
     this.writeBuffer = ByteBuffer.allocateDirect(bufferSize);
-    final int logEntryLimit = Log.Appender.bufferByteLimit(properties).getSizeInt();
+    final int logEntryLimit = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties).getSizeInt();
     // 4 bytes (serialized size) + logEntryLimit + 4 bytes (checksum)
     if (bufferSize < logEntryLimit + 8) {
-      throw new IllegalArgumentException(Log.WRITE_BUFFER_SIZE_KEY
+      throw new IllegalArgumentException(RaftServerConfigKeys.Log.WRITE_BUFFER_SIZE_KEY
           + " (= " + bufferSize
-          + ") is less than " + Log.Appender.BUFFER_BYTE_LIMIT_KEY
+          + ") is less than " + RaftServerConfigKeys.Log.Appender.BUFFER_BYTE_LIMIT_KEY
           + " + 8 (= " + (logEntryLimit + 8) + ")");
     }
-    this.unsafeFlush = Log.unsafeFlushEnabled(properties);
-    this.asyncFlush = Log.asyncFlushEnabled(properties);
+    this.unsafeFlush = RaftServerConfigKeys.Log.unsafeFlushEnabled(properties);
+    this.asyncFlush = RaftServerConfigKeys.Log.asyncFlushEnabled(properties);
     if (asyncFlush && unsafeFlush) {
-      throw new IllegalStateException("Cannot enable both " +  Log.UNSAFE_FLUSH_ENABLED_KEY +
-          " and " + Log.ASYNC_FLUSH_ENABLED_KEY);
+      throw new IllegalStateException("Cannot enable both " +  RaftServerConfigKeys.Log.UNSAFE_FLUSH_ENABLED_KEY +
+          " and " + RaftServerConfigKeys.Log.ASYNC_FLUSH_ENABLED_KEY);
     }
     this.flushExecutor = (!asyncFlush && !unsafeFlush)? null
         : Concurrents3.newSingleThreadExecutor(name + "-flush");

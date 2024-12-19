@@ -5,7 +5,7 @@ import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.Division;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLog.EntryWithData;
@@ -56,15 +56,15 @@ public abstract class LogAppenderBase implements LogAppender {
     this.leaderState = leaderState;
 
     final RaftProperties properties = server.getRaftServer().getProperties();
-    this.snapshotChunkMaxSize = Log.Appender.snapshotChunkSizeMax(properties).getSizeInt();
+    this.snapshotChunkMaxSize = RaftServerConfigKeys.Log.Appender.snapshotChunkSizeMax(properties).getSizeInt();
 
-    final SizeInBytes bufferByteLimit = Log.Appender.bufferByteLimit(properties);
-    final int bufferElementLimit = Log.Appender.bufferElementLimit(properties);
+    final SizeInBytes bufferByteLimit = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties);
+    final int bufferElementLimit = RaftServerConfigKeys.Log.Appender.bufferElementLimit(properties);
     this.buffer = new DataQueue<>(this, bufferByteLimit, bufferElementLimit, EntryWithData::getSerializedSize);
     this.daemon = new LogAppenderDaemon(this);
     this.eventAwaitForSignal = new AwaitForSignal(name);
 
-    this.waitTimeMin = Log.Appender.waitTimeMin(properties);
+    this.waitTimeMin = RaftServerConfigKeys.Log.Appender.waitTimeMin(properties);
   }
 
   @Override

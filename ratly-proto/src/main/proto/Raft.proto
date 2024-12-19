@@ -22,7 +22,7 @@ enum RaftPeerRole {
   CANDIDATE = 1;
   // 追随者
   FOLLOWER = 2;
-  // 监听者
+  // 监听者/观察者
   LISTENER = 3;
 }
 

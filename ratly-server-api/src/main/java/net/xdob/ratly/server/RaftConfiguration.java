@@ -42,8 +42,7 @@ public interface RaftConfiguration {
   boolean containsInOldConf(RaftPeerId peerId);
 
   /**
-   * @return true iff the given peer is contained in conf and,
-   *         if old conf exists, is contained in old conf.
+   * @return 如果给定的节点包含在 conf 中，并且如果旧 conf 存在，则节点也包含在旧 conf 中。返回true
    */
   boolean containsInBothConfs(RaftPeerId peerId);
 
@@ -100,8 +99,7 @@ public interface RaftConfiguration {
   List<RaftPeer> getPreviousPeers(RaftPeerRole roles);
 
   /**
-   * @return all the peers other than the given self id from the conf,
-   *         and the old conf if it exists.
+   * @return conf 中除给定的 self id 之外的所有 Peer 节点，和旧的 conf（如果存在）。
    */
   List<RaftPeer> getOtherPeers(RaftPeerId selfId);
 
@@ -126,7 +124,7 @@ public interface RaftConfiguration {
   /**
    * 是否2节点模式
    */
-  boolean isTwoNodeMode(RaftPeerId selfId);
+  boolean isTwoNodeMode();
 
   /** @return true if the self id together with the others are in the majority. */
   boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId);

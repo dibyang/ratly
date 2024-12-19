@@ -2,31 +2,33 @@ package net.xdob.ratly.jdbc.sql;
 
 import java.io.Serializable;
 
-public final class SimpleColumnInfo implements Serializable {
+public final class ColumnInfo implements Serializable {
   /**
    * Name of the column.
    */
-  public final String name;
+  private final String name;
+
+  private String label;
 
   /**
    * Type of the column, see {@link java.sql.Types}.
    */
-  public final int type;
+  private final int type;
 
   /**
    * Type name of the column.
    */
-  public final String typeName;
+  private final String typeName;
 
   /**
    * Precision of the column
    */
-  public final int precision;
+  private final int precision;
 
   /**
    * Scale of the column.
    */
-  public final int scale;
+  private final int scale;
 
   /**
    * Creates metadata.
@@ -42,12 +44,40 @@ public final class SimpleColumnInfo implements Serializable {
    * @param scale
    *            scale of the column
    */
-  public SimpleColumnInfo(String name, int type, String typeName, int precision, int scale) {
+  public ColumnInfo(String name, int type, String typeName, int precision, int scale) {
     this.name = name;
     this.type = type;
     this.typeName = typeName;
     this.precision = precision;
     this.scale = scale;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getLabel() {
+    return label;
+  }
+
+  public void setLabel(String label) {
+    this.label = label;
+  }
+
+  public int getType() {
+    return type;
+  }
+
+  public String getTypeName() {
+    return typeName;
+  }
+
+  public int getPrecision() {
+    return precision;
+  }
+
+  public int getScale() {
+    return scale;
   }
 
   @Override
@@ -58,12 +88,24 @@ public final class SimpleColumnInfo implements Serializable {
     if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
-    SimpleColumnInfo other = (SimpleColumnInfo) obj;
+    ColumnInfo other = (ColumnInfo) obj;
     return name.equals(other.name);
   }
 
   @Override
   public int hashCode() {
     return name.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return "{" +
+        "name='" + name + '\'' +
+        ", label='" + label + '\'' +
+        ", type=" + type +
+        ", typeName='" + typeName + '\'' +
+        ", precision=" + precision +
+        ", scale=" + scale +
+        '}';
   }
 }

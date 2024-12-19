@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClient> {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientRpc.class);
@@ -111,15 +113,22 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
     } else {
       final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
       // TODO: timeout support
+      // 设置超时，以避免永久阻塞
       try {
-        return f.get();
+        long timeout = Math.max(request.getTimeoutMs(), 10000);
+        return f.get(timeout, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new InterruptedIOException(
             "Interrupted while waiting for response of request " + request);
       } catch (ExecutionException e) {
-        if (LOG.isTraceEnabled()) {
-          LOG.trace(clientId + ": failed " + request, e);
+        if (LOG.isInfoEnabled()) {
+          LOG.info(clientId + ": failed " + request, e);
+        }
+        throw IOUtils.toIOException(e);
+      } catch (TimeoutException e) {
+        if (LOG.isInfoEnabled()) {
+          LOG.info(clientId + ": timeout " + request, e);
         }
         throw IOUtils.toIOException(e);
       }

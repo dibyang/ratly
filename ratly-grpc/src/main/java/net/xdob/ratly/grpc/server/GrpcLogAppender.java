@@ -1,8 +1,7 @@
 package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.server.Division;
-import net.xdob.ratly.server.config.Log;
-import net.xdob.ratly.server.config.Rpc;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.TimeDuration;
 import net.xdob.ratly.util.TimeoutExecutor;
@@ -162,12 +161,12 @@ public class GrpcLogAppender extends LogAppenderBase {
 
     final RaftProperties properties = server.getRaftServer().getProperties();
     this.maxPendingRequestsNum = GrpcConfigKeys.Server.leaderOutstandingAppendsMax(properties);
-    this.requestTimeoutDuration = Rpc.requestTimeout(properties);
+    this.requestTimeoutDuration = RaftServerConfigKeys.Rpc.requestTimeout(properties);
     this.maxOutstandingInstallSnapshots = GrpcConfigKeys.Server.installSnapshotRequestElementLimit(properties);
     this.installSnapshotStreamTimeout = GrpcConfigKeys.Server.installSnapshotRequestTimeout(properties)
         .multiply(maxOutstandingInstallSnapshots);
     this.logMessageBatchDuration = GrpcConfigKeys.Server.logMessageBatchDuration(properties);
-    this.installSnapshotEnabled = Log.Appender.installSnapshotEnabled(properties);
+    this.installSnapshotEnabled = RaftServerConfigKeys.Log.Appender.installSnapshotEnabled(properties);
     this.useSeparateHBChannel = GrpcConfigKeys.Server.heartbeatChannel(properties);
 
     grpcServerMetrics = new GrpcServerMetrics(server.getMemberId().toString());
@@ -176,7 +175,7 @@ public class GrpcLogAppender extends LogAppenderBase {
     lock = new AutoCloseableReadWriteLock(this);
     caller = LOG.isTraceEnabled()? JavaUtils.getCallerStackTraceElement(): null;
     errorRetryWaitPolicy = MultipleLinearRandomRetry.parseCommaSeparated(
-        Log.Appender.retryPolicy(properties));
+        RaftServerConfigKeys.Log.Appender.retryPolicy(properties));
   }
 
   @Override
@@ -682,7 +681,7 @@ public class GrpcLogAppender extends LogAppenderBase {
           break;
         case CONF_MISMATCH:
           LOG.error("{}: Configuration Mismatch ({}): Leader {} has it set to {} but follower {} has it set to {}",
-              this, Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
+              this, RaftServerConfigKeys.Log.Appender.INSTALL_SNAPSHOT_ENABLED_KEY,
               getServer().getId(), installSnapshotEnabled, getFollowerId(), !installSnapshotEnabled);
           break;
         case SNAPSHOT_INSTALLED:

@@ -5,8 +5,7 @@ import net.xdob.ratly.metrics.Timekeeper;
 import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
-import net.xdob.ratly.server.config.Log;
-import net.xdob.ratly.server.config.Snapshot;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -93,18 +92,18 @@ class StateMachineUpdater implements Runnable {
     this.appliedIndex = new RaftLogIndex("appliedIndex", lastAppliedIndex);
     this.snapshotIndex = new RaftLogIndex("snapshotIndex", lastAppliedIndex);
 
-    this.triggerSnapshotWhenStopEnabled = Snapshot.triggerWhenStopEnabled(properties);
-    this.triggerSnapshotWhenRemoveEnabled = Snapshot.triggerWhenRemoveEnabled(properties);
-    final boolean autoSnapshot = Snapshot.autoTriggerEnabled(properties);
-    this.autoSnapshotThreshold = autoSnapshot? Snapshot.autoTriggerThreshold(properties): null;
-    final int numSnapshotFilesRetained = Snapshot.retentionFileNum(properties);
+    this.triggerSnapshotWhenStopEnabled = RaftServerConfigKeys.Snapshot.triggerWhenStopEnabled(properties);
+    this.triggerSnapshotWhenRemoveEnabled = RaftServerConfigKeys.Snapshot.triggerWhenRemoveEnabled(properties);
+    final boolean autoSnapshot = RaftServerConfigKeys.Snapshot.autoTriggerEnabled(properties);
+    this.autoSnapshotThreshold = autoSnapshot? RaftServerConfigKeys.Snapshot.autoTriggerThreshold(properties): null;
+    final int numSnapshotFilesRetained = RaftServerConfigKeys.Snapshot.retentionFileNum(properties);
     this.snapshotRetentionPolicy = new SnapshotRetentionPolicy() {
       @Override
       public int getNumSnapshotsRetained() {
         return numSnapshotFilesRetained;
       }
     };
-    this.purgeUptoSnapshotIndex = Log.purgeUptoSnapshotIndex(properties);
+    this.purgeUptoSnapshotIndex = RaftServerConfigKeys.Log.purgeUptoSnapshotIndex(properties);
     updater = Daemon.newBuilder().setName(name).setRunnable(this)
         .setThreadGroup(server.getThreadGroup()).build();
     this.awaitForSignal = new AwaitForSignal(name);

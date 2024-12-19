@@ -21,8 +21,6 @@ import net.xdob.ratly.protocol.exceptions.AlreadyExistsException;
 import net.xdob.ratly.protocol.exceptions.GroupMismatchException;
 import net.xdob.ratly.rpc.RpcType;
 import net.xdob.ratly.server.*;
-import net.xdob.ratly.server.config.LeaderElection;
-import net.xdob.ratly.server.config.ThreadPool;
 import net.xdob.ratly.server.storage.StartupOption;
 import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.JvmPauseMonitor;
@@ -202,13 +200,13 @@ class RaftServerProxy implements RaftServer {
     this.implExecutor = MemoizedSupplier.valueOf(
         () -> Concurrents3.newSingleThreadExecutor(id + "-groupManagement"));
     this.executor = MemoizedSupplier.valueOf(() -> Concurrents3.newThreadPoolWithMax(
-        ThreadPool.proxyCached(properties),
-        ThreadPool.proxySize(properties),
+        RaftServerConfigKeys.ThreadPool.proxyCached(properties),
+        RaftServerConfigKeys.ThreadPool.proxySize(properties),
         id + "-impl"));
 
     final TimeDuration sleepDeviationThreshold = RaftServerConfigKeys.sleepDeviationThreshold(properties);
     final TimeDuration closeThreshold = RaftServerConfigKeys.closeThreshold(properties);
-    final TimeDuration leaderStepDownWaitTime = LeaderElection.leaderStepDownWaitTime(properties);
+    final TimeDuration leaderStepDownWaitTime = RaftServerConfigKeys.LeaderElection.leaderStepDownWaitTime(properties);
     this.pauseMonitor = JvmPauseMonitor.newBuilder().setName(id)
         .setSleepDeviationThreshold(sleepDeviationThreshold)
         .setHandler(extraSleep -> handleJvmPause(extraSleep, closeThreshold, leaderStepDownWaitTime))

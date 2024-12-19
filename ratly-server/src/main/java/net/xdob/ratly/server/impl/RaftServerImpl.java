@@ -201,7 +201,7 @@ class RaftServerImpl implements Division,
   private final RoleInfo role;
 
   private final DataStreamMap dataStreamMap;
-  private final Read.Option readOption;
+  private final RaftServerConfigKeys.Read.Option readOption;
 
   private final TransactionManager transactionManager;
   private final RetryCacheImpl retryCache;
@@ -240,15 +240,15 @@ class RaftServerImpl implements Division,
 
     final RaftProperties properties = proxy.getProperties();
     this.divisionProperties = new DivisionPropertiesImpl(properties);
-    this.leaderStepDownWaitTime = net.xdob.ratly.server.config.LeaderElection.leaderStepDownWaitTime(properties);
-    this.memberMajorityAddEnabled = net.xdob.ratly.server.config.LeaderElection.memberMajorityAdd(properties);
+    this.leaderStepDownWaitTime = RaftServerConfigKeys.LeaderElection.leaderStepDownWaitTime(properties);
+    this.memberMajorityAddEnabled = RaftServerConfigKeys.LeaderElection.memberMajorityAdd(properties);
     this.sleepDeviationThreshold = RaftServerConfigKeys.sleepDeviationThreshold(properties);
     this.proxy = proxy;
 
     this.state = new ServerState(id, group, stateMachine, this, option, properties);
     this.retryCache = new RetryCacheImpl(properties);
     this.dataStreamMap = new DataStreamMapImpl(id);
-    this.readOption = Read.option(properties);
+    this.readOption = RaftServerConfigKeys.Read.option(properties);
     this.writeIndexCache = new WriteIndexCache(properties);
     this.transactionManager = new TransactionManager(id);
 
@@ -265,12 +265,12 @@ class RaftServerImpl implements Division,
     this.snapshotInstallationHandler = new SnapshotInstallationHandler(this, properties);
 
     this.serverExecutor = Concurrents3.newThreadPoolWithMax(
-        ThreadPool.serverCached(properties),
-        ThreadPool.serverSize(properties),
+        RaftServerConfigKeys.ThreadPool.serverCached(properties),
+        RaftServerConfigKeys.ThreadPool.serverSize(properties),
         id + "-server");
     this.clientExecutor = Concurrents3.newThreadPoolWithMax(
-        ThreadPool.clientCached(properties),
-        ThreadPool.clientSize(properties),
+        RaftServerConfigKeys.ThreadPool.clientCached(properties),
+        RaftServerConfigKeys.ThreadPool.clientSize(properties),
         id + "-client");
   }
 
@@ -298,8 +298,8 @@ class RaftServerImpl implements Division,
 
   private TimeDuration getFirstRandomElectionTimeout() {
     final RaftProperties properties = proxy.getProperties();
-    final int min = Rpc.firstElectionTimeoutMin(properties).toIntExact(TimeUnit.MILLISECONDS);
-    final int max = Rpc.firstElectionTimeoutMax(properties).toIntExact(TimeUnit.MILLISECONDS);
+    final int min = RaftServerConfigKeys.Rpc.firstElectionTimeoutMin(properties).toIntExact(TimeUnit.MILLISECONDS);
+    final int max = RaftServerConfigKeys.Rpc.firstElectionTimeoutMax(properties).toIntExact(TimeUnit.MILLISECONDS);
     final int mills = min + ThreadLocalRandom.current().nextInt(max - min + 1);
     return TimeDuration.valueOf(mills, TimeUnit.MILLISECONDS);
   }
@@ -545,10 +545,10 @@ class RaftServerImpl implements Division,
   }
 
   /**
-   * Change the server state to Follower if this server is in a different role or force is true.
-   * @param newTerm The new term.
-   * @param force Force to start a new {@link FollowerState} even if this server is already a follower.
-   * @return if the term/votedFor should be updated to the new term
+   * 如果当前服务器的角色不同或 force 参数为 true，则将服务器状态切换为 Follower。
+   * @param newTerm 新的任期。
+   * @param force 即使当前服务器已经是 Follower，也强制启动一个新的 {@link FollowerState}。
+   *
    */
   private synchronized CompletableFuture<Void> changeToFollower(
       long newTerm, boolean force, boolean allowListener, Object reason, AtomicBoolean metadataUpdated) {
@@ -1047,13 +1047,13 @@ class RaftServerImpl implements Division,
 
   private CompletableFuture<RaftClientReply> readAsync(RaftClientRequest request) {
     if (request.getType().getRead().getPreferNonLinearizable()
-        || readOption == Read.Option.DEFAULT) {
+        || readOption == RaftServerConfigKeys.Read.Option.DEFAULT) {
       final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);
        if (reply != null) {
          return reply;
        }
        return queryStateMachine(request);
-    } else if (readOption == Read.Option.LINEARIZABLE){
+    } else if (readOption == RaftServerConfigKeys.Read.Option.LINEARIZABLE){
       /*
         Linearizable read using ReadIndex. See Raft paper section 6.4.
         1. First obtain readIndex from Leader.
@@ -1255,7 +1255,7 @@ class RaftServerImpl implements Division,
     Preconditions.assertNotNull(request.getCreate(), "create");
 
     final long creationGap = request.getCreate().getCreationGap();
-    long minGapValue = creationGap > 0? creationGap : Snapshot.creationGap(proxy.getProperties());
+    long minGapValue = creationGap > 0? creationGap : RaftServerConfigKeys.Snapshot.creationGap(proxy.getProperties());
     final long lastSnapshotIndex = Optional.ofNullable(stateMachine.getLatestSnapshot())
         .map(SnapshotInfo::getIndex)
         .orElse(0L);

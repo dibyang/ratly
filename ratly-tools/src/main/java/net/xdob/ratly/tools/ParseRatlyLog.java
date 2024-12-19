@@ -4,7 +4,7 @@ package net.xdob.ratly.tools;
 
 import net.xdob.ratly.proto.raft.StateMachineLogEntryProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.CorruptionPolicy;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.segmented.LogSegmentPath;
 import net.xdob.ratly.server.raftlog.segmented.LogSegment;
@@ -45,7 +45,7 @@ public final class ParseRatlyLog {
 
     System.out.println("Processing Raft Log file: " + file.getAbsolutePath() + " size:" + file.length());
     final int entryCount = LogSegment.readSegmentFile(file, pi.getStartEnd(), maxOpSize,
-        Log.CorruptionPolicy.EXCEPTION, null, this::processLogEntry);
+        CorruptionPolicy.EXCEPTION, null, this::processLogEntry);
     System.out.println("Num Total Entries: " + entryCount);
     System.out.println("Num Conf Entries: " + numConfEntries);
     System.out.println("Num Metadata Entries: " + numMetadataEntries);

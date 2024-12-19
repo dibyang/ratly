@@ -1,8 +1,10 @@
 package net.xdob.ratly.server.impl;
 
+import net.xdob.onlooker.DefaultOnlookerClient;
+import net.xdob.onlooker.MessageToken;
+import net.xdob.onlooker.OnlookerClient;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.server.config.Log;
-import net.xdob.ratly.server.config.Notification;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.server.storage.RaftStorageMetadata;
 import net.xdob.ratly.conf.RaftProperties;
@@ -19,24 +21,26 @@ import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLog;
 import net.xdob.ratly.server.storage.*;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.server.util.SignHelper;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.TransactionContext;
-import net.xdob.ratly.util.JavaUtils;
-import net.xdob.ratly.util.MemoizedCheckedSupplier;
-import net.xdob.ratly.util.MemoizedSupplier;
-import net.xdob.ratly.util.TimeDuration;
-import net.xdob.ratly.util.Timestamp;
+import net.xdob.ratly.util.*;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static net.xdob.ratly.server.Division.LOG;
@@ -84,6 +88,9 @@ class ServerState {
    */
   private final AtomicReference<TermIndex> latestInstalledSnapshot = new AtomicReference<>();
 
+  private final OnlookerClient onlookerClient = new DefaultOnlookerClient();
+  private SignHelper signHelper = new SignHelper();
+
   ServerState(RaftPeerId id, RaftGroup group, StateMachine stateMachine, RaftServerImpl server,
               StartupOption option, RaftProperties prop) {
     this.memberId = RaftGroupMemberId.valueOf(id, group.getGroupId());
@@ -109,7 +116,7 @@ class ServerState {
 
     // On start the leader is null, start the clock now
     this.lastNoLeaderTime = new AtomicReference<>(Timestamp.currentTime());
-    this.noLeaderTimeout = Notification.noLeaderTimeout(prop);
+    this.noLeaderTimeout = RaftServerConfigKeys.Notification.noLeaderTimeout(prop);
 
     final LongSupplier getSnapshotIndexFromStateMachine = () -> Optional.ofNullable(stateMachine.getLatestSnapshot())
         .map(SnapshotInfo::getIndex)
@@ -146,8 +153,10 @@ class ServerState {
   }
 
   void start() {
+    onlookerClient.start();
     // initialize stateMachineUpdater
     stateMachineUpdater.get().start();
+
   }
 
   private RaftLog initRaftLog(LongSupplier getSnapshotIndexFromStateMachine, RaftProperties prop) {
@@ -164,7 +173,7 @@ class ServerState {
       Consumer<LogEntryProto> logConsumer, LongSupplier getSnapshotIndexFromStateMachine,
       RaftProperties prop) throws IOException {
     final RaftLog log;
-    if (Log.useMemory(prop)) {
+    if (RaftServerConfigKeys.Log.useMemory(prop)) {
       log = new MemoryRaftLog(memberId, getSnapshotIndexFromStateMachine, prop);
     } else {
       log = SegmentedRaftLog.newBuilder()
@@ -209,7 +218,7 @@ class ServerState {
   }
 
   /**
-   * Become a candidate and start leader election
+   * 成为候选人并开始领导选举
    */
   LeaderElection.ConfAndTerm initElection(Phase phase) throws IOException {
     setLeader(null, phase);
@@ -260,8 +269,34 @@ class ServerState {
           getMemberId(), oldLeaderId, newLeaderId, getCurrentTerm(), op, suffix);
       if (newLeaderId != null) {
         server.onGroupLeaderElected();
+        RaftGroupMemberId memberId = getMemberId();
+        TermLeader termLeader = TermLeader.of(getCurrentTerm(), newLeaderId);
+        MessageToken  token = new MessageToken();
+        token.setSigner(signHelper.getSigner());
+        String message = termLeader.toString();
+        token.setMessage(message);
+        token.setSign(signHelper.sign(message));
+        onlookerClient.setMessage(memberId.getGroupId().toString(), token);
       }
     }
+  }
+
+  CompletableFuture<TermLeader> getLastLeaderTerm(int waitMS){
+    final CompletableFuture<TermLeader> future = new CompletableFuture<>();
+    onlookerClient.getMessageToken(memberId.getGroupId().toString(), waitMS)
+        .whenComplete((r,ex)->{
+          if(ex!=null){
+            future.completeExceptionally(ex);
+          }else{
+            TermLeader termLeader = r.stream()
+                .filter(e -> signHelper.verifySign(e.getMessage(), e.getSign()))
+                .map(m -> TermLeader.parse(m.getMessage()))
+                .max(Comparator.comparingLong(TermLeader::getTerm)).orElse(null);
+            //LOG.info("tokens={}, termLeader={}", r, termLeader);
+            future.complete(termLeader);
+          }
+        });
+    return  future;
   }
 
   boolean shouldNotifyExtendedNoLeader() {
@@ -430,6 +465,11 @@ class ServerState {
       }
     } catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);
+    }
+    try {
+      onlookerClient.stop();
+    }catch (Throwable e) {
+      LOG.warn(getMemberId() + ": Failed to stop onlooker client", e);
     }
   }
 

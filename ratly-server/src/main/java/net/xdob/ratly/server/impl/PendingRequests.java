@@ -9,7 +9,7 @@ import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.exceptions.RaftException;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.protocol.SetConfigurationRequest;
-import net.xdob.ratly.server.config.Write;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.metrics.RaftServerMetricsImpl;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.statemachine.TransactionContext;
@@ -204,9 +204,9 @@ class PendingRequests {
   PendingRequests(RaftGroupMemberId id, RaftProperties properties, RaftServerMetricsImpl raftServerMetrics) {
     this.name = id + "-" + JavaUtils.getClassSimpleName(getClass());
     this.pendingRequests = new RequestMap(id,
-        Write.elementLimit(properties),
+        RaftServerConfigKeys.Write.elementLimit(properties),
         Math.toIntExact(
-            Write.byteLimit(properties).getSize()
+            RaftServerConfigKeys.Write.byteLimit(properties).getSize()
                 / SizeInBytes.ONE_MB.getSize()), //round down
         raftServerMetrics);
   }

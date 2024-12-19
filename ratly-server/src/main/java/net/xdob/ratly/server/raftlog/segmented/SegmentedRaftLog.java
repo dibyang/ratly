@@ -4,7 +4,7 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.metrics.Timekeeper;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.server.Division;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogEntryHeader;
@@ -202,12 +202,12 @@ public final class SegmentedRaftLog extends RaftLogBase {
     this.server = newServerLogMethods(b.server, b.notifyTruncatedLogEntry, b.getTransactionContext);
     this.storage = b.storage;
     this.stateMachine = b.stateMachine;
-    this.segmentMaxSize = Log.segmentSizeMax(b.properties).getSize();
+    this.segmentMaxSize = RaftServerConfigKeys.Log.segmentSizeMax(b.properties).getSize();
     this.cache = new SegmentedRaftLogCache(b.memberId, storage, b.properties, getRaftLogMetrics());
     this.cacheEviction = new AwaitToRun(b.memberId + "-cacheEviction", this::checkAndEvictCache).start();
     this.fileLogWorker = new SegmentedRaftLogWorker(b.memberId, stateMachine,
         b.submitUpdateCommitEvent, b.server, storage, b.properties, getRaftLogMetrics());
-    stateMachineCachingEnabled = Log.StateMachineData.cachingEnabled(b.properties);
+    stateMachineCachingEnabled = RaftServerConfigKeys.Log.StateMachineData.cachingEnabled(b.properties);
   }
 
   @Override

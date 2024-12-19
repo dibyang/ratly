@@ -7,6 +7,8 @@ import org.h2.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.rowset.serial.SerialBlob;
+import javax.sql.rowset.serial.SerialClob;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.Serializable;
@@ -18,35 +20,35 @@ import java.sql.Date;
 import java.util.*;
 
 
-public class SimpleResultSet implements ResultSet, Serializable {
-  static Logger LOG = LoggerFactory.getLogger(SimpleResultSet.class);
+public class SerialResultSet implements ResultSet, Serializable {
+  static Logger LOG = LoggerFactory.getLogger(SerialResultSet.class);
 
-  private final List<SimpleRow> rows = Lists.newArrayList();
-  private final SimpleResultSetMetaData resultSetMetaData = new SimpleResultSetMetaData();
+  private final List<SerialRow> rows = Lists.newArrayList();
+  private final SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData();
   private int rowId = -1;
-  private transient SimpleRow currentRow;
+  private transient SerialRow currentRow;
   private transient boolean wasNull;
   private transient boolean autoClose = true;
   private transient boolean closed = true;
 
 
-  public SimpleResultSet() {
+  public SerialResultSet() {
 
   }
 
-  public SimpleResultSet(ResultSetMetaData resultSetMetaData) throws SQLException {
+  public SerialResultSet(ResultSetMetaData resultSetMetaData) throws SQLException {
     this.resultSetMetaData.fill(resultSetMetaData);
   }
 
-  public SimpleResultSet(ResultSet rs) throws SQLException {
+  public SerialResultSet(ResultSet rs) throws SQLException {
     resultSetMetaData.fill(rs.getMetaData());
     while (rs.next()) {
-      SimpleRow row = new SimpleRow(resultSetMetaData.getColumnCount());
+      SerialRow row = new SerialRow(resultSetMetaData.getColumnCount());
       for (int col = 1; col <= resultSetMetaData.getColumnCount(); col++) {
         row.setValue(col - 1, rs.getObject(col));
       }
       rows.add(row);
-      LOG.info("add row={}", row);
+      //LOG.info("add row={}", row);
     }
   }
 
@@ -57,11 +59,11 @@ public class SimpleResultSet implements ResultSet, Serializable {
     currentRow = null;
   }
 
-  public void addRows(SimpleRow... rows) {
+  public void addRows(SerialRow... rows) {
     addRows(Arrays.asList(rows));
   }
 
-  public void addRows(Collection<SimpleRow> rows) {
+  public void addRows(Collection<SerialRow> rows) {
     this.rows.addAll(rows);
   }
 
@@ -187,7 +189,9 @@ public class SimpleResultSet implements ResultSet, Serializable {
   public int findColumn(String columnLabel) throws SQLException {
     if (columnLabel != null) {
       for (int i = 0, size = resultSetMetaData.getColumnCount(); i < size; i++) {
-        if (columnLabel.equalsIgnoreCase(resultSetMetaData.getColumn(i).name)) {
+        ColumnInfo column = resultSetMetaData.getColumn(i);
+        if (columnLabel.equalsIgnoreCase(column.getLabel())
+            ||columnLabel.equalsIgnoreCase(column.getName())) {
           return i + 1;
         }
       }
@@ -361,7 +365,11 @@ public class SimpleResultSet implements ResultSet, Serializable {
    */
   @Override
   public Blob getBlob(int columnIndex) throws SQLException {
-    return (Blob) get(columnIndex);
+    Object o = get(columnIndex);
+    if(o instanceof byte[]){
+      o = new SerialBlob((byte[])o);
+    }
+    return (Blob) o;
   }
 
   /**
@@ -519,7 +527,11 @@ public class SimpleResultSet implements ResultSet, Serializable {
    */
   @Override
   public Clob getClob(int columnIndex) throws SQLException {
-    return (Clob) get(columnIndex);
+    Object o = get(columnIndex);
+    if(o instanceof String){
+      o = new SerialClob(((String) o).toCharArray());
+    }
+    return (Clob) o;
   }
 
   /**
@@ -917,7 +929,7 @@ public class SimpleResultSet implements ResultSet, Serializable {
     if (o == null) {
       return null;
     }
-    if (resultSetMetaData.getColumn(columnIndex - 1).type == Types.CLOB) {
+    if (o instanceof Clob) {
       Clob c = (Clob) o;
       return c.getSubString(1, MathUtils.convertLongToInt(c.length()));
     }
@@ -2163,7 +2175,7 @@ public class SimpleResultSet implements ResultSet, Serializable {
 
   @Override
   public String toString() {
-    return "SimpleResultSet{" +
+    return "SerialResultSet{" +
         "rowId=" + rowId +
         ", resultSetMetaData=" + resultSetMetaData +
         ", rows=" + rows +

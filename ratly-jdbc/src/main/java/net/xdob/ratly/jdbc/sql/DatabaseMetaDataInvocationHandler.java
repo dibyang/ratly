@@ -55,6 +55,8 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
     return driverVersion.getMinor();
   }
 
+
+
   public ResultSet queryMeta(Method method, Object... args) throws SQLException {
     QueryRequestProto.Builder builder = QueryRequestProto.newBuilder()
         .setSender(Sender.connection)
@@ -71,10 +73,10 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
   }
 
 
-  protected SimpleResultSet sendQuery(QueryRequestProto queryRequest) throws SQLException {
+  protected SerialResultSet sendQuery(QueryRequestProto queryRequest) throws SQLException {
     QueryReplyProto queryReplyProto = sendQueryRequest(queryRequest);
     if(!queryReplyProto.hasEx()) {
-      SimpleResultSet rs = (SimpleResultSet) client.getFasts().asObject(queryReplyProto.getRs().toByteArray());
+      SerialResultSet rs = (SerialResultSet) client.getFasts().asObject(queryReplyProto.getRs().toByteArray());
       rs.resetResult();
       return rs;
     }else{
@@ -106,24 +108,25 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
     if(m!=null){
       return m.invoke(this, args);
     }else{
-      LOG.info("method={}, getReturnType()={}", method.getName(), method.getReturnType());
       ResultSet resultSet = queryMeta(method, args);
       if (ResultSet.class.isAssignableFrom(method.getReturnType())) {
         return resultSet;
-      } else if (method.getReturnType().equals(Boolean.class)
-          ||method.getReturnType().equals(boolean.class)) {
-        resultSet.next();
-        return resultSet.getBoolean(1);
-      } else if (method.getReturnType().equals(Integer.class)
-          ||method.getReturnType().equals(int.class)) {
-        return resultSet.getInt(1);
-      } else if (method.getReturnType().equals(Long.class)
-          ||method.getReturnType().equals(long.class)) {
-        return resultSet.getLong(1);
-      } else if (method.getReturnType().equals(String.class)) {
-        return resultSet.getString(1);
       } else {
-        return resultSet.getString(1);
+        resultSet.next();
+        if (method.getReturnType().equals(Boolean.class)
+            ||method.getReturnType().equals(boolean.class)) {
+          return resultSet.getBoolean(1);
+        } else if (method.getReturnType().equals(Integer.class)
+            ||method.getReturnType().equals(int.class)) {
+          return resultSet.getInt(1);
+        } else if (method.getReturnType().equals(Long.class)
+            ||method.getReturnType().equals(long.class)) {
+          return resultSet.getLong(1);
+        } else if (method.getReturnType().equals(String.class)) {
+          return resultSet.getString(1);
+        } else {
+          return resultSet.getString(1);
+        }
       }
     }
   }

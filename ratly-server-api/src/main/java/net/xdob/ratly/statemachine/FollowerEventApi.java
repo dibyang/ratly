@@ -1,7 +1,7 @@
 package net.xdob.ratly.statemachine;
 
 import net.xdob.ratly.proto.raft.RoleInfoProto;
-import net.xdob.ratly.server.config.Notification;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 
 import java.util.concurrent.CompletableFuture;
@@ -25,7 +25,7 @@ public interface FollowerEventApi {
    * This notification is based on "raft.server.notification.no-leader.timeout".
    *
    * @param roleInfoProto information about the current node role and rpc delay information
-   * @see Notification#NO_LEADER_TIMEOUT_KEY
+   * @see RaftServerConfigKeys.Notification#NO_LEADER_TIMEOUT_KEY
    */
   default void notifyExtendedNoLeader(RoleInfoProto roleInfoProto) {
   }

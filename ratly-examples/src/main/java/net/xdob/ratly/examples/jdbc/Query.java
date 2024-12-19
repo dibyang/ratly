@@ -3,7 +3,7 @@ package net.xdob.ratly.examples.jdbc;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import net.xdob.ratly.client.RaftClient;
-import net.xdob.ratly.jdbc.sql.SimpleResultSet;
+import net.xdob.ratly.jdbc.sql.SerialResultSet;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
@@ -37,7 +37,7 @@ public class Query extends SQLClient {
         client.io().sendReadOnly(Message.valueOf(queryRequest));
     QueryReplyProto queryReplyProto = QueryReplyProto.parseFrom(reply.getMessage().getContent());
     if(!queryReplyProto.hasEx()) {
-      SimpleResultSet rs = (SimpleResultSet) fst.asObject(queryReplyProto.getRs().toByteArray());
+      SerialResultSet rs = (SerialResultSet) fst.asObject(queryReplyProto.getRs().toByteArray());
       rs.resetResult();
       ResultSetMetaData metaData = rs.getMetaData();
       try {

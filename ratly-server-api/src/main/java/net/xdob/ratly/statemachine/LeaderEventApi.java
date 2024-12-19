@@ -2,7 +2,7 @@ package net.xdob.ratly.statemachine;
 
 import net.xdob.ratly.proto.raft.RoleInfoProto;
 import net.xdob.ratly.protocol.RaftPeer;
-import net.xdob.ratly.server.config.Rpc;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -24,7 +24,7 @@ public interface LeaderEventApi {
    *
    * @param leaderInfo   information about the current node role and rpc delay information
    * @param slowFollower The follower being slow.
-   * @see Rpc#SLOWNESS_TIMEOUT_KEY
+   * @see RaftServerConfigKeys.Rpc#SLOWNESS_TIMEOUT_KEY
    */
   default void notifyFollowerSlowness(RoleInfoProto leaderInfo, RaftPeer slowFollower) {
   }

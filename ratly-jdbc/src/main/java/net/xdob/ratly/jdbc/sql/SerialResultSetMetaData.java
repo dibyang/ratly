@@ -5,39 +5,48 @@ import org.h2.message.DbException;
 import org.h2.value.DataType;
 import org.h2.value.Value;
 import org.h2.value.ValueToObjectConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.List;
 
-public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable {
-  private final List<SimpleColumnInfo> columns = Lists.newArrayList();
+public class SerialResultSetMetaData implements ResultSetMetaData, Serializable {
+  static Logger LOG = LoggerFactory.getLogger(SerialResultSetMetaData.class);
 
-  public SimpleResultSetMetaData() {
+  private final List<ColumnInfo> columns = Lists.newArrayList();
+
+  public SerialResultSetMetaData() {
 
   }
 
-  public SimpleResultSetMetaData(ResultSetMetaData metaData) throws SQLException {
+  public SerialResultSetMetaData(ResultSetMetaData metaData) throws SQLException {
     fill(metaData);
   }
 
-  public SimpleResultSetMetaData fill(ResultSetMetaData metaData) throws SQLException {
+  public SerialResultSetMetaData fill(ResultSetMetaData metaData) throws SQLException {
     int columnCount = metaData.getColumnCount();
     for (int colum = 1; colum <= columnCount; colum++) {
       String name = metaData.getColumnName(colum);
+      String label = metaData.getColumnLabel(colum);
       int sqlType = metaData.getColumnType(colum);
       String sqlTypeName = metaData.getColumnTypeName(colum);
       int precision = metaData.getPrecision(colum);
       int scale = metaData.getScale(colum);
-      addColumn(name, sqlType, sqlTypeName, precision, scale);
+      addColumn(name, label, sqlType, sqlTypeName, precision, scale);
     }
     return this;
   }
 
   public void addColumn(String name, int sqlType, int precision, int scale) {
+    addColumn(name, null, sqlType, precision, scale);
+  }
+
+  public void addColumn(String name, String label, int sqlType, int precision, int scale) {
     int valueType = DataType.convertSQLTypeToValueType(sqlType);
-    this.addColumn(name, sqlType, Value.getTypeName(valueType), precision, scale);
+    this.addColumn(name, label, sqlType, Value.getTypeName(valueType), precision, scale);
   }
 
   /**
@@ -50,12 +59,15 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    * @param precision   the precision
    * @param scale       the scale
    */
-  public void addColumn(String name, int sqlType, String sqlTypeName,
+  public void addColumn(String name, String label, int sqlType, String sqlTypeName,
                         int precision, int scale) {
     if (name == null) {
       name = "C" + (columns.size() + 1);
     }
-    columns.add(new SimpleColumnInfo(name, sqlType, sqlTypeName, precision, scale));
+    ColumnInfo columnInfo = new ColumnInfo(name, sqlType, sqlTypeName, precision, scale);
+    columnInfo.setLabel(label);
+    //LOG.info("addColumn {}", columnInfo);
+    columns.add(columnInfo);
   }
 
 
@@ -66,7 +78,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
     }
   }
 
-  public SimpleColumnInfo getColumn(int i) throws SQLException {
+  public ColumnInfo getColumn(int i) throws SQLException {
     checkColumnIndex(i + 1);
     return columns.get(i);
   }
@@ -100,7 +112,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public int getColumnType(int columnIndex) throws SQLException {
-    return getColumn(columnIndex - 1).type;
+    return getColumn(columnIndex - 1).getType();
   }
 
   /**
@@ -111,7 +123,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public int getPrecision(int columnIndex) throws SQLException {
-    return getColumn(columnIndex - 1).precision;
+    return getColumn(columnIndex - 1).getPrecision();
   }
 
   /**
@@ -122,7 +134,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public int getScale(int columnIndex) throws SQLException {
-    return getColumn(columnIndex - 1).scale;
+    return getColumn(columnIndex - 1).getScale();
   }
 
   /**
@@ -255,7 +267,8 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public String getColumnLabel(int columnIndex) throws SQLException {
-    return getColumn(columnIndex - 1).name;
+    ColumnInfo column = getColumn(columnIndex - 1);
+    return column.getLabel();
   }
 
   /**
@@ -266,7 +279,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public String getColumnName(int columnIndex) throws SQLException {
-    return getColumnLabel(columnIndex);
+    return getColumn(columnIndex - 1).getLabel();
   }
 
   /**
@@ -277,7 +290,7 @@ public class SimpleResultSetMetaData implements ResultSetMetaData, Serializable 
    */
   @Override
   public String getColumnTypeName(int columnIndex) throws SQLException {
-    return getColumn(columnIndex - 1).typeName;
+    return getColumn(columnIndex - 1).getTypeName();
   }
 
   /**

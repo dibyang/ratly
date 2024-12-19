@@ -3,8 +3,8 @@ package net.xdob.ratly.server.storage;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.RaftPeerId;
+import net.xdob.ratly.server.config.CorruptionPolicy;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
-import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.util.SizeInBytes;
 
@@ -35,7 +35,7 @@ public final class StorageImplUtils {
   /** Create a {@link RaftStorageImpl}. */
   @SuppressWarnings("java:S2095") // return Closable
   public static RaftStorageImpl newRaftStorage(File dir, SizeInBytes freeSpaceMin,
-                                               StartupOption option, Log.CorruptionPolicy logCorruptionPolicy) {
+                                               StartupOption option, CorruptionPolicy logCorruptionPolicy) {
     return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy);
   }
 
@@ -88,7 +88,7 @@ public final class StorageImplUtils {
     private final StartupOption option;
 
     private final SizeInBytes freeSpaceMin;
-    private final Log.CorruptionPolicy logCorruptionPolicy;
+    private final CorruptionPolicy logCorruptionPolicy;
     private final List<File> dirsInConf;
 
     private final List<File> existingSubs;
@@ -99,7 +99,7 @@ public final class StorageImplUtils {
       this.option = option;
 
       this.freeSpaceMin = RaftServerConfigKeys.storageFreeSpaceMin(properties);
-      this.logCorruptionPolicy = Log.corruptionPolicy(properties);
+      this.logCorruptionPolicy = RaftServerConfigKeys.Log.corruptionPolicy(properties);
       this.dirsInConf = RaftServerConfigKeys.storageDir(properties);
 
       this.existingSubs = getExistingStorageSubs(dirsInConf, this.storageDirName, dirsPerVol);

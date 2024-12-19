@@ -41,10 +41,10 @@ public class JdbcStatement implements Statement {
     return sendQuery(queryRequest);
   }
 
-  protected SimpleResultSet sendQuery(QueryRequestProto queryRequest) throws SQLException {
+  protected SerialResultSet sendQuery(QueryRequestProto queryRequest) throws SQLException {
     QueryReplyProto queryReplyProto = sendQueryRequest(queryRequest);
     if(!queryReplyProto.hasEx()) {
-      SimpleResultSet rs = (SimpleResultSet) getFasts().asObject(queryReplyProto.getRs().toByteArray());
+      SerialResultSet rs = (SerialResultSet) getFasts().asObject(queryReplyProto.getRs().toByteArray());
       rs.resetResult();
       return rs;
     }else{

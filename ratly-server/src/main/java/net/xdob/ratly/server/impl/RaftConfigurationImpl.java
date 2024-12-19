@@ -177,8 +177,7 @@ final class RaftConfigurationImpl implements RaftConfiguration {
   }
 
   /**
-   * @return true iff the given peer is contained in conf and,
-   *         if old conf exists, is contained in old conf.
+   * @return 如果给定的节点包含在 conf 中，并且如果旧 conf 存在，则节点也包含在旧 conf 中。返回true
    */
   @Override
   public boolean containsInBothConfs(RaftPeerId peerId) {
@@ -260,12 +259,8 @@ final class RaftConfigurationImpl implements RaftConfiguration {
    * 是否2节点模式
    */
   @Override
-  public boolean isTwoNodeMode(RaftPeerId selfId) {
-    if (isStable()) {
-      return conf.size() == 2;
-    } else {
-      return oldConf.size() == 2 && oldConf.contains(selfId) && conf.size() == 3 && conf.contains(selfId);
-    }
+  public boolean isTwoNodeMode() {
+    return conf.size() == 2;
   }
 
   /** @return true if the self id together with the others are in the majority. */

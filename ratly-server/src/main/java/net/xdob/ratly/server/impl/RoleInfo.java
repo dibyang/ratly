@@ -158,7 +158,7 @@ class RoleInfo {
 
       case LISTENER:
       case FOLLOWER:
-        // FollowerState can be null while adding a new peer as it is not a voting member yet
+        // 添加新的 Peer 节点时，FollowerState 可以为 null，因为它还不是投票成员
         final FollowerState follower = getFollowerState().orElse(null);
         final long rpcElapsed;
         final int outstandingOp;

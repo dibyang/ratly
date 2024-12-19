@@ -1,7 +1,7 @@
 
 package net.xdob.ratly.server.storage;
 
-import net.xdob.ratly.server.config.Log.CorruptionPolicy;
+import net.xdob.ratly.server.config.CorruptionPolicy;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.ReflectionUtils;
 import net.xdob.ratly.util.SizeInBytes;

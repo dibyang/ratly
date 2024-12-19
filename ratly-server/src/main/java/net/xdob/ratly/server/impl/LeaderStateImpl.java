@@ -23,9 +23,7 @@ import net.xdob.ratly.protocol.exceptions.ReadIndexException;
 import net.xdob.ratly.protocol.exceptions.ReconfigurationTimeoutException;
 import net.xdob.ratly.server.PeerConfiguration;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
-import net.xdob.ratly.server.config.Write;
 import net.xdob.ratly.server.impl.ReadIndexHeartbeats.AppendEntriesListener;
 import net.xdob.ratly.server.leader.FollowerInfo;
 import net.xdob.ratly.server.leader.LeaderState;
@@ -75,7 +73,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static net.xdob.ratly.server.Division.LOG;
-import static net.xdob.ratly.server.config.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
+import static net.xdob.ratly.server.config.RaftServerConfigKeys.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
 
 /**
  * States for leader only. It contains three different types of processors:
@@ -367,9 +365,9 @@ class LeaderStateImpl implements LeaderState {
     this.pendingStepDown = new PendingStepDown(this);
     this.readIndexHeartbeats = new ReadIndexHeartbeats();
     this.lease = new LeaderLease(properties);
-    this.logMetadataEnabled = Log.logMetadataEnabled(properties);
-    long maxPendingRequests = Write.elementLimit(properties);
-    double followerGapRatioMax = Write.followerGapRatioMax(properties);
+    this.logMetadataEnabled = RaftServerConfigKeys.Log.logMetadataEnabled(properties);
+    long maxPendingRequests = RaftServerConfigKeys.Write.elementLimit(properties);
+    double followerGapRatioMax = RaftServerConfigKeys.Write.followerGapRatioMax(properties);
 
     if (followerGapRatioMax == -1) {
       this.followerMaxGapThreshold = -1;
@@ -406,7 +404,15 @@ class LeaderStateImpl implements LeaderState {
   }
 
   boolean isReady() {
+    //处理双节点模式
+    if (isTwoNodeMode() && startupLogEntry.isInitialized()) {
+      return true; // 双节点模式下简化 Ready 条件
+    }
     return startupLogEntry.isInitialized() && startupLogEntry.get().isApplied();
+  }
+
+  private boolean isTwoNodeMode() {
+    return server.getRaftConf().isTwoNodeMode(); // 判断当前集群是否为双节点模式
   }
 
   void checkReady(LogEntryProto entry) {
@@ -926,6 +932,10 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private boolean hasMajority(Predicate<RaftPeerId> isAcked) {
+    // 双节点模式下仅检查 Leader 自身
+    if (isTwoNodeMode()) {
+      return isAcked.test(server.getId());
+    }
     final RaftPeerId selfId = server.getId();
     return server.getRaftConf().hasMajority(isAcked, selfId);
   }
@@ -956,11 +966,16 @@ class LeaderStateImpl implements LeaderState {
 
   private void updateCommit(long majority, long min) {
     final long oldLastCommitted = raftLog.getLastCommittedIndex();
-    if (majority > oldLastCommitted) {
+    long commitIndex = majority;
+    //处理双节点模式
+    if (isTwoNodeMode()) {
+      commitIndex = Math.max(commitIndex, raftLog.getFlushIndex()); // 使用 Leader 自身的日志索引
+    }
+    if (commitIndex > oldLastCommitted) {
       // Get the headers before updating commit index since the log can be purged after a snapshot
-      final LogEntryHeader[] entriesToCommit = raftLog.getEntries(oldLastCommitted + 1, majority + 1);
+      final LogEntryHeader[] entriesToCommit = raftLog.getEntries(oldLastCommitted + 1, commitIndex + 1);
 
-      if (server.getState().updateCommitIndex(majority, currentTerm, true)) {
+      if (server.getState().updateCommitIndex(commitIndex, currentTerm, true)) {
         updateCommit(entriesToCommit);
       }
     }
@@ -1075,6 +1090,7 @@ class LeaderStateImpl implements LeaderState {
    */
 
   public boolean checkLeadership() {
+
     if (!server.getRole().getLeaderState().filter(leader -> leader == this).isPresent()) {
       return false;
     }
@@ -1084,6 +1100,10 @@ class LeaderStateImpl implements LeaderState {
     // votes from majority before becoming leader, without seeing higher term,
     // ideally, A leader is legal for election timeout if become leader soon.
     if (server.getRole().getRoleElapsedTimeMs() < server.getMaxTimeoutMs()) {
+      return true;
+    }
+    // 双节点模式下不检查多数派
+    if (isTwoNodeMode()) {
       return true;
     }
 

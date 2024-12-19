@@ -194,10 +194,10 @@ public class TransactionContextImpl implements TransactionContext {
   }
 
 
-  @Override
-  public LogEntryProto getLogEntry() {
-    return logEntryCopy == null ? null : logEntryCopy.get();
-  }
+//  @Override
+//  public LogEntryProto getLogEntry() {
+//    return logEntryCopy == null ? null : logEntryCopy.get();
+//  }
 
   @Override
   public LogEntryProto getLogEntryUnsafe() {

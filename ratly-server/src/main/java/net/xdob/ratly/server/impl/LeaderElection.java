@@ -1,22 +1,18 @@
 package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.metrics.Timekeeper;
+import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.proto.raft.RequestVoteReplyProto;
 import net.xdob.ratly.proto.raft.RequestVoteRequestProto;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
 import net.xdob.ratly.server.RaftConfiguration;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.util.ServerStringUtils;
 import com.google.common.annotations.VisibleForTesting;
-import net.xdob.ratly.util.Daemon;
-import net.xdob.ratly.util.JavaUtils;
-import net.xdob.ratly.util.LifeCycle;
-import net.xdob.ratly.util.LogUtils;
-import net.xdob.ratly.util.Preconditions;
-import net.xdob.ratly.util.TimeDuration;
-import net.xdob.ratly.util.Timestamp;
+import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,18 +33,17 @@ import static net.xdob.ratly.util.LifeCycle.State.RUNNING;
 import static net.xdob.ratly.util.LifeCycle.State.STARTING;
 
 /**
- * For a candidate to start an election for becoming the leader.
- * There are two phases: Pre-Vote and Election.
+ * 为候选人发起选举以成为领导者的过程。
+ * 包含两个阶段：预投票（Pre-Vote）和正式选举（Election）。
  * <p>
- * In Pre-Vote, the candidate does not change its term and try to learn
- * if a majority of the cluster would be willing to grant the candidate their votes
- * (if the candidate’s log is sufficiently up-to-date,
- * and the voters have not received heartbeats from a valid leader
- * for at least a baseline election timeout).
+ * 在预投票阶段，候选人不会改变自己的任期，而是尝试了解
+ * 集群中是否有多数成员愿意将选票投给该候选人
+ * （前提是候选人的日志足够最新，
+ * 且选民在至少一个基准选举超时时间内未收到有效领导者的心跳）。
  * <p>
- * Once the Pre-Vote has passed, the candidate increments its term and starts a real Election.
+ * 一旦预投票通过，候选人将增加其任期并开始真正的选举。
  * <p>
- * See
+ * 详见：
  * Ongaro, D. Consensus: Bridging Theory and Practice. PhD thesis, Stanford University, 2014.
  * Available at https://github.com/ongardie/dissertation
  */
@@ -87,7 +76,39 @@ class LeaderElection implements Runnable {
     ELECTION
   }
 
-  enum Result {PASSED, SINGLE_MODE_PASSED, REJECTED, TIMEOUT, DISCOVERED_A_NEW_TERM, SHUTDOWN, NOT_IN_CONF}
+  enum Result {
+    /**
+     * 投票通过
+     */
+    PASSED,
+    /**
+     * 单节点模式下通过
+     */
+    SINGLE_MODE_PASSED,
+    /**
+     * 双节点模式下观察者辅助通过
+     */
+    ASSIST_PASSED,
+    /**
+     * 投票被拒绝
+     */
+    REJECTED,
+    /**
+     * 投票过程超时
+     */
+    TIMEOUT,
+    /**
+     * 在投票过程中发现了更高的任期（Term），当前投票终止。
+     */
+    DISCOVERED_A_NEW_TERM,
+    /**
+     * 节点关闭或集群停止，导致投票未能完成。
+     */
+    SHUTDOWN,
+    /**
+     * 投票节点不在当前的配置（Configuration）中，无法参与投票。
+     */
+    NOT_IN_CONF}
 
   private static class ResultAndTerm {
     private final Result result;
@@ -179,7 +200,7 @@ class LeaderElection implements Runnable {
         .setThreadGroup(server.getThreadGroup()).build();
     this.server = server;
     this.skipPreVote = force ||
-        !net.xdob.ratly.server.config.LeaderElection.preVote(
+        !RaftServerConfigKeys.LeaderElection.preVote(
             server.getRaftServer().getProperties());
     try {
       // increase term of the candidate in advance if it's forced to election
@@ -278,7 +299,7 @@ class LeaderElection implements Runnable {
       return new ResultAndTerm(Result.NOT_IN_CONF, electionTerm);
     }
     final ResultAndTerm r;
-    final Collection<RaftPeer> others = conf.getOtherPeers(server.getId());
+    final Collection<RaftPeer> others = new ArrayList<>(conf.getOtherPeers(server.getId()));
     if (others.isEmpty()) {
       r = new ResultAndTerm(Result.PASSED, electionTerm);
     } else {
@@ -303,8 +324,8 @@ class LeaderElection implements Runnable {
       if (!shouldRun()) {
         return false;
       }
-      // If round0 is non-null, we have already called initElection in the constructor,
-      // reuse round0 to avoid initElection again for the first round
+      // 如果 round0 为非 null，则我们已经在构造函数中调用了 initElection，
+      // 重复使用 round0 以避免在第一轮中再次使用 initElection
       final ConfAndTerm confAndTerm = (round == 0 && round0 != null) ?
           round0 : server.getState().initElection(phase);
       electionTerm = confAndTerm.getTerm();
@@ -323,6 +344,7 @@ class LeaderElection implements Runnable {
       switch (r.getResult()) {
         case PASSED:
         case SINGLE_MODE_PASSED:
+        case ASSIST_PASSED:
           return true;
         case NOT_IN_CONF:
         case SHUTDOWN:
@@ -353,9 +375,15 @@ class LeaderElection implements Runnable {
     return submitted;
   }
 
+  /**
+   * 获取高优先级节点id列表
+   * 高于侯选人的优先级的节点id列表（以FOLLOWER启动的节点）
+   */
   private Set<RaftPeerId> getHigherPriorityPeers(RaftConfiguration conf) {
+    //获取侯选人的优先级
     final Optional<Integer> priority = Optional.ofNullable(conf.getPeer(server.getId()))
         .map(RaftPeer::getPriority);
+    //获取高于侯选人的优先级的节点（以FOLLOWER启动的节点）
     return conf.getAllPeers().stream()
         .filter(peer -> priority.filter(p -> peer.getPriority() > p).isPresent())
         .map(RaftPeer::getId)
@@ -364,7 +392,9 @@ class LeaderElection implements Runnable {
 
   private ResultAndTerm waitForResults(Phase phase, long electionTerm, int submitted,
       RaftConfiguration conf, Executor voteExecutor) throws InterruptedException {
-    final Timestamp timeout = Timestamp.currentTime().addTime(server.getRandomElectionTimeout());
+    TimeDuration randomElectionTimeout = server.getRandomElectionTimeout();
+
+    final Timestamp timeout = Timestamp.currentTime().addTime(randomElectionTimeout);
     final Map<RaftPeerId, RequestVoteReplyProto> responses = new HashMap<>();
     final List<Exception> exceptions = new ArrayList<>();
     int waitForNum = submitted;
@@ -372,18 +402,20 @@ class LeaderElection implements Runnable {
     Collection<RaftPeerId> rejectedPeers = new ArrayList<>();
     Set<RaftPeerId> higherPriorityPeers = getHigherPriorityPeers(conf);
     final boolean singleMode = conf.isSingleMode(server.getId());
-
+    int waitMS = 200;
+    CompletableFuture<TermLeader> leaderTermFuture = server.getState().getLastLeaderTerm(waitMS);
     while (waitForNum > 0 && shouldRun(electionTerm)) {
       final TimeDuration waitTime = timeout.elapsedTime().apply(n -> -n);
+      //超过等待时间
       if (waitTime.isNonPositive()) {
         if (conf.hasMajority(votedPeers, server.getId())) {
-          // if some higher priority peer did not response when timeout, but candidate get majority,
-          // candidate pass vote
+          // 如果某个优先级较高的对等节点在超时时没有响应，但候选节点获得多数，
+          // 候选人通过投票
           return logAndReturn(phase, Result.PASSED, responses, exceptions);
-        } else if (singleMode) {
-          // if candidate is in single mode, candidate pass vote.
+        }else if (singleMode) {
+          // 如果 Candidate 处于单节点模式，则 Candidate 通过 Vote。
           return logAndReturn(phase, Result.SINGLE_MODE_PASSED, responses, exceptions);
-        } else {
+        }else {
           return logAndReturn(phase, Result.TIMEOUT, responses, exceptions);
         }
       }
@@ -413,18 +445,18 @@ class LeaderElection implements Runnable {
           return logAndReturn(phase, Result.DISCOVERED_A_NEW_TERM, responses, exceptions, r.getTerm());
         }
 
-        // If any peer with higher priority rejects vote, candidate can not pass vote
-        if (!r.getServerReply().getSuccess() && higherPriorityPeers.contains(replierId) && !singleMode) {
+        // 如果任何具有更高优先级的对等体投拒绝票，则候选人不能通过投票
+        if (!r.getServerReply().getSuccess() && higherPriorityPeers.contains(replierId) && !singleMode && !conf.isTwoNodeMode()) {
           return logAndReturn(phase, Result.REJECTED, responses, exceptions);
         }
 
-        // remove higher priority peer, so that we check higherPriorityPeers empty to make sure
-        // all higher priority peers have replied
+        // 删除更高优先级的 peer，以便我们检查 higherPriorityPeers 为空以确保
+        // 所有优先级较高的对等体都已回复
         higherPriorityPeers.remove(replierId);
 
         if (r.getServerReply().getSuccess()) {
           votedPeers.add(replierId);
-          // If majority and all peers with higher priority have voted, candidate pass vote
+          // 如果大多数和所有具有较高优先级的对等体都已投票，则候选人通过投票
           if (higherPriorityPeers.isEmpty() && conf.hasMajority(votedPeers, server.getId())) {
             return logAndReturn(phase, Result.PASSED, responses, exceptions);
           }
@@ -440,12 +472,25 @@ class LeaderElection implements Runnable {
       }
       waitForNum--;
     }
-    // received all the responses
+    // 收到所有回复
     if (conf.hasMajority(votedPeers, server.getId())) {
       return logAndReturn(phase, Result.PASSED, responses, exceptions);
     } else if (singleMode) {
       return logAndReturn(phase, Result.SINGLE_MODE_PASSED, responses, exceptions);
     } else {
+      //双节点模式时，观察者记录的最后一个任期是当前选举人则通过本次投票
+      if(conf.isTwoNodeMode()) {
+        try {
+          TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
+          LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm, phase, electionTerm);
+          if (lastLeaderTerm != null && server.getId().equals(lastLeaderTerm.getLeaderId())
+          &&electionTerm >= lastLeaderTerm.getTerm()) {
+            return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+          }
+        } catch (ExecutionException|TimeoutException e) {
+          LOG.warn("", e);
+        }
+      }
       return logAndReturn(phase, Result.REJECTED, responses, exceptions);
     }
   }

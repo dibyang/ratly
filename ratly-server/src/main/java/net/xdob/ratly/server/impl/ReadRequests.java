@@ -2,7 +2,7 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.exceptions.ReadException;
-import net.xdob.ratly.server.config.Read;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.util.TimeDuration;
 import net.xdob.ratly.util.TimeoutExecutor;
@@ -73,7 +73,7 @@ class ReadRequests {
   private final StateMachine stateMachine;
 
   ReadRequests(RaftProperties properties, StateMachine stateMachine) {
-    this.readIndexQueue = new ReadIndexQueue(Read.timeout(properties));
+    this.readIndexQueue = new ReadIndexQueue(RaftServerConfigKeys.Read.timeout(properties));
     this.stateMachine = stateMachine;
   }
 

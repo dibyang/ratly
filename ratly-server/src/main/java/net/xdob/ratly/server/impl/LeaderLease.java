@@ -2,8 +2,7 @@ package net.xdob.ratly.server.impl;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.config.Read;
-import net.xdob.ratly.server.config.Rpc;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.leader.FollowerInfo;
 import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.Timestamp;
@@ -24,11 +23,11 @@ class LeaderLease {
   private final AtomicReference<Timestamp> lease = new AtomicReference<>(Timestamp.currentTime());
 
   LeaderLease(RaftProperties properties) {
-    this.enabled = new AtomicBoolean(Read.leaderLeaseEnabled(properties));
-    final double leaseRatio = Read.leaderLeaseTimeoutRatio(properties);
+    this.enabled = new AtomicBoolean(RaftServerConfigKeys.Read.leaderLeaseEnabled(properties));
+    final double leaseRatio = RaftServerConfigKeys.Read.leaderLeaseTimeoutRatio(properties);
     Preconditions.assertTrue(leaseRatio > 0.0 && leaseRatio <= 1.0,
         "leader ratio should sit in (0,1], now is " + leaseRatio);
-    this.leaseTimeoutMs = Rpc.timeoutMin(properties)
+    this.leaseTimeoutMs = RaftServerConfigKeys.Rpc.timeoutMin(properties)
         .multiply(leaseRatio)
         .toIntExact(TimeUnit.MILLISECONDS);
   }

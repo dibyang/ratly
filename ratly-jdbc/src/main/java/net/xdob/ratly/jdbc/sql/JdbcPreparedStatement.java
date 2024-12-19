@@ -1,10 +1,11 @@
 package net.xdob.ratly.jdbc.sql;
 
 
+import net.xdob.ratly.jdbc.util.Streams4Jdbc;
 import net.xdob.ratly.proto.jdbc.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import javax.sql.rowset.serial.SerialBlob;
+import javax.sql.rowset.serial.SerialClob;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -18,8 +19,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   protected final ArrayList<Parameters> batchParameters = new ArrayList<>();
   protected final String sql;
 
-  protected SimpleResultSetMetaData resultSetMetaData;
-  protected SimpleParameterMetaData parameterMetaData;
+  protected SerialResultSetMetaData resultSetMetaData;
+  protected SerialParameterMetaData parameterMetaData;
 
   public JdbcPreparedStatement(SqlClient client, String sql) {
     super(client);
@@ -146,40 +147,13 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     setObject(parameterIndex, x);
   }
 
-  public byte[] readBytes(InputStream inputStream, int length) throws SQLException {
-    try{
-      byte[] buffer = new byte[length];
-      int bytesRead = 0;
-      // 读取数据
-      while (bytesRead < length) {
-        int read = inputStream.read(buffer, bytesRead, length - bytesRead);
-        if (read == -1) {
-          break; // 文件结束
-        }
-        bytesRead += read;
-      }
-      return buffer;
-    } catch (IOException e) {
-      throw new SQLException(e);
-    }
-  }
 
-  public byte[] readBytes(InputStream inputStream) throws SQLException {
-    try(ByteArrayOutputStream bos = new ByteArrayOutputStream()){
-      byte[] buffer = new byte[1024];
-      int bytesRead;
-      while ((bytesRead = inputStream.read(buffer)) != -1) {
-        bos.write(buffer, 0, bytesRead);
-      }
-      return bos.toByteArray();
-    } catch (IOException e) {
-      throw new SQLException(e);
-    }
-  }
+
+
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
-    String val = new String(readBytes(x, length));
+    String val = new String(Streams4Jdbc.readBytes(x, length));
     setObject(parameterIndex, val);
   }
 
@@ -190,7 +164,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
-    byte[] bytes = readBytes(x, length);
+    byte[] bytes = Streams4Jdbc.readBytes(x, length);
     setObject(parameterIndex, bytes);
   }
 
@@ -230,34 +204,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
-    String s = readString(reader, length);
+    String s = Streams4Jdbc.readString(reader, length);
     setObject(parameterIndex, s);
-  }
-
-  private String readString(Reader reader, int length) throws SQLException {
-    String s = null;
-    try  {
-      char[] buffer = new char[length];
-      int len = reader.read(buffer,0 , length);
-      s = new String(buffer, 0, len);
-    } catch (IOException e) {
-      throw new SQLException(e);
-    }
-    return s;
-  }
-
-  private String readString(Reader reader) throws SQLException {
-    StringBuilder buffer = new StringBuilder();
-    try  {
-      char[] chars = new char[1024];
-      int len = 0;
-      while((len = reader.read(chars,0 , 1024))!=-1){
-        buffer.append(chars, 0, len);
-      }
-    } catch (IOException e) {
-      throw new SQLException(e);
-    }
-    return buffer.toString();
   }
 
   @Override
@@ -269,7 +217,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   public void setBlob(int parameterIndex, Blob x) throws SQLException {
     if(x!=null) {
       byte[] bytes = x.getBytes(0, (int) x.length());
-      setObject(parameterIndex, bytes);
+      setObject(parameterIndex, new SerialBlob(bytes));
     }else{
       setObject(parameterIndex, null);
     }
@@ -278,8 +226,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   @Override
   public void setClob(int parameterIndex, Clob x) throws SQLException {
     if(x!=null) {
-      String s = readString(x.getCharacterStream(), (int) x.length());
-      setObject(parameterIndex, s);
+      String s = Streams4Jdbc.readString(x.getCharacterStream(), (int) x.length());
+      setObject(parameterIndex, new SerialClob(s.toCharArray()));
     }else{
       setObject(parameterIndex, null);
     }
@@ -307,8 +255,10 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
         .build();
     QueryReplyProto queryReplyProto = sendQueryRequest(queryRequest);
     if (!queryReplyProto.hasEx()) {
-      resultSetMetaData = (SimpleResultSetMetaData) sqlClient.getFasts().asObject(queryReplyProto.getRsMeta().toByteArray());
-      parameterMetaData = (SimpleParameterMetaData) sqlClient.getFasts().asObject(queryReplyProto.getParamMeta().toByteArray());
+      if(!queryReplyProto.getRsMeta().isEmpty()) {
+        resultSetMetaData = (SerialResultSetMetaData) sqlClient.getFasts().asObject(queryReplyProto.getRsMeta().toByteArray());
+      }
+      parameterMetaData = (SerialParameterMetaData) sqlClient.getFasts().asObject(queryReplyProto.getParamMeta().toByteArray());
     } else {
       throw getSQLException(queryReplyProto.getEx());
     }
@@ -336,7 +286,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setURL(int parameterIndex, URL x) throws SQLException {
-    throw unsupported("ref");
+    throw unsupported("url");
   }
 
   @Override
@@ -349,7 +299,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setRowId(int parameterIndex, RowId x) throws SQLException {
-    throw unsupported("rowId");
+    setObject(parameterIndex, new SerialRowId(x));
   }
 
   @Override
@@ -359,15 +309,16 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
-    String s = readString(value, (int)length);
+    String s = Streams4Jdbc.readString(value, (int)length);
     setObject(parameterIndex, s);
   }
 
   @Override
   public void setNClob(int parameterIndex, NClob value) throws SQLException {
     if(value!=null) {
-      String s = readString(value.getCharacterStream(), (int) value.length());
-      setObject(parameterIndex, s);
+      //String s = Streams4Jdbc.readString(value.getCharacterStream());
+      SerialClob clob = new SerialClob(value);
+      setObject(parameterIndex, clob);
     }else {
       setObject(parameterIndex,null);
     }
@@ -375,26 +326,29 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
-    String s = readString(reader, (int)length);
-    setObject(parameterIndex, s);
+    String s = Streams4Jdbc.readString(reader, (int)length);
+    SerialClob clob = new SerialClob(s.toCharArray());
+    setObject(parameterIndex, clob);
   }
 
   @Override
   public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
-    byte[] bytes = readBytes(inputStream, (int) length);
-    setObject(parameterIndex, bytes);
+    byte[] bytes = Streams4Jdbc.readBytes(inputStream, (int) length);
+    SerialBlob blob = new SerialBlob(bytes);
+    setObject(parameterIndex, blob);
   }
 
   @Override
   public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
-    String s = readString(reader, (int)length);
-    setObject(parameterIndex, s);
+    String s = Streams4Jdbc.readString(reader, (int)length);
+    SerialClob clob = new SerialClob(s.toCharArray());
+    setObject(parameterIndex, clob);
   }
 
   @Override
   public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
     if(xmlObject!=null) {
-      String s = readString(xmlObject.getCharacterStream());
+      String s = Streams4Jdbc.readString(xmlObject.getCharacterStream());
       setObject(parameterIndex, s);
     }else {
       setObject(parameterIndex, null);
@@ -408,62 +362,66 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
-    byte[] bytes = readBytes(x);
+    byte[] bytes = Streams4Jdbc.readBytes(x);
     setObject(parameterIndex, bytes);
   }
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
-    byte[] bytes = readBytes(x);
+    byte[] bytes = Streams4Jdbc.readBytes(x);
     setObject(parameterIndex, bytes);
   }
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
-    String s = readString(reader);
+    String s = Streams4Jdbc.readString(reader);
     setObject(parameterIndex, s);
   }
 
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
-    byte[] bytes = readBytes(x);
-    setObject(parameterIndex, bytes);
+    byte[] bytes = Streams4Jdbc.readBytes(x);
+    setObject(parameterIndex, new String(bytes));
   }
 
   @Override
   public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
-    byte[] bytes = readBytes(x);
-    setObject(parameterIndex, bytes);
+    byte[] bytes = Streams4Jdbc.readBytes(x);
+    SerialBlob blob = new SerialBlob(bytes);
+    setObject(parameterIndex, blob);
   }
 
   @Override
   public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
-    String s = readString(reader);
+    String s = Streams4Jdbc.readString(reader);
     setObject(parameterIndex, s);
   }
 
   @Override
   public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
-    String s = readString(value);
+    String s = Streams4Jdbc.readString(value);
     setObject(parameterIndex, s);
   }
 
   @Override
   public void setClob(int parameterIndex, Reader reader) throws SQLException {
-    String s = readString(reader);
-    setObject(parameterIndex, s);
+    String s = Streams4Jdbc.readString(reader);
+    SerialClob clob = new SerialClob(s.toCharArray());
+    setObject(parameterIndex, clob);
   }
 
   @Override
   public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
-    byte[] bytes = readBytes(inputStream);
-    setObject(parameterIndex, bytes);
+    byte[] bytes = Streams4Jdbc.readBytes(inputStream);
+    SerialBlob blob = new SerialBlob(bytes);
+    setObject(parameterIndex, blob);
   }
 
   @Override
   public void setNClob(int parameterIndex, Reader reader) throws SQLException {
-    String s = readString(reader);
-    setObject(parameterIndex, s);
+    String s = Streams4Jdbc.readString(reader);
+    SerialClob clob = new SerialClob(s.toCharArray());
+    setObject(parameterIndex, clob);
   }
 
 }

@@ -2,7 +2,7 @@ package net.xdob.ratly.server.raftlog.segmented;
 
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.server.config.Log;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.metrics.SegmentedRaftLogMetrics;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogEntryHeader;
@@ -405,9 +405,9 @@ public class SegmentedRaftLogCache {
     this.raftLogMetrics.addClosedSegmentsNum(this::getCachedSegmentNum);
     this.raftLogMetrics.addClosedSegmentsSizeInBytes(this::getClosedSegmentsSizeInBytes);
     this.raftLogMetrics.addOpenSegmentSizeInBytes(this::getOpenSegmentSizeInBytes);
-    this.maxCachedSegments = Log.segmentCacheNumMax(properties);
-    this.maxSegmentCacheSize = Log.segmentCacheSizeMax(properties).getSize();
-    this.maxOpSize = Log.Appender.bufferByteLimit(properties);
+    this.maxCachedSegments = RaftServerConfigKeys.Log.segmentCacheNumMax(properties);
+    this.maxSegmentCacheSize = RaftServerConfigKeys.Log.segmentCacheSizeMax(properties).getSize();
+    this.maxOpSize = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties);
   }
 
   int getMaxCachedSegments() {

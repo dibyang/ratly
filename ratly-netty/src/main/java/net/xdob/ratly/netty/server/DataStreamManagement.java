@@ -30,6 +30,7 @@ import net.xdob.ratly.protocol.exceptions.DataStreamException;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.Division;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.DataStream;
 import net.xdob.ratly.statemachine.DataChannel;
@@ -212,12 +213,12 @@ public class DataStreamManagement {
 
     this.channels = new ChannelMap();
     final RaftProperties properties = server.getProperties();
-    final boolean useCachedThreadPool = net.xdob.ratly.server.config.DataStream.asyncRequestThreadPoolCached(properties);
+    final boolean useCachedThreadPool = RaftServerConfigKeys.DataStream.asyncRequestThreadPoolCached(properties);
     this.requestExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
-          net.xdob.ratly.server.config.DataStream.asyncRequestThreadPoolSize(properties),
+          RaftServerConfigKeys.DataStream.asyncRequestThreadPoolSize(properties),
           name + "-request-");
     this.writeExecutor = Concurrents3.newThreadPoolWithMax(useCachedThreadPool,
-          net.xdob.ratly.server.config.DataStream.asyncWriteThreadPoolSize(properties),
+          RaftServerConfigKeys.DataStream.asyncWriteThreadPoolSize(properties),
           name + "-write-");
     this.requestTimeout = RaftClientConfigKeys.DataStream.requestTimeout(server.getProperties());
 

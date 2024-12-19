@@ -11,7 +11,8 @@ import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 
 /**
- * The life cycle of a machine.
+ * 使用有限状态机（FSM）设计，每个状态有明确的前置状态和定义，保证状态流转的逻辑性和可维护性。
+ * 状态机的生命周期。
  * <pre>
  *   -------------------------------------------------
  *  |        --------------------------------         |
@@ -29,23 +30,23 @@ import java.util.function.UnaryOperator;
 public class LifeCycle {
   public static final Logger LOG = LoggerFactory.getLogger(LifeCycle.class);
 
-  /** The states in the life cycle. */
+  /** 生命周期中的状态。 */
   public enum State {
-    /** The machine is newly created and holds zero resource. */
+    /** 该状态机是新创建的，占用的资源为零。 */
     NEW,
-    /** The machine is starting and does not yet provide any service. */
+    /** 状态机正在启动，但尚未提供任何服务。 */
     STARTING,
-    /** The machine is running and providing service. */
+    /** 状态机正在运行并提供服务。 */
     RUNNING,
-    /** The machine is pausing and stopping providing service. */
+    /** 状态机正在暂停和停止提供服务。 */
     PAUSING,
-    /** The machine is paused and does not provide any service. */
+    /** 状态机已暂停，不提供任何服务。 */
     PAUSED,
-    /** The machine catches an internal exception so that it must be closed. */
+    /** 状态机捕获内部异常，因此必须将其关闭。 */
     EXCEPTION,
-    /** The machine is closing, stopping providing service and releasing resources. */
+    /** 状态机正在关闭、正在停止提供服务和释放资源。*/
     CLOSING,
-    /** The machine is closed, a final state. */
+    /** 状态机关闭，这是最终状态。 */
     CLOSED;
 
     private static final Map<State, List<State>> PREDECESSORS;
@@ -135,7 +136,9 @@ public class LifeCycle {
     this.name = name;
   }
 
-  /** Transition from the current state to the given state. */
+  /**
+   * 从当前状态无条件转换到目标状态。
+   */
   public void transition(final State to) {
     current.updateAndGet(from -> {
       State.validate(name, from, to);
@@ -143,7 +146,9 @@ public class LifeCycle {
     });
   }
 
-  /** Transition from the current state to the given state if the current state is not equal to the given state. */
+  /**
+   * 如果当前状态不等于给定状态，则从当前状态转换到给定状态。
+   */
   public void transitionIfNotEqual(final State to) {
     current.updateAndGet(from -> {
       if (from != to) {
@@ -154,10 +159,10 @@ public class LifeCycle {
   }
 
   /**
-   * Transition from the current state to the given state only if the transition is valid.
-   * If the transition is invalid, this is a no-op.
+   * 仅当转换有效时，才从当前状态转换到给定状态。
+   * 如果转换无效，则为 no-op。
    *
-   * @return true if the updated state equals to the given state.
+   * @return 如果更新的状态等于给定的状态，则为 true。
    */
   public boolean transitionIfValid(final State to) {
     final State updated = current.updateAndGet(from -> State.isValid(from, to)? to : from);
@@ -165,10 +170,9 @@ public class LifeCycle {
   }
 
   /**
-   * Transition using the given operator.
+   * 通过操作符转换状态.
    *
-   * @return the updated state if there is a transition;
-   *         otherwise, return null to indicate no state change.
+   * @return 如果有转换，则为 转换后的状态; 否则，返回 null 以指示无状态更改。
    */
   public State transition(UnaryOperator<State> operator) {
     for(;;) {
@@ -186,9 +190,9 @@ public class LifeCycle {
   }
 
   /**
-   * Transition using the given operator.
+   * 通过操作符转换状态，返回最终状态。
    *
-   * @return the updated state.
+   * @return 转换后的状态。
    */
   public State transitionAndGet(UnaryOperator<State> operator) {
     return current.updateAndGet(previous -> {
@@ -201,10 +205,9 @@ public class LifeCycle {
   }
 
   /**
-   * If the current state is equal to the specified from state,
-   * then transition to the give to state; otherwise, make no change.
+   * 如果当前状态等于指定的 from 状态，则转换到 give to 状态;否则，不进行任何转换。
    *
-   * @return true iff the current state is equal to the specified from state.
+   * @return 如果当前状态等于指定的 from 状态返回true，表示转换成功。
    */
   public boolean compareAndTransition(final State from, final State to) {
     final State previous = current.getAndUpdate(state -> {
@@ -217,19 +220,19 @@ public class LifeCycle {
     return previous == from;
   }
 
-  /** @return the current state. */
+  /** @return 当前状态。 */
   public State getCurrentState() {
     return current.get();
   }
 
-  /** Assert if the current state equals to one of the expected states. */
+  /** 如果当前状态等于预期状态之一，则断言。 */
   public void assertCurrentState(Set<State> expected) {
     assertCurrentState((n, c) -> new IllegalStateException("STATE MISMATCHED: In "
         + n + ", current state " + c + " is not one of the expected states "
         + expected), expected);
   }
 
-  /** Assert if the current state equals to one of the expected states. */
+  /** 如果当前状态等于预期状态之一，则断言。 */
   public <T extends Throwable> State assertCurrentState(
       BiFunction<String, State, T> newThrowable, Set<State> expected) throws T {
     final State c = getCurrentState();
@@ -244,7 +247,9 @@ public class LifeCycle {
     return name + ":" + getCurrentState();
   }
 
-  /** Run the given start method and transition the current state accordingly. */
+  /**
+   * 运行给定的 start 方法并相应地转换当前状态。
+   */
   @SafeVarargs
   public final <T extends Throwable> void startAndTransition(
       CheckedRunnable<T> startImpl, Class<? extends Throwable>... exceptionClasses)
@@ -261,21 +266,21 @@ public class LifeCycle {
   }
 
   /**
-   * Check the current state and, if applicable, transit to {@link State#CLOSING}.
-   * If this is already in {@link State#CLOSING} or {@link State#CLOSED},
-   * then invoking this method has no effect.
-   * In other words, this method can be safely called multiple times.
+   * 检查当前状态，并在适用的情况下转换为 {@link State#CLOSING}。
+   * 如果当前状态已经是 {@link State#CLOSING} 或 {@link State#CLOSED}，
+   * 则调用此方法不会产生任何效果。
+   * 换句话说，此方法可以安全地多次调用。
    */
   public State checkStateAndClose() {
     return checkStateAndClose(() -> State.CLOSING);
   }
 
   /**
-   * Check the current state and, if applicable, run the given close method.
-   * If this is already in {@link State#CLOSING} or {@link State#CLOSED},
-   * then invoking this method has no effect.
-   * In other words, this method can be safely called multiple times
-   * while the given close method will only be executed at most once.
+   * 检查当前状态，并在适用的情况下执行指定的关闭方法。
+   * 如果当前状态已经是 {@link State#CLOSING} 或 {@link State#CLOSED}，
+   * 则调用此方法不会产生任何效果。
+   * 换句话说，此方法可以安全地多次调用，
+   * 而指定的关闭方法最多只会被执行一次。
    */
   public <T extends Throwable> State checkStateAndClose(CheckedRunnable<T> closeMethod) throws T {
     return checkStateAndClose(() -> {

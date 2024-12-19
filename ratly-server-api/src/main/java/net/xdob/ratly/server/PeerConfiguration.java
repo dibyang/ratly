@@ -152,9 +152,6 @@ public class PeerConfiguration {
   }
 
   public int getMajorityCount() {
-    if(size()==2){
-      return 1;
-    }
     return size() / 2 + 1;
   }
 

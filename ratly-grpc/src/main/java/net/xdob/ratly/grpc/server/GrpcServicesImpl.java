@@ -1,8 +1,7 @@
 package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.server.*;
-import net.xdob.ratly.server.config.Log;
-import net.xdob.ratly.server.config.Rpc;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.util.*;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcConfigKeys;
@@ -128,18 +127,18 @@ public final class GrpcServicesImpl
       this.serverPort = GrpcConfigKeys.Server.port(properties);
       this.messageSizeMax = GrpcConfigKeys.messageSizeMax(properties, LOG::info);
       this.flowControlWindow = GrpcConfigKeys.flowControlWindow(properties, LOG::info);
-      this.requestTimeoutDuration = Rpc.requestTimeout(properties);
+      this.requestTimeoutDuration = RaftServerConfigKeys.Rpc.requestTimeout(properties);
       this.separateHeartbeatChannel = GrpcConfigKeys.Server.heartbeatChannel(properties);
       this.zeroCopyEnabled = GrpcConfigKeys.Server.zeroCopyEnabled(properties);
 
-      final SizeInBytes appenderBufferSize = Log.Appender.bufferByteLimit(properties);
+      final SizeInBytes appenderBufferSize = RaftServerConfigKeys.Log.Appender.bufferByteLimit(properties);
       final SizeInBytes gap = SizeInBytes.ONE_MB;
       final long diff = messageSizeMax.getSize() - appenderBufferSize.getSize();
       if (diff < gap.getSize()) {
         throw new IllegalArgumentException("Illegal configuration: "
             + GrpcConfigKeys.MESSAGE_SIZE_MAX_KEY + "(= " + messageSizeMax
             + ") must be " + gap + " larger than "
-            + Log.Appender.BUFFER_BYTE_LIMIT_KEY + "(= " + appenderBufferSize + ").");
+            + RaftServerConfigKeys.Log.Appender.BUFFER_BYTE_LIMIT_KEY + "(= " + appenderBufferSize + ").");
       }
 
       return this;

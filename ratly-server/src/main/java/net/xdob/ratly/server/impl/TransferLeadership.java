@@ -7,7 +7,7 @@ import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.protocol.TransferLeadershipRequest;
 import net.xdob.ratly.protocol.exceptions.TransferLeadershipException;
-import net.xdob.ratly.server.config.Rpc;
+import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.leader.FollowerInfo;
 import net.xdob.ratly.server.leader.LogAppender;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -152,7 +152,7 @@ public class TransferLeadership {
 
   TransferLeadership(RaftServerImpl server, RaftProperties properties) {
     this.server = server;
-    this.requestTimeout = Rpc.requestTimeout(properties);
+    this.requestTimeout = RaftServerConfigKeys.Rpc.requestTimeout(properties);
   }
 
   private Optional<RaftPeerId> getTransferee() {

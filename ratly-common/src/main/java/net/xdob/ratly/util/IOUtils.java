@@ -38,6 +38,11 @@ public interface IOUtils {
     return cause != null? asIOException(cause): new IOException(e);
   }
 
+  static IOException toIOException(TimeoutException e) {
+    final Throwable cause = e.getCause();
+    return cause != null? asIOException(cause): new IOException(e);
+  }
+
   static <T> T getFromFuture(CompletableFuture<T> future, Supplier<Object> name) throws IOException {
     try {
       return future.get();
