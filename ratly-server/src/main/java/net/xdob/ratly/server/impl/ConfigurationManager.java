@@ -18,23 +18,23 @@ import java.util.*;
  */
 public class ConfigurationManager {
   private final RaftPeerId id;
-  private final RaftConfigurationImpl initialConf;
-  private final NavigableMap<Long, RaftConfigurationImpl> configurations = new TreeMap<>();
+  private final RaftConfiguration initialConf;
+  private final NavigableMap<Long, RaftConfiguration> configurations = new TreeMap<>();
   /**
    * The current raft configuration. If configurations is not empty, should be
    * the last entry of the map. Otherwise is initialConf.
    */
-  private RaftConfigurationImpl currentConf;
+  private RaftConfiguration currentConf;
   /** Cache the peer corresponding to {@link #id}. */
   private RaftPeer currentPeer;
 
-  ConfigurationManager(RaftPeerId id, RaftConfigurationImpl initialConf) {
+  ConfigurationManager(RaftPeerId id, RaftConfiguration initialConf) {
     this.id = id;
     this.initialConf = initialConf;
     setCurrentConf(initialConf);
   }
 
-  private void setCurrentConf(RaftConfigurationImpl currentConf) {
+  private void setCurrentConf(RaftConfiguration currentConf) {
     this.currentConf = currentConf;
     final RaftPeer peer = currentConf.getPeer(id, RaftPeerRole.FOLLOWER, RaftPeerRole.LISTENER);
     if (peer != null) {
@@ -49,17 +49,17 @@ public class ConfigurationManager {
       Preconditions.assertTrue(found.equals(conf));
       return;
     }
-    addRaftConfigurationImpl(logIndex, (RaftConfigurationImpl) conf);
+    addRaftConfiguration(logIndex, conf);
   }
 
-  private void addRaftConfigurationImpl(long logIndex, RaftConfigurationImpl conf) {
+  private void addRaftConfiguration(long logIndex, RaftConfiguration conf) {
     configurations.put(logIndex, conf);
     if (logIndex == configurations.lastEntry().getKey()) {
       setCurrentConf(conf);
     }
   }
 
-  synchronized RaftConfigurationImpl getCurrent() {
+  synchronized RaftConfiguration getCurrent() {
     return currentConf;
   }
 
@@ -75,7 +75,7 @@ public class ConfigurationManager {
    */
   synchronized void removeConfigurations(long index) {
     // remove all configurations starting at the index
-    final SortedMap<Long, RaftConfigurationImpl> tail = configurations.tailMap(index);
+    final SortedMap<Long, RaftConfiguration> tail = configurations.tailMap(index);
     if (tail.isEmpty()) {
       return;
     }

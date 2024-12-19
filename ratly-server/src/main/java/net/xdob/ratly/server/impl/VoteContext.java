@@ -4,6 +4,7 @@ import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
+import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.impl.LeaderElection.Phase;
 import net.xdob.ratly.server.protocol.TermIndex;
 import org.slf4j.Logger;
@@ -13,7 +14,7 @@ class VoteContext {
   static final Logger LOG = LoggerFactory.getLogger(VoteContext.class);
 
   private final RaftServerImpl impl;
-  private final RaftConfigurationImpl conf;
+  private final RaftConfiguration conf;
   private final Phase phase;
   private final RaftPeerId candidateId;
 

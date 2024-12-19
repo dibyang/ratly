@@ -367,7 +367,7 @@ class RaftServerImpl implements Division,
     }
     state.initialize(stateMachine);
 
-    final RaftConfigurationImpl conf = getRaftConf();
+    final RaftConfiguration conf = getRaftConf();
     if (conf != null && conf.containsInBothConfs(getId())) {
       LOG.info("{}: start as a follower, conf={}", getMemberId(), conf);
       startAsPeer(RaftPeerRole.FOLLOWER);
@@ -432,7 +432,7 @@ class RaftServerImpl implements Division,
   }
 
   @Override
-  public RaftConfigurationImpl getRaftConf() {
+  public RaftConfiguration getRaftConf() {
     return getState().getRaftConf();
   }
 
@@ -621,7 +621,7 @@ class RaftServerImpl implements Division,
       role.getLeaderState().ifPresent(
           leader -> leader.updateFollowerCommitInfos(commitInfoCache, infos));
     } else {
-      RaftConfigurationImpl raftConf = getRaftConf();
+      RaftConfiguration raftConf = getRaftConf();
       Stream.concat(
               raftConf.getAllPeers(RaftPeerRole.FOLLOWER).stream(),
               raftConf.getAllPeers(RaftPeerRole.LISTENER).stream())
@@ -766,7 +766,7 @@ class RaftServerImpl implements Division,
       // leader, but it is about to step down. set the suggested leader as null.
       leaderId = null;
     }
-    final RaftConfigurationImpl conf = getRaftConf();
+    final RaftConfiguration conf = getRaftConf();
     Collection<RaftPeer> peers = conf.getAllPeers();
     return new NotLeaderException(getMemberId(), conf.getPeer(leaderId), peers);
   }
@@ -1222,7 +1222,7 @@ class RaftServerImpl implements Division,
         return CompletableFuture.completedFuture(newSuccessReply(request));
       }
 
-      final RaftConfigurationImpl conf = getRaftConf();
+      final RaftConfiguration conf = getRaftConf();
       final LeaderStateImpl leaderState = role.getLeaderStateNonNull();
 
       // make sure there is no raft reconfiguration in progress
@@ -1335,7 +1335,7 @@ class RaftServerImpl implements Division,
         return reply;
       }
 
-      final RaftConfigurationImpl current = getRaftConf();
+      final RaftConfiguration current = getRaftConf();
       final LeaderStateImpl leaderState = role.getLeaderStateNonNull();
       // make sure there is no other raft reconfiguration in progress
       if (!current.isStable() || leaderState.inStagingState() || !state.isConfCommitted()) {
@@ -1388,7 +1388,7 @@ class RaftServerImpl implements Division,
     return pending.getFuture();
   }
 
-  static List<RaftPeer> add(RaftPeerRole role, RaftConfigurationImpl conf, SetConfigurationRequest.Arguments args) {
+  static List<RaftPeer> add(RaftPeerRole role, RaftConfiguration conf, SetConfigurationRequest.Arguments args) {
     final Map<RaftPeerId, RaftPeer> inConfs = conf.getAllPeers(role).stream()
         .collect(Collectors.toMap(RaftPeer::getId, Function.identity()));
 

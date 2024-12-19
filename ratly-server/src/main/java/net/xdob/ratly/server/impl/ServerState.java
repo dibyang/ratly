@@ -182,7 +182,7 @@ class ServerState {
     return log;
   }
 
-  RaftConfigurationImpl getRaftConf() {
+  RaftConfiguration getRaftConf() {
     return configurationManager.getCurrent();
   }
 

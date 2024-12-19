@@ -5,6 +5,8 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Raft集群的配置，具体包含了当前配置和上一个配置。
@@ -21,6 +23,30 @@ import java.util.Collection;
  * @see net.xdob.ratly.proto.raft.RaftPeerRole
  */
 public interface RaftConfiguration {
+  /** Is this configuration transitional, i.e. in the middle of a peer change? */
+  boolean isTransitional();
+
+  /** Is this configuration stable, i.e. no on-going peer change? */
+  boolean isStable();
+
+  @SuppressWarnings({"squid:S6466"})
+    // Suppress  ArrayIndexOutOfBoundsException warning
+  boolean containsInConf(RaftPeerId peerId, RaftPeerRole... roles);
+
+  PeerConfiguration getConf();
+
+  PeerConfiguration getOldConf();
+
+  boolean isHighestPriority(RaftPeerId peerId);
+
+  boolean containsInOldConf(RaftPeerId peerId);
+
+  /**
+   * @return true iff the given peer is contained in conf and,
+   *         if old conf exists, is contained in old conf.
+   */
+  boolean containsInBothConfs(RaftPeerId peerId);
+
   /**
    * 该方法通过给定的节点ID (RaftPeerId) 和角色 (RaftPeerRole) 查找对应的节点信息。如果该节点不在当前配置中，返回 null。
    * @return the peer corresponding to the given id;
@@ -32,7 +58,7 @@ public interface RaftConfiguration {
    * 这个方法是 getAllPeers(RaftPeerRole.FOLLOWER) 的默认实现，
    * 它会返回当前配置和之前配置中的所有 Follower 类型的节点。
    */
-  default Collection<RaftPeer> getAllPeers() {
+  default List<RaftPeer> getAllPeers() {
     return getAllPeers(RaftPeerRole.FOLLOWER);
   }
 
@@ -40,7 +66,7 @@ public interface RaftConfiguration {
    * 该方法返回当前配置和前一个配置中所有属于指定角色的节点。
    * @return all the peers of the given role in the current configuration and the previous configuration.
    */
-  Collection<RaftPeer> getAllPeers(RaftPeerRole role);
+  List<RaftPeer> getAllPeers(RaftPeerRole role);
 
   /**
    * 这是 getCurrentPeers(RaftPeerRole.FOLLOWER) 的默认实现，它返回当前配置中的所有 Follower 类型的节点。
@@ -54,21 +80,69 @@ public interface RaftConfiguration {
    * 该方法返回当前配置中所有属于指定角色的节点。
    * @return all the peers of the given role in the current configuration.
    */
-  Collection<RaftPeer> getCurrentPeers(RaftPeerRole roles);
+  List<RaftPeer> getCurrentPeers(RaftPeerRole roles);
 
   /**
    * 这是 getPreviousPeers(RaftPeerRole.FOLLOWER) 的默认实现，返回之前配置中的所有 Follower 类型的节点。
    * The same as getPreviousPeers(RaftPeerRole.FOLLOWER).
    */
-  default Collection<RaftPeer> getPreviousPeers() {
+  default List<RaftPeer> getPreviousPeers() {
     return getPreviousPeers(RaftPeerRole.FOLLOWER);
   }
+
+  /** @return the peers which are not contained in conf. */
+  List<RaftPeer> filterNotContainedInConf(List<RaftPeer> peers);
 
   /**
    * 该方法返回之前配置中所有属于指定角色的节点。
    * @return all the peers of the given role in the previous configuration.
    */
-  Collection<RaftPeer> getPreviousPeers(RaftPeerRole roles);
+  List<RaftPeer> getPreviousPeers(RaftPeerRole roles);
+
+  /**
+   * @return all the peers other than the given self id from the conf,
+   *         and the old conf if it exists.
+   */
+  List<RaftPeer> getOtherPeers(RaftPeerId selfId);
+
+  /**
+   * @return true if the new peers number reaches half of new conf peers number or the group is
+   * changing from single mode to HA mode.
+   */
+  boolean changeMajority(Collection<RaftPeer> newMembers);
+
+  /**
+   * 是否单节点模式
+   * @return True if the selfId is in single mode.
+   */
+  boolean isSingleMode(RaftPeerId selfId);
+
+  /**
+   * 是否单节点模式
+   * @return true if only one voting member (the leader) in the cluster
+   */
+  boolean isSingleton();
+
+  /**
+   * 是否2节点模式
+   */
+  boolean isTwoNodeMode(RaftPeerId selfId);
+
+  /** @return true if the self id together with the others are in the majority. */
+  boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId);
+
+  /** @return true if the self id together with the acknowledged followers reach majority. */
+  boolean hasMajority(Predicate<RaftPeerId> followers, RaftPeerId selfId);
+
+  @Deprecated
+  int getMajorityCount();
+
+  /** @return true if the rejects are in the majority(maybe half is enough in some cases). */
+  boolean majorityRejectVotes(Collection<RaftPeerId> rejects);
+
+
+
+  boolean hasNoChange(Collection<RaftPeer> newMembers, Collection<RaftPeer> newListeners);
 
   /**
    * 该方法返回当前配置对应的日志条目索引，表示当前配置在日志中的位置。这个索引通常用来标识当前配置的变更点。

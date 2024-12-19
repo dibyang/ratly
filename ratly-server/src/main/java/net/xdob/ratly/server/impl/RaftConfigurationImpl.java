@@ -3,6 +3,7 @@ package net.xdob.ratly.server.impl;
 import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
+import net.xdob.ratly.server.PeerConfiguration;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.util.Preconditions;
@@ -55,13 +56,13 @@ final class RaftConfigurationImpl implements RaftConfiguration {
       return setConf(new PeerConfiguration(peers, listeners));
     }
 
-    Builder setConf(RaftConfigurationImpl transitionalConf) {
+    Builder setConf(RaftConfiguration transitionalConf) {
       Objects.requireNonNull(transitionalConf, "transitionalConf == null");
       Preconditions.assertTrue(transitionalConf.isTransitional());
 
       Preconditions.assertTrue(!forceTransitional);
       forceStable = true;
-      return setConf(transitionalConf.conf);
+      return setConf(transitionalConf.getConf());
     }
 
 
@@ -76,13 +77,13 @@ final class RaftConfigurationImpl implements RaftConfiguration {
       return setOldConf(new PeerConfiguration(oldPeers, oldListeners));
     }
 
-    Builder setOldConf(RaftConfigurationImpl stableConf) {
+    Builder setOldConf(RaftConfiguration stableConf) {
       Objects.requireNonNull(stableConf, "stableConf == null");
       Preconditions.assertTrue(stableConf.isStable());
 
       Preconditions.assertTrue(!forceStable);
       forceTransitional = true;
-      return setOldConf(stableConf.conf);
+      return setOldConf(stableConf.getConf());
     }
 
     Builder setLogEntryIndex(long logEntryIndex) {
@@ -122,17 +123,20 @@ final class RaftConfigurationImpl implements RaftConfiguration {
   }
 
   /** Is this configuration transitional, i.e. in the middle of a peer change? */
-  boolean isTransitional() {
+  @Override
+  public boolean isTransitional() {
     return oldConf != null;
   }
 
   /** Is this configuration stable, i.e. no on-going peer change? */
-  boolean isStable() {
+  @Override
+  public boolean isStable() {
     return oldConf == null;
   }
 
-  @SuppressWarnings({"squid:S6466"}) // Suppress  ArrayIndexOutOfBoundsException warning
-  boolean containsInConf(RaftPeerId peerId, RaftPeerRole... roles) {
+  @SuppressWarnings({"squid:S6466"})
+  @Override
+  public boolean containsInConf(RaftPeerId peerId, RaftPeerRole... roles) {
     if (roles == null || roles.length == 0) {
       return conf.contains(peerId);
     } else if (roles.length == 1) {
@@ -142,15 +146,18 @@ final class RaftConfigurationImpl implements RaftConfiguration {
     }
   }
 
-  PeerConfiguration getConf() {
+  @Override
+  public PeerConfiguration getConf() {
     return conf;
   }
 
-  PeerConfiguration getOldConf() {
+  @Override
+  public PeerConfiguration getOldConf() {
     return oldConf;
   }
 
-  boolean isHighestPriority(RaftPeerId peerId) {
+  @Override
+  public boolean isHighestPriority(RaftPeerId peerId) {
     RaftPeer target = getPeer(peerId);
     if (target == null) {
       return false;
@@ -164,7 +171,8 @@ final class RaftConfigurationImpl implements RaftConfiguration {
     return true;
   }
 
-  boolean containsInOldConf(RaftPeerId peerId) {
+  @Override
+  public boolean containsInOldConf(RaftPeerId peerId) {
     return oldConf != null && oldConf.contains(peerId);
   }
 
@@ -172,7 +180,8 @@ final class RaftConfigurationImpl implements RaftConfiguration {
    * @return true iff the given peer is contained in conf and,
    *         if old conf exists, is contained in old conf.
    */
-  boolean containsInBothConfs(RaftPeerId peerId) {
+  @Override
+  public boolean containsInBothConfs(RaftPeerId peerId) {
     return containsInConf(peerId) &&
         (oldConf == null || containsInOldConf(peerId));
   }
@@ -206,8 +215,9 @@ final class RaftConfigurationImpl implements RaftConfiguration {
    * @return all the peers other than the given self id from the conf,
    *         and the old conf if it exists.
    */
-  Collection<RaftPeer> getOtherPeers(RaftPeerId selfId) {
-    Collection<RaftPeer> others = conf.getOtherPeers(selfId);
+  @Override
+  public List<RaftPeer> getOtherPeers(RaftPeerId selfId) {
+    List<RaftPeer> others = conf.getOtherPeers(selfId);
     if (oldConf != null) {
       oldConf.getOtherPeers(selfId).stream()
           .filter(p -> !others.contains(p))
@@ -220,7 +230,8 @@ final class RaftConfigurationImpl implements RaftConfiguration {
    * @return true if the new peers number reaches half of new conf peers number or the group is
    * changing from single mode to HA mode.
    */
-  boolean changeMajority(Collection<RaftPeer> newMembers) {
+  @Override
+  public boolean changeMajority(Collection<RaftPeer> newMembers) {
     Preconditions.assertNull(oldConf, "oldConf");
     final long newPeersCount = newMembers.stream().map(RaftPeer::getId).filter(id -> conf.getPeer(id) == null).count();
 
@@ -236,7 +247,8 @@ final class RaftConfigurationImpl implements RaftConfiguration {
   }
 
   /** @return True if the selfId is in single mode. */
-  boolean isSingleMode(RaftPeerId selfId) {
+  @Override
+  public boolean isSingleMode(RaftPeerId selfId) {
     if (isStable()) {
       return conf.size() == 1;
     } else {
@@ -244,15 +256,29 @@ final class RaftConfigurationImpl implements RaftConfiguration {
     }
   }
 
+  /**
+   * 是否2节点模式
+   */
+  @Override
+  public boolean isTwoNodeMode(RaftPeerId selfId) {
+    if (isStable()) {
+      return conf.size() == 2;
+    } else {
+      return oldConf.size() == 2 && oldConf.contains(selfId) && conf.size() == 3 && conf.contains(selfId);
+    }
+  }
+
   /** @return true if the self id together with the others are in the majority. */
-  boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId) {
+  @Override
+  public boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId) {
     Preconditions.assertTrue(!others.contains(selfId));
     return conf.hasMajority(others, selfId) &&
         (oldConf == null || oldConf.hasMajority(others, selfId));
   }
 
   /** @return true if the self id together with the acknowledged followers reach majority. */
-  boolean hasMajority(Predicate<RaftPeerId> followers, RaftPeerId selfId) {
+  @Override
+  public boolean hasMajority(Predicate<RaftPeerId> followers, RaftPeerId selfId) {
     final boolean includeInCurrent = containsInConf(selfId);
     final boolean hasMajorityInNewConf = conf.hasMajority(followers, includeInCurrent);
 
@@ -265,27 +291,33 @@ final class RaftConfigurationImpl implements RaftConfiguration {
     }
   }
 
-  int getMajorityCount() {
+  @Deprecated
+  @Override
+  public int getMajorityCount() {
     return conf.getMajorityCount();
   }
 
   /** @return true if the rejects are in the majority(maybe half is enough in some cases). */
-  boolean majorityRejectVotes(Collection<RaftPeerId> rejects) {
+  @Override
+  public boolean majorityRejectVotes(Collection<RaftPeerId> rejects) {
     return conf.majorityRejectVotes(rejects) ||
             (oldConf != null && oldConf.majorityRejectVotes(rejects));
   }
 
   /** @return true if only one voting member (the leader) in the cluster */
-  boolean isSingleton() {
+  @Override
+  public boolean isSingleton() {
     return getCurrentPeers().size() == 1 && getPreviousPeers().size() <= 1;
   }
+
 
   @Override
   public String toString() {
     return "conf: {index: " + logEntryIndex + ", cur=" + conf + ", old=" + oldConf + "}";
   }
 
-  boolean hasNoChange(Collection<RaftPeer> newMembers, Collection<RaftPeer> newListeners) {
+  @Override
+  public boolean hasNoChange(Collection<RaftPeer> newMembers, Collection<RaftPeer> newListeners) {
     if (!isStable() || conf.size() != newMembers.size()
         || conf.getPeers(RaftPeerRole.LISTENER).size() != newListeners.size()) {
       return false;
@@ -317,19 +349,20 @@ final class RaftConfigurationImpl implements RaftConfiguration {
   }
 
   /** @return the peers which are not contained in conf. */
-  Collection<RaftPeer> filterNotContainedInConf(List<RaftPeer> peers) {
+  @Override
+  public List<RaftPeer> filterNotContainedInConf(List<RaftPeer> peers) {
     return peers.stream()
         .filter(p -> !containsInConf(p.getId(), RaftPeerRole.FOLLOWER, RaftPeerRole.LISTENER))
         .collect(Collectors.toList());
   }
 
   @Override
-  public Collection<RaftPeer> getPreviousPeers(RaftPeerRole role) {
+  public List<RaftPeer> getPreviousPeers(RaftPeerRole role) {
     return oldConf != null ? oldConf.getPeers(role) : Collections.emptyList();
   }
 
   @Override
-  public Collection<RaftPeer> getCurrentPeers(RaftPeerRole role) {
+  public List<RaftPeer> getCurrentPeers(RaftPeerRole role) {
     return conf.getPeers(role);
   }
 

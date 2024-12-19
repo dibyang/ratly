@@ -21,6 +21,8 @@ import net.xdob.ratly.protocol.exceptions.NotLeaderException;
 import net.xdob.ratly.protocol.exceptions.NotReplicatedException;
 import net.xdob.ratly.protocol.exceptions.ReadIndexException;
 import net.xdob.ratly.protocol.exceptions.ReconfigurationTimeoutException;
+import net.xdob.ratly.server.PeerConfiguration;
+import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.config.Log;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.config.Write;
@@ -216,18 +218,18 @@ class LeaderStateImpl implements LeaderState {
 
   /** For caching {@link FollowerInfo}s.  This class is immutable. */
   static class CurrentOldFollowerInfos {
-    private final RaftConfigurationImpl conf;
+    private final RaftConfiguration conf;
     private final List<FollowerInfo> current;
     private final List<FollowerInfo> old;
 
-    CurrentOldFollowerInfos(RaftConfigurationImpl conf, List<FollowerInfo> current, List<FollowerInfo> old) {
+    CurrentOldFollowerInfos(RaftConfiguration conf, List<FollowerInfo> current, List<FollowerInfo> old) {
       // set null when the sizes are not the same so that it will update next time.
       this.conf = isSameSize(current, conf.getConf()) && isSameSize(old, conf.getOldConf())? conf: null;
       this.current = Collections.unmodifiableList(current);
       this.old = old == null? null: Collections.unmodifiableList(old);
     }
 
-    RaftConfigurationImpl getConf() {
+    RaftConfiguration getConf() {
       return conf;
     }
 
@@ -245,7 +247,7 @@ class LeaderStateImpl implements LeaderState {
   }
 
   /** Use == to compare if the confs are the same object. */
-  static boolean isSameConf(CurrentOldFollowerInfos cached, RaftConfigurationImpl conf) {
+  static boolean isSameConf(CurrentOldFollowerInfos cached, RaftConfiguration conf) {
     return cached != null && cached.getConf() == conf;
   }
 
@@ -258,7 +260,7 @@ class LeaderStateImpl implements LeaderState {
       map.put(id, info);
     }
 
-    CurrentOldFollowerInfos getFollowerInfos(RaftConfigurationImpl conf) {
+    CurrentOldFollowerInfos getFollowerInfos(RaftConfiguration conf) {
       final CurrentOldFollowerInfos cached = followerInfos;
       if (isSameConf(cached, conf)) {
         return cached;
@@ -267,7 +269,7 @@ class LeaderStateImpl implements LeaderState {
       return update(conf);
     }
 
-    synchronized CurrentOldFollowerInfos update(RaftConfigurationImpl conf) {
+    synchronized CurrentOldFollowerInfos update(RaftConfiguration conf) {
       if (!isSameConf(followerInfos, conf)) { // compare again synchronized
         followerInfos = new CurrentOldFollowerInfos(conf, getFollowerInfos(conf.getConf()),
             Optional.ofNullable(conf.getOldConf()).map(this::getFollowerInfos).orElse(null));
@@ -378,7 +380,7 @@ class LeaderStateImpl implements LeaderState {
       this.followerMaxGapThreshold = (long) (followerGapRatioMax * maxPendingRequests);
     }
 
-    final RaftConfigurationImpl conf = state.getRaftConf();
+    final RaftConfiguration conf = state.getRaftConf();
     Collection<RaftPeer> others = conf.getOtherPeers(server.getId());
 
     final long nextIndex = raftLog.getNextIndex();
@@ -574,16 +576,16 @@ class LeaderStateImpl implements LeaderState {
 
   private void applyOldNewConf(ConfigurationStagingState stage) {
     final ServerState state = server.getState();
-    final RaftConfigurationImpl current = state.getRaftConf();
+    final RaftConfiguration current = state.getRaftConf();
     final long nextIndex = state.getLog().getNextIndex();
-    final RaftConfigurationImpl oldNewConf = stage.generateOldNewConf(current, nextIndex);
+    final RaftConfiguration oldNewConf = stage.generateOldNewConf(current, nextIndex);
     // apply the (old, new) configuration to log, and use it as the current conf
     appendConfiguration(oldNewConf);
 
     notifySenders();
   }
 
-  private long appendConfiguration(RaftConfigurationImpl conf) {
+  private long appendConfiguration(RaftConfiguration conf) {
     final long logIndex = raftLog.append(getCurrentTerm(), conf);
     Preconditions.assertSame(conf.getLogEntryIndex(), logIndex, "confLogIndex");
     server.getState().setRaftConf(conf);
@@ -676,7 +678,7 @@ class LeaderStateImpl implements LeaderState {
   /**
    * Update the RpcSender list based on the current configuration
    */
-  private void updateSenders(RaftConfigurationImpl conf) {
+  private void updateSenders(RaftConfiguration conf) {
     Preconditions.assertTrue(conf.isStable() && !inStagingState());
     stopAndRemoveSenders(s -> !conf.containsInConf(s.getFollowerId(), RaftPeerRole.FOLLOWER, RaftPeerRole.LISTENER));
   }
@@ -896,7 +898,7 @@ class LeaderStateImpl implements LeaderState {
   private Optional<MinMajorityMax> getMajorityMin(ToLongFunction<FollowerInfo> followerIndex,
       LongSupplier logIndex, long gapThreshold) {
     final RaftPeerId selfId = server.getId();
-    final RaftConfigurationImpl conf = server.getRaftConf();
+    final RaftConfiguration conf = server.getRaftConf();
 
     final CurrentOldFollowerInfos infos = followerInfoMap.getFollowerInfos(conf);
     final List<FollowerInfo> followers = infos.getCurrent();
@@ -972,7 +974,7 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private void checkAndUpdateConfiguration() {
-    final RaftConfigurationImpl conf = server.getRaftConf();
+    final RaftConfiguration conf = server.getRaftConf();
     if (conf.isTransitional()) {
       replicateNewConf();
     } else { // the (new) log entry has been committed
@@ -1002,8 +1004,8 @@ class LeaderStateImpl implements LeaderState {
    * 4) start replicating the log entry
    */
   private void replicateNewConf() {
-    final RaftConfigurationImpl conf = server.getRaftConf();
-    final RaftConfigurationImpl newConf = RaftConfigurationImpl.newBuilder()
+    final RaftConfiguration conf = server.getRaftConf();
+    final RaftConfiguration newConf = RaftConfigurationImpl.newBuilder()
         .setConf(conf)
         .setLogEntryIndex(raftLog.getNextIndex())
         .build();
@@ -1035,7 +1037,7 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private void checkPeersForYieldingLeader() {
-    final RaftConfigurationImpl conf = server.getRaftConf();
+    final RaftConfiguration conf = server.getRaftConf();
     final RaftPeer leader = conf.getPeer(server.getId());
     if (leader == null) {
       LOG.error("{} the leader {} is not in the conf {}", this, server.getId(), conf);
@@ -1092,7 +1094,7 @@ class LeaderStateImpl implements LeaderState {
         .map(LogAppender::getFollowerId)
         .collect(Collectors.toList());
 
-    final RaftConfigurationImpl conf = server.getRaftConf();
+    final RaftConfiguration conf = server.getRaftConf();
 
     if (conf.hasMajority(activePeers, server.getId())) {
       // leadership check passed
@@ -1173,7 +1175,7 @@ class LeaderStateImpl implements LeaderState {
     }
 
     // try extending the leader lease
-    final RaftConfigurationImpl conf = server.getRaftConf();
+    final RaftConfiguration conf = server.getRaftConf();
     final CurrentOldFollowerInfos info = followerInfoMap.getFollowerInfos(conf);
     lease.extend(info.getCurrent(), info.getOld(), peers -> conf.hasMajority(peers, server.getId()));
 
@@ -1219,7 +1221,7 @@ class LeaderStateImpl implements LeaderState {
       this.newConf = newConf;
     }
 
-    RaftConfigurationImpl generateOldNewConf(RaftConfigurationImpl current, long logIndex) {
+    RaftConfiguration generateOldNewConf(RaftConfiguration current, long logIndex) {
       return RaftConfigurationImpl.newBuilder()
           .setConf(newConf)
           .setOldConf(current)

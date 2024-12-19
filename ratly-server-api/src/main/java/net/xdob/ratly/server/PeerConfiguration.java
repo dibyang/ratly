@@ -1,4 +1,4 @@
-package net.xdob.ratly.server.impl;
+package net.xdob.ratly.server;
 
 import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * <p>
  * The objects of this class are immutable.
  */
-class PeerConfiguration {
+public class PeerConfiguration {
   /**
    * Peers are voting members such as LEADER, CANDIDATE and FOLLOWER
    * @see net.xdob.ratly.proto.raft.RaftPeerRole
@@ -51,11 +51,11 @@ class PeerConfiguration {
     return Collections.unmodifiableMap(map);
   }
 
-  PeerConfiguration(Iterable<RaftPeer> peers) {
+  public PeerConfiguration(Iterable<RaftPeer> peers) {
     this(peers, Collections.emptyList());
   }
 
-  PeerConfiguration(Iterable<RaftPeer> peers, Iterable<RaftPeer> listeners) {
+  public PeerConfiguration(Iterable<RaftPeer> peers, Iterable<RaftPeer> listeners) {
     this.peers = newMap(peers, "peers", Collections.emptyMap());
     this.listeners = Optional.ofNullable(listeners)
         .map(l -> newMap(listeners, "listeners", this.peers))
@@ -72,15 +72,15 @@ class PeerConfiguration {
     }
   }
 
-  Collection<RaftPeer> getPeers(RaftPeerRole role) {
-    return Collections.unmodifiableCollection(getPeerMap(role).values());
+  public List<RaftPeer> getPeers(RaftPeerRole role) {
+    return Collections.unmodifiableList(new ArrayList<>(getPeerMap(role).values()));
   }
 
-  int size() {
+  public int size() {
     return peers.size();
   }
 
-  Stream<RaftPeerId> streamPeerIds() {
+  public Stream<RaftPeerId> streamPeerIds() {
     return peers.keySet().stream();
   }
 
@@ -89,7 +89,7 @@ class PeerConfiguration {
     return "peers:" + peers.values() + "|listeners:" + listeners.values();
   }
 
-  RaftPeer getPeer(RaftPeerId id, RaftPeerRole... roles) {
+  public RaftPeer getPeer(RaftPeerId id, RaftPeerRole... roles) {
     if (roles == null || roles.length == 0) {
       return peers.get(id);
     }
@@ -102,15 +102,15 @@ class PeerConfiguration {
     return null;
   }
 
-  boolean contains(RaftPeerId id) {
+  public boolean contains(RaftPeerId id) {
     return contains(id, RaftPeerRole.FOLLOWER);
   }
 
-  boolean contains(RaftPeerId id, RaftPeerRole r) {
+  public boolean contains(RaftPeerId id, RaftPeerRole r) {
     return getPeerMap(r).containsKey(id);
   }
 
-  RaftPeerRole contains(RaftPeerId id, EnumSet<RaftPeerRole> roles) {
+  public RaftPeerRole contains(RaftPeerId id, EnumSet<RaftPeerRole> roles) {
     if (roles == null || roles.isEmpty()) {
       return peers.containsKey(id)? RaftPeerRole.FOLLOWER: null;
     }
@@ -122,7 +122,7 @@ class PeerConfiguration {
     return null;
   }
 
-  List<RaftPeer> getOtherPeers(RaftPeerId selfId) {
+  public List<RaftPeer> getOtherPeers(RaftPeerId selfId) {
     List<RaftPeer> others = new ArrayList<>();
     for (Map.Entry<RaftPeerId, RaftPeer> entry : peers.entrySet()) {
       if (!selfId.equals(entry.getValue().getId())) {
@@ -132,12 +132,12 @@ class PeerConfiguration {
     return others;
   }
 
-  boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId) {
+  public boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId) {
     Preconditions.assertTrue(!others.contains(selfId));
     return hasMajority(others::contains, contains(selfId));
   }
 
-  boolean hasMajority(Predicate<RaftPeerId> activePeers, boolean includeSelf) {
+  public boolean hasMajority(Predicate<RaftPeerId> activePeers, boolean includeSelf) {
     if (peers.isEmpty() && !includeSelf) {
       return true;
     }
@@ -148,14 +148,17 @@ class PeerConfiguration {
         num++;
       }
     }
-    return num > size() / 2;
+    return num >= getMajorityCount();
   }
 
-  int getMajorityCount() {
+  public int getMajorityCount() {
+    if(size()==2){
+      return 1;
+    }
     return size() / 2 + 1;
   }
 
-  boolean majorityRejectVotes(Collection<RaftPeerId> rejected) {
+  public boolean majorityRejectVotes(Collection<RaftPeerId> rejected) {
     int num = size();
     for (RaftPeerId other : rejected) {
       if (contains(other)) {

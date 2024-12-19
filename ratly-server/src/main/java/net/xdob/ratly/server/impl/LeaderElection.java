@@ -139,10 +139,10 @@ class LeaderElection implements Runnable {
   }
 
   static class ConfAndTerm {
-    private final RaftConfigurationImpl conf;
+    private final RaftConfiguration conf;
     private final long term;
 
-    ConfAndTerm(RaftConfigurationImpl conf, long term) {
+    ConfAndTerm(RaftConfiguration conf, long term) {
       this.conf = conf;
       this.term = term;
     }
@@ -151,7 +151,7 @@ class LeaderElection implements Runnable {
       return term;
     }
 
-    RaftConfigurationImpl getConf() {
+    RaftConfiguration getConf() {
       return conf;
     }
 
@@ -272,7 +272,7 @@ class LeaderElection implements Runnable {
     return shouldRun() && server.getState().getCurrentTerm() == electionTerm;
   }
 
-  private ResultAndTerm submitRequestAndWaitResult(Phase phase, RaftConfigurationImpl conf, long electionTerm)
+  private ResultAndTerm submitRequestAndWaitResult(Phase phase, RaftConfiguration conf, long electionTerm)
       throws InterruptedException {
     if (!conf.containsInConf(server.getId())) {
       return new ResultAndTerm(Result.NOT_IN_CONF, electionTerm);
@@ -298,7 +298,7 @@ class LeaderElection implements Runnable {
   /** Send requestVote rpc to all other peers for the given phase. */
   private boolean askForVotes(Phase phase, int round) throws InterruptedException, IOException {
     final long electionTerm;
-    final RaftConfigurationImpl conf;
+    final RaftConfiguration conf;
     synchronized (server) {
       if (!shouldRun()) {
         return false;
@@ -363,7 +363,7 @@ class LeaderElection implements Runnable {
   }
 
   private ResultAndTerm waitForResults(Phase phase, long electionTerm, int submitted,
-      RaftConfigurationImpl conf, Executor voteExecutor) throws InterruptedException {
+      RaftConfiguration conf, Executor voteExecutor) throws InterruptedException {
     final Timestamp timeout = Timestamp.currentTime().addTime(server.getRandomElectionTimeout());
     final Map<RaftPeerId, RequestVoteReplyProto> responses = new HashMap<>();
     final List<Exception> exceptions = new ArrayList<>();
