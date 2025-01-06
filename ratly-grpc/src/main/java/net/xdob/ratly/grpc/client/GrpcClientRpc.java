@@ -122,13 +122,13 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
         throw new InterruptedIOException(
             "Interrupted while waiting for response of request " + request);
       } catch (ExecutionException e) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(clientId + ": failed " + request, e);
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(clientId + ": failed " + request, e);
         }
         throw IOUtils.toIOException(e);
       } catch (TimeoutException e) {
-        if (LOG.isInfoEnabled()) {
-          LOG.info(clientId + ": timeout " + request, e);
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(clientId + ": timeout " + request, e);
         }
         throw IOUtils.toIOException(e);
       }

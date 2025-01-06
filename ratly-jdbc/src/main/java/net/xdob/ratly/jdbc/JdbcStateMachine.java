@@ -36,7 +36,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +61,7 @@ public class JdbcStateMachine extends BaseStateMachine {
   private final String db;
   private final Map<String,Method> methodCache = Maps.newConcurrentMap();
   private JdbcTransactionMgr jdbcTransactionMgr;
-  private String path;
+  //private String path;
 
   private String username = DEFAULT_USER;
   private String password = DEFAULT_PASSWORD;
@@ -101,10 +100,10 @@ public class JdbcStateMachine extends BaseStateMachine {
   public void initialize(RaftStorage raftStorage, RaftLog raftLog) {
     try {
       storage.init(raftStorage);
-      this.path = Paths.get(raftStorage.getStorageDir().getRoot().getPath(), "db").toString();
+      //this.path = Paths.get(raftStorage.getStorageDir().getRoot().getPath(), "db").toString();
       DriverManager.registerDriver(new Driver());
       // 基于存储目录初始化
-      dataSource.setUrl("jdbc:h2:file:" + path + "/"+db+";AUTO_SERVER=TRUE");
+      dataSource.setUrl("jdbc:h2:mem:"+db);//file:" + path + "/"+db+";AUTO_SERVER=TRUE");
       dataSource.setDriverClassName("org.h2.Driver");
       dataSource.setUsername(username);
       dataSource.setPassword(password);
@@ -133,8 +132,8 @@ public class JdbcStateMachine extends BaseStateMachine {
       //设置默认超时时间
       dataSource.setDefaultQueryTimeout(6);
 
-      this.jdbcTransactionMgr = new DefaultJdbcTransactionMgr(()-> dataSource.getConnection());
-      this.jdbcTransactionMgr.initialize(Paths.get(path,db, "tx").toString(), raftLog);
+      this.jdbcTransactionMgr = new DefaultJdbcTransactionMgr();
+      //this.jdbcTransactionMgr.initialize(Paths.get(path,db, "tx").toString(), raftLog);
       this.scheduler = Executors.newSingleThreadScheduledExecutor();
       scheduler.scheduleAtFixedRate(()->{
         jdbcTransactionMgr.checkTimeoutTx();
@@ -358,14 +357,7 @@ public class JdbcStateMachine extends BaseStateMachine {
           builder.setEx(getSqlExceptionProto(e));
         }
       }else {
-        if (jdbcTransactionMgr.needReloadTx(tx)) {
-          List<LogEntryProto> logs = jdbcTransactionMgr.getLogs(tx);
-          for (LogEntryProto log : logs) {
-            UpdateReplyProto.Builder builder2 = UpdateReplyProto.newBuilder();
-            UpdateRequestProto request = UpdateRequestProto.parseFrom(log.getStateMachineLogEntry().getLogData());
-            applyLog(request, builder2);
-          }
-        }
+        jdbcTransactionMgr.initializeTx(tx, dataSource::getConnection);
         applyLog(updateRequest, builder);
         if (!UpdateType.commit.equals(updateRequest.getType())
           &&!UpdateType.rollback.equals(updateRequest.getType()))
@@ -385,8 +377,8 @@ public class JdbcStateMachine extends BaseStateMachine {
   private void applyLog(UpdateRequestProto updateRequest, UpdateReplyProto.Builder builder) throws SQLException {
     String tx = updateRequest.getTx();
     if(UpdateType.execute.equals(updateRequest.getType())){
-      Connection connection = jdbcTransactionMgr.getConnection(tx);
       try {
+        Connection connection = jdbcTransactionMgr.getConnection(tx);
         executeUpdate(updateRequest, connection, builder);
       } catch (SQLException e) {
         builder.setEx(getSqlExceptionProto(e));

@@ -483,8 +483,7 @@ class LeaderElection implements Runnable {
         try {
           TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
           LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm, phase, electionTerm);
-          if (lastLeaderTerm != null && server.getId().equals(lastLeaderTerm.getLeaderId())
-          &&electionTerm >= lastLeaderTerm.getTerm()) {
+          if (lastLeaderTerm != null && server.getId().equals(lastLeaderTerm.getLeaderId())) {
             return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
           }
         } catch (ExecutionException|TimeoutException e) {
