@@ -8,6 +8,7 @@ import java.util.Objects;
 public class TermLeader {
   private final RaftPeerId leaderId;
   private final long term;
+  private long index;
 
   public TermLeader(RaftPeerId leaderId, long term) {
     this.leaderId = leaderId;
@@ -20,6 +21,14 @@ public class TermLeader {
 
   public long getTerm() {
     return term;
+  }
+
+  public long getIndex() {
+    return index;
+  }
+
+  public void setIndex(long index) {
+    this.index = index;
   }
 
   @Override

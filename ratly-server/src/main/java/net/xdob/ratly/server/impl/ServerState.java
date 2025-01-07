@@ -36,12 +36,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import static net.xdob.ratly.server.Division.LOG;
 
@@ -251,6 +254,8 @@ class ServerState {
     setLeader(null, "grantVote");
   }
 
+  private final AtomicReference<MessageToken> tokenAtomicReference = new AtomicReference<>(null);
+
   void setLeader(RaftPeerId newLeaderId, Object op) {
     final RaftPeerId oldLeaderId = leaderId.getAndSet(newLeaderId);
     if (!Objects.equals(oldLeaderId, newLeaderId)) {
@@ -269,16 +274,22 @@ class ServerState {
           getMemberId(), oldLeaderId, newLeaderId, getCurrentTerm(), op, suffix);
       if (newLeaderId != null) {
         server.onGroupLeaderElected();
-        RaftGroupMemberId memberId = getMemberId();
         TermLeader termLeader = TermLeader.of(getCurrentTerm(), newLeaderId);
-        MessageToken  token = new MessageToken();
+        MessageToken token = new MessageToken();
         token.setSigner(signHelper.getSigner());
         String message = termLeader.toString();
         token.setMessage(message);
         token.setSign(signHelper.sign(message));
-        onlookerClient.setMessage(memberId.getGroupId().toString(), token);
+        tokenAtomicReference.set(token);
       }
     }
+  }
+
+  void notifyTeamIndex(TermIndex termIndex){
+    MessageToken token = tokenAtomicReference.get();
+    token.setTeam(termIndex.getTerm());
+    token.setIndex(termIndex.getIndex());
+    onlookerClient.setMessage(memberId.getGroupId().toString(), token);
   }
 
   CompletableFuture<TermLeader> getLastLeaderTerm(int waitMS){
@@ -288,10 +299,16 @@ class ServerState {
           if(ex!=null){
             future.completeExceptionally(ex);
           }else{
-            TermLeader termLeader = r.stream()
+            List<TermLeader> termLeaders = r.stream()
                 .filter(e -> signHelper.verifySign(e.getMessage(), e.getSign()))
-                .map(m -> TermLeader.parse(m.getMessage()))
-                .max(Comparator.comparingLong(TermLeader::getTerm)).orElse(null);
+                .map(m -> {
+                  TermLeader leader = TermLeader.parse(m.getMessage());
+                  leader.setIndex(m.getIndex());
+                  return leader;
+                }).collect(Collectors.toList());
+            long term = termLeaders.stream().mapToLong(TermLeader::getTerm).max().orElse(-1L);
+            TermLeader termLeader = termLeaders.stream().filter(e->e.getTerm()== term)
+                .max(Comparator.comparingLong(TermLeader::getIndex)).orElse(null);
             //LOG.info("tokens={}, termLeader={}", r, termLeader);
             future.complete(termLeader);
           }

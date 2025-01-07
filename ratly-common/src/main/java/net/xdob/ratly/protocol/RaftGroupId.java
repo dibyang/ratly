@@ -1,7 +1,9 @@
 package net.xdob.ratly.protocol;
 
 import com.google.protobuf.ByteString;
+import net.xdob.ratly.io.MD5Hash;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -27,6 +29,11 @@ public final class RaftGroupId extends RaftId {
 
   public static RaftGroupId valueOf(UUID uuid) {
     return FACTORY.valueOf(uuid);
+  }
+
+  public static RaftGroupId valueOf(String name) {
+    byte[] bytes = MD5Hash.digest(name.getBytes(StandardCharsets.UTF_8)).getDigest();
+    return FACTORY.valueOf(ByteString.copyFrom(bytes));
   }
 
   public static RaftGroupId valueOf(ByteString bytes) {

@@ -307,7 +307,7 @@ class LeaderElection implements Runnable {
       final Executor voteExecutor = new Executor(this, others.size());
       try {
         final int submitted = submitRequests(phase, electionTerm, lastEntry, others, voteExecutor);
-        r = waitForResults(phase, electionTerm, submitted, conf, voteExecutor);
+        r = waitForResults(phase, electionTerm, submitted, conf, voteExecutor, lastEntry);
       } finally {
         voteExecutor.shutdown();
       }
@@ -391,7 +391,7 @@ class LeaderElection implements Runnable {
   }
 
   private ResultAndTerm waitForResults(Phase phase, long electionTerm, int submitted,
-      RaftConfiguration conf, Executor voteExecutor) throws InterruptedException {
+      RaftConfiguration conf, Executor voteExecutor, TermIndex lastEntry) throws InterruptedException {
     TimeDuration randomElectionTimeout = server.getRandomElectionTimeout();
 
     final Timestamp timeout = Timestamp.currentTime().addTime(randomElectionTimeout);
@@ -482,9 +482,22 @@ class LeaderElection implements Runnable {
       if(conf.isTwoNodeMode()) {
         try {
           TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
-          LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm, phase, electionTerm);
-          if (lastLeaderTerm != null && server.getId().equals(lastLeaderTerm.getLeaderId())) {
-            return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+
+          if (lastLeaderTerm != null ) {
+            if(lastLeaderTerm.getLeaderId().equals(server.getId())) {
+              LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm,  phase, electionTerm);
+              //辅助主节点选主
+              return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+            }else if(lastEntry!=null){
+              LOG.info("lastLeaderTerm={} lastIndex={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
+                  lastLeaderTerm.getIndex(),  lastEntry.getIndex(), phase, electionTerm);
+              long offset = lastEntry.getIndex() - lastLeaderTerm.getIndex();
+              if(lastEntry.getTerm() == lastLeaderTerm.getTerm()
+                  && offset >=0  && offset <=1) {
+                //辅助从节点选主
+                return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+              }
+            }
           }
         } catch (ExecutionException|TimeoutException e) {
           LOG.warn("", e);

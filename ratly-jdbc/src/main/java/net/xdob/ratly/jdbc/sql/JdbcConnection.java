@@ -33,7 +33,7 @@ public class JdbcConnection implements Connection {
     this.url = ci.getUrl();
     this.ci = ci;
     RaftProperties raftProperties = new RaftProperties();
-    final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(ci.getGroup())),
+    final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ci.getGroup()),
         ci.getPeers());
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);

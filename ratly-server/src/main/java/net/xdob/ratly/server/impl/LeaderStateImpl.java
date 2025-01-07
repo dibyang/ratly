@@ -1209,6 +1209,7 @@ class LeaderStateImpl implements LeaderState {
 
   void replyPendingRequest(TermIndex termIndex, RaftClientReply reply) {
     pendingRequests.replyPendingRequest(termIndex, reply);
+    server.getState().notifyTeamIndex(termIndex);
   }
 
   TransactionContext getTransactionContext(TermIndex termIndex) {
