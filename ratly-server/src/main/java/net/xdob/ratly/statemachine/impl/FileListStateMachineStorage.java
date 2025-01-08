@@ -1,14 +1,13 @@
 package net.xdob.ratly.statemachine.impl;
 
-import static net.xdob.ratly.util.MD5FileUtil.MD5_SUFFIX;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.statemachine.SnapshotRetentionPolicy;
 import net.xdob.ratly.statemachine.StateMachineStorage;
-import com.google.common.annotations.VisibleForTesting;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.MD5FileUtil;
@@ -20,24 +19,22 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.nio.file.Paths;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 用于管理存储在单个文件中的状态机快照。
- * 该类提供了多种操作，包括获取、更新和清理快照文件。
- * 它的设计思路是将每个快照存储为一个单独的文件，并提供清理和管理旧快照的机制。
- */
-public class SimpleStateMachineStorage implements StateMachineStorage {
+import static net.xdob.ratly.util.MD5FileUtil.MD5_SUFFIX;
 
-  private static final Logger LOG = LoggerFactory.getLogger(SimpleStateMachineStorage.class);
+/**
+ * 用于管理存储在多个文件中的状态机快照。
+ * 该类提供了多种操作，包括获取、更新和清理快照文件。
+ * 它的设计思路是将每个快照存储为多个文件，并提供清理和管理旧快照的机制。
+ */
+public class FileListStateMachineStorage implements StateMachineStorage {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FileListStateMachineStorage.class);
   /**
    * 快照文件的前缀名
    */
@@ -51,12 +48,14 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
    * snapshot.term_index
    */
   public static final Pattern SNAPSHOT_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)" + SNAPSHOT_FILE_SUFFIX);
+      Pattern.compile("(\\d+)_(\\d+)_(.*)" + SNAPSHOT_FILE_SUFFIX);
   /**
    * 用于匹配包含 MD5 校验的快照文件名的正则表达式
    */
   public static final Pattern SNAPSHOT_MD5_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)" + SNAPSHOT_FILE_SUFFIX + MD5_SUFFIX);
+      Pattern.compile("(\\d+)_(\\d+)_(.*)" + SNAPSHOT_FILE_SUFFIX + MD5_SUFFIX);
+
+
   /**
    * 过滤器，用于在目录中查找符合 MD5 校验规则的文件。
    */
@@ -73,7 +72,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   /**
    * 使用 AtomicReference 存储最新的快照信息，确保线程安全。
    */
-  private final AtomicReference<SingleFileSnapshotInfo> latestSnapshot = new AtomicReference<>();
+  private final AtomicReference<FileListSnapshotInfo> latestSnapshot = new AtomicReference<>();
 
   /**
    * 初始化状态机存储目录，并尝试加载最新的快照。
@@ -95,9 +94,10 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   /**
    * 扫描指定目录下的所有文件，并根据文件名解析出符合规则的快照信息。
    */
-  static List<SingleFileSnapshotInfo> getSingleFileSnapshotInfos(Path dir) throws IOException {
-    final List<SingleFileSnapshotInfo> infos = new ArrayList<>();
+  static List<FileListSnapshotInfo> getFileListSnapshotInfos(Path dir) throws IOException {
+    final List<FileListSnapshotInfo> infos = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+      Map<TermIndex,List<FileInfo>> map = Maps.newConcurrentMap();
       for (Path path : stream) {
         final Path filename = path.getFileName();
         if (filename != null) {
@@ -105,13 +105,24 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
           if (matcher.matches()) {
             final long term = Long.parseLong(matcher.group(1));
             final long index = Long.parseLong(matcher.group(2));
-            final FileInfo fileInfo = new FileInfo(path, null); //No FileDigest here.
-            infos.add(new SingleFileSnapshotInfo(fileInfo, term, index));
+            final String module = matcher.group(3);
+            TermIndex termIndex = TermIndex.valueOf(term, index);
+            final FileInfo fileInfo = new FileInfo(path, null, module); //No FileDigest here.
+            List<FileInfo> fileInfos = map.computeIfAbsent(termIndex, k -> new ArrayList<>());
+            fileInfos.add(fileInfo);
           }
         }
       }
+      for (Map.Entry<TermIndex, List<FileInfo>> entry : map.entrySet()) {
+        infos.add(new FileListSnapshotInfo( entry.getValue(), entry.getKey()));
+      }
     }
     return infos;
+  }
+
+  public static void main(String[] args) throws IOException {
+    FileListSnapshotInfo snapshotInfo = findLatestSnapshot(Paths.get("d:/test/db/sm/"));
+    System.out.println("snapshotInfo = " + snapshotInfo);
   }
 
   /**
@@ -134,18 +145,21 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
       return;
     }
     //获取所有的快照文件信息。
-    final List<SingleFileSnapshotInfo> allSnapshotFiles = getSingleFileSnapshotInfos(stateMachineDir.toPath());
+    final List<FileListSnapshotInfo> allSnapshotFiles = getFileListSnapshotInfos(stateMachineDir.toPath());
     //按照 index 排序，保留最新的快照，删除旧的快照。
     if (allSnapshotFiles.size() > numSnapshotsRetained) {
-      allSnapshotFiles.sort(Comparator.comparing(SingleFileSnapshotInfo::getIndex).reversed());
+      allSnapshotFiles.sort(Comparator.comparing(FileListSnapshotInfo::getIndex).reversed());
       allSnapshotFiles.subList(numSnapshotsRetained, allSnapshotFiles.size())
           .stream()
-          .map(SingleFileSnapshotInfo::getFile)
-          .map(FileInfo::getPath)
-          .forEach(snapshotPath -> {
-            LOG.info("Deleting old snapshot at {}", snapshotPath.toAbsolutePath());
-            FileUtils.deletePathQuietly(snapshotPath);
-          });
+          .map(FileListSnapshotInfo::getFiles)
+          .forEach(e->e.stream()
+              .map(FileInfo::getPath)
+              .forEach(snapshotPath -> {
+                LOG.info("Deleting old snapshot at {}", snapshotPath.toAbsolutePath());
+                FileUtils.deletePathQuietly(snapshotPath);
+              })
+          );
+
       // 删除没有对应快照文件的 MD5 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
           SNAPSHOT_MD5_FILTER)) {
@@ -165,96 +179,85 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     }
   }
 
-  /**
-   * 根据快照文件的命名规则，解析出文件的 term 和 index，并返回对应的 TermIndex。
-   */
-  public static TermIndex getTermIndexFromSnapshotFile(File file) {
-    final String name = file.getName();
-    final Matcher m = SNAPSHOT_REGEX.matcher(name);
-    if (!m.matches()) {
-      throw new IllegalArgumentException("File \"" + file
-          + "\" does not match snapshot file name pattern \""
-          + SNAPSHOT_REGEX + "\"");
-    }
-    final long term = Long.parseLong(m.group(1));
-    final long index = Long.parseLong(m.group(2));
-    return TermIndex.valueOf(term, index);
-  }
+
 
   /**
    * 生成临时快照文件名。
    */
-  protected static String getTmpSnapshotFileName(long term, long endIndex) {
-    return getSnapshotFileName(term, endIndex) + AtomicFileOutputStream.TMP_EXTENSION;
+  protected static String getTmpSnapshotFileName(String module, long term, long endIndex) {
+    return getSnapshotFileName(module, term, endIndex) + AtomicFileOutputStream.TMP_EXTENSION;
   }
   /**
    * 生成损坏快照文件名。
    */
-  protected static String getCorruptSnapshotFileName(long term, long endIndex) {
-    return getSnapshotFileName(term, endIndex) + CORRUPT_SNAPSHOT_FILE_SUFFIX;
+  protected static String getCorruptSnapshotFileName(String module, long term, long endIndex) {
+    return getSnapshotFileName(module, term, endIndex) + CORRUPT_SNAPSHOT_FILE_SUFFIX;
   }
 
   /**
    * 生成对应 term 和 endIndex 的快照文件路径。
    */
-  public File getSnapshotFile(long term, long endIndex) {
+  public File getSnapshotFile(String module, long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
-    return new File(dir, getSnapshotFileName(term, endIndex));
+    return new File(dir, getSnapshotFileName(module, term, endIndex));
   }
   /**
    * 生成对应 term 和 endIndex 的临时文件路径。
    */
-  protected File getTmpSnapshotFile(long term, long endIndex) {
+  protected File getTmpSnapshotFile(String module, long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
-    return new File(dir, getTmpSnapshotFileName(term, endIndex));
+    return new File(dir, getTmpSnapshotFileName(module, term, endIndex));
   }
   /**
    * 生成对应 term 和 endIndex 的损坏文件路径。
    */
-  protected File getCorruptSnapshotFile(long term, long endIndex) {
+  protected File getCorruptSnapshotFile(String module, long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
-    return new File(dir, getCorruptSnapshotFileName(term, endIndex));
+    return new File(dir, getCorruptSnapshotFileName(module, term, endIndex));
   }
 
   /**
    * 查找目录下最新的快照文件，并返回对应的 SingleFileSnapshotInfo 对象。
    */
-  static SingleFileSnapshotInfo findLatestSnapshot(Path dir) throws IOException {
-    final Iterator<SingleFileSnapshotInfo> i = getSingleFileSnapshotInfos(dir).iterator();
+  static FileListSnapshotInfo findLatestSnapshot(Path dir) throws IOException {
+    final Iterator<FileListSnapshotInfo> i = getFileListSnapshotInfos(dir).iterator();
     if (!i.hasNext()) {
       return null;
     }
 
-    SingleFileSnapshotInfo latest = i.next();
+    FileListSnapshotInfo latest = i.next();
     while (i.hasNext()) {
-      final SingleFileSnapshotInfo info = i.next();
+      final FileListSnapshotInfo info = i.next();
       if (info.getIndex() > latest.getIndex()) {
         latest = info;
       }
     }
-
+    List<FileInfo> infos = new ArrayList<>();
     // read md5
-    final Path path = latest.getFile().getPath();
-    final MD5Hash md5 = MD5FileUtil.readStoredMd5ForFile(path.toFile());
-    final FileInfo info = new FileInfo(path, md5);
-    return new SingleFileSnapshotInfo(info, latest.getTerm(), latest.getIndex());
+    for (FileInfo file : latest.getFiles()) {
+      final Path path = file.getPath();
+      final MD5Hash md5 = MD5FileUtil.readStoredMd5ForFile(path.toFile());
+      final FileInfo info = new FileInfo(path, md5, file.getModule());
+      infos.add(info);
+    }
+    return new FileListSnapshotInfo(infos, latest.getTerm(), latest.getIndex());
   }
 
-  public SingleFileSnapshotInfo updateLatestSnapshot(SingleFileSnapshotInfo info) {
+  public FileListSnapshotInfo updateLatestSnapshot(FileListSnapshotInfo info) {
     return latestSnapshot.updateAndGet(
         previous -> previous == null || info.getIndex() > previous.getIndex()? info: previous);
   }
 
-  public static String getSnapshotFileName(long term, long endIndex) {
-    return term + "_" + endIndex + SNAPSHOT_FILE_SUFFIX;
+  public static String getSnapshotFileName(String module, long term, long endIndex) {
+    return term + "_" + endIndex + "_" + module + SNAPSHOT_FILE_SUFFIX;
   }
 
   /**
    * 获取当前存储中的最新快照。如果已有缓存，则直接返回缓存中的快照信息，否则加载最新的快照。
    */
   @Override
-  public SingleFileSnapshotInfo getLatestSnapshot() {
-    final SingleFileSnapshotInfo s = latestSnapshot.get();
+  public FileListSnapshotInfo getLatestSnapshot() {
+    final FileListSnapshotInfo s = latestSnapshot.get();
     if (s != null) {
       return s;
     }
@@ -264,13 +267,14 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   /**
    * 加载最新的快照。如果目录为空或加载失败，返回 null。
    */
-  public SingleFileSnapshotInfo loadLatestSnapshot() {
+  public FileListSnapshotInfo loadLatestSnapshot() {
     final File dir = stateMachineDir;
     if (dir == null) {
       return null;
     }
     try {
-      return updateLatestSnapshot(findLatestSnapshot(dir.toPath()));
+      FileListSnapshotInfo latestSnapshot = findLatestSnapshot(dir.toPath());
+      return updateLatestSnapshot(latestSnapshot);
     } catch (IOException ignored) {
       return null;
     }

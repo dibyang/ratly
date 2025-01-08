@@ -1,4 +1,4 @@
-package net.xdob.ratly.jdbc;
+package net.xdob.ratly.statemachine.impl;
 
 
 public interface LeaderChangedListener {

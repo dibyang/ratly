@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
@@ -261,6 +262,8 @@ public class FSTConfiguration {
                 {"float[]", "[F"}
         });
         res.registerSerializer( BigDecimal.class, new FSTJSonSerializers.BigDecSerializer(), true );
+        //添加自定义序列化实现器
+        res.registerSerializer( Timestamp.class, new FSTJSonSerializers.TimestampSerializer(), true );
         return res;
     }
 
@@ -317,10 +320,11 @@ public class FSTConfiguration {
 
     private static FSTConfiguration constructJsonConf(boolean prettyPrint, boolean shareReferences, ConcurrentHashMap<FieldKey, FSTClazzInfo.FSTFieldInfo> shared) {
         final FSTConfiguration conf = createMinBinConfiguration(shared);
-
+        conf.setCrossPlatform(false);
         FSTSerializerRegistry reg = conf.serializationInfoRegistry.getSerializerRegistry();
         reg.putSerializer(FSTJSonUnmodifiableCollectionSerializer.UNMODIFIABLE_COLLECTION_CLASS, new FSTJSonUnmodifiableCollectionSerializer(), true);
         reg.putSerializer(FSTJSonUnmodifiableMapSerializer.UNMODIFIABLE_MAP_CLASS, new FSTJSonUnmodifiableMapSerializer(), false);
+
 
         conf.type = prettyPrint ? ConfType.JSONPRETTY : ConfType.JSON;
         JsonFactory fac;

@@ -3,6 +3,8 @@ package net.xdob.ratly.statemachine.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
@@ -36,6 +38,12 @@ public class FileListSnapshotInfo implements SnapshotInfo {
   @Override
   public List<FileInfo> getFiles() {
     return files;
+  }
+
+  @Override
+  public List<FileInfo> getFiles(String module) {
+    return files.stream().filter(e-> Objects.equals(module,e.getModule()))
+        .collect(Collectors.toList());
   }
 
   @Override

@@ -1,6 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
 import net.xdob.ratly.fasts.serialization.FSTConfiguration;
+import net.xdob.ratly.jdbc.DBSMPlugin;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
@@ -54,8 +55,12 @@ public class JdbcStatement implements Statement {
 
   protected QueryReplyProto sendQueryRequest(QueryRequestProto queryRequest) throws SQLException {
     try {
+      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg(queryRequest.toByteString())
+          .build();
       RaftClientReply reply =
-          sqlClient.getClient().io().sendReadOnly(Message.valueOf(queryRequest));
+          sqlClient.getClient().io().sendReadOnly(Message.valueOf(msgProto));
       return QueryReplyProto.parseFrom(reply.getMessage().getContent());
     } catch (IOException e) {
       throw new SQLException(e);
@@ -150,8 +155,12 @@ public class JdbcStatement implements Statement {
   protected long sendUpdate(UpdateRequestProto updateRequest) throws SQLException {
     checkClose();
     try {
+      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg(updateRequest.toByteString())
+          .build();
       RaftClientReply reply =
-          sqlClient.getClient().io().send(Message.valueOf(updateRequest));
+          sqlClient.getClient().io().send(Message.valueOf(msgProto));
       UpdateReplyProto updateReply = UpdateReplyProto.parseFrom(reply.getMessage().getContent());
       if(!updateReply.hasEx()) {
         sqlClient.addAndGetUpdateCount(1);
@@ -167,8 +176,12 @@ public class JdbcStatement implements Statement {
   protected long[] sendUpdateBatch(UpdateRequestProto updateRequest) throws SQLException {
     checkClose();
     try {
+      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg(updateRequest.toByteString())
+          .build();
       RaftClientReply reply =
-          sqlClient.getClient().io().send(Message.valueOf(updateRequest));
+          sqlClient.getClient().io().send(Message.valueOf(msgProto));
       UpdateReplyProto updateReply = UpdateReplyProto.parseFrom(reply.getMessage().getContent());
       if(!updateReply.hasEx()) {
         if(updateRequest.getBatchSqlCount()>0) {

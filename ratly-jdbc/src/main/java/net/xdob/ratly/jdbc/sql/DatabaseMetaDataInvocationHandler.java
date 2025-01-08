@@ -2,6 +2,7 @@ package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
+import net.xdob.ratly.jdbc.DBSMPlugin;
 import net.xdob.ratly.jdbc.Version;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.Message;
@@ -86,8 +87,12 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
 
   protected QueryReplyProto sendQueryRequest(QueryRequestProto queryRequest) throws SQLException {
     try {
+      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg(queryRequest.toByteString())
+          .build();
       RaftClientReply reply =
-          client.getClient().io().sendReadOnly(Message.valueOf(queryRequest));
+          client.getClient().io().sendReadOnly(Message.valueOf(msgProto));
       return QueryReplyProto.parseFrom(reply.getMessage().getContent());
     } catch (IOException e) {
       throw new SQLException(e);

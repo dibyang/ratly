@@ -8,7 +8,6 @@ dependencies {
     api project(':ratly-server')
     api project(':ratly-metrics-default')
     api project(':ratly-grpc')
-    api project(':ratly-fasts')
     api("net.xdob.h2db:h2db:${h2db_version}")
     api("org.apache.commons:commons-dbcp2:2.13.0")
     implementation "ch.qos.logback:logback-core:${logback_version}"

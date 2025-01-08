@@ -47,4 +47,6 @@ public interface SnapshotInfo {
    * @return a list of underlying files of this snapshot.
    */
   List<FileInfo> getFiles();
+
+  List<FileInfo> getFiles(String module);
 }

@@ -5,6 +5,10 @@ option java_generate_equals_and_hash = true;
 
 package ratly.jdbc;
 
+message WrapMsgProto{
+  string type = 1;
+  bytes msg = 2;
+}
 
 message SQLExceptionProto {
   string reason = 1;

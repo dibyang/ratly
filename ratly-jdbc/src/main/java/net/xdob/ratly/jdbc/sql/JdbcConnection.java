@@ -1,13 +1,16 @@
 package net.xdob.ratly.jdbc.sql;
 
-import com.google.protobuf.ByteString;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.grpc.GrpcFactory;
+import net.xdob.ratly.jdbc.DBSMPlugin;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.*;
+import net.xdob.ratly.retry.RetryLimited;
+import net.xdob.ratly.retry.RetryPolicies;
+import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
 
 import java.io.IOException;
@@ -18,6 +21,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JdbcConnection implements Connection {
@@ -38,6 +42,9 @@ public class JdbcConnection implements Connection {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     builder.setRaftGroup(raftGroup);
+    RetryLimited retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(3,
+        TimeDuration.ONE_SECOND);
+    builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     client = builder.build();
   }
@@ -126,8 +133,12 @@ public class JdbcConnection implements Connection {
   protected UpdateReplyProto sendUpdate(UpdateRequestProto updateRequest) throws SQLException {
     checkClose();
     try {
+      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg(updateRequest.toByteString())
+          .build();
       RaftClientReply reply =
-          client.io().send(Message.valueOf(updateRequest));
+          client.io().send(Message.valueOf(msgProto));
       UpdateReplyProto updateReply = UpdateReplyProto.parseFrom(reply.getMessage().getContent());
       if(updateReply.hasEx()) {
         throw getSQLException(updateReply.getEx());

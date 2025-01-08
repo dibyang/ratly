@@ -12,11 +12,17 @@ public class FileInfo {
   private final Path path;
   private final MD5Hash fileDigest;
   private final long fileSize;
+  private final String module;
 
-  public FileInfo(Path path, MD5Hash fileDigest) {
+  public FileInfo(Path path, MD5Hash fileDigest, String module) {
     this.path = path;
     this.fileDigest = fileDigest;
     this.fileSize = path.toFile().length();
+    this.module = module;
+  }
+
+  public FileInfo(Path path, MD5Hash fileDigest) {
+    this(path, fileDigest, null);
   }
 
   @Override
@@ -37,5 +43,13 @@ public class FileInfo {
   /** @return the size of the file. */
   public long getFileSize() {
     return fileSize;
+  }
+
+  /**
+   * 模块名
+   * @return 模块名
+   */
+  public String getModule() {
+    return module;
   }
 }
