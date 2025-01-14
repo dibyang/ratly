@@ -17,5 +17,5 @@ dependencies {
 //    implementation "io.dropwizard.metrics:metrics-jvm:${dropwizard_version}"
 //    implementation "io.dropwizard.metrics:metrics-jmx:${dropwizard_version}"
     api project(':ratly-proto')
-
+    api project(':ratly-fasts')
 }

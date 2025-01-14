@@ -26,23 +26,7 @@ import net.xdob.ratly.proto.raft.RequestVoteRequestProto;
 import net.xdob.ratly.proto.raft.RoleInfoProto;
 import net.xdob.ratly.proto.raft.StartLeaderElectionReplyProto;
 import net.xdob.ratly.proto.raft.StartLeaderElectionRequestProto;
-import net.xdob.ratly.protocol.ClientInvocationId;
-import net.xdob.ratly.protocol.GroupInfoReply;
-import net.xdob.ratly.protocol.GroupInfoRequest;
-import net.xdob.ratly.protocol.LeaderElectionManagementRequest;
-import net.xdob.ratly.protocol.Message;
-import net.xdob.ratly.protocol.RaftClientAsynchronousProtocol;
-import net.xdob.ratly.protocol.RaftClientProtocol;
-import net.xdob.ratly.protocol.RaftClientReply;
-import net.xdob.ratly.protocol.RaftClientRequest;
-import net.xdob.ratly.protocol.RaftGroup;
-import net.xdob.ratly.protocol.RaftGroupId;
-import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.protocol.RaftPeer;
-import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.protocol.SetConfigurationRequest;
-import net.xdob.ratly.protocol.SnapshotManagementRequest;
-import net.xdob.ratly.protocol.TransferLeadershipRequest;
+import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.GroupMismatchException;
 import net.xdob.ratly.protocol.exceptions.LeaderNotReadyException;
 import net.xdob.ratly.protocol.exceptions.LeaderSteppingDownException;
@@ -642,6 +626,7 @@ class RaftServerImpl implements Division,
     return new GroupInfoReply(request, getCommitInfos(), getGroup(), getRoleInfoProto(),
         dir.isHealthy(), conf, getLogInfo());
   }
+
 
   LogInfoProto getLogInfo(){
     final RaftLog log = getRaftLog();

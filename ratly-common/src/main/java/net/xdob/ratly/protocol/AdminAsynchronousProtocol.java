@@ -22,4 +22,6 @@ public interface AdminAsynchronousProtocol {
 
   CompletableFuture<RaftClientReply> transferLeadershipAsync(
       TransferLeadershipRequest request) throws IOException;
+
+  <T,R> CompletableFuture<DRpcReply<R>> invokeRpcAsync(DRpcRequest<T,R> request);
 }

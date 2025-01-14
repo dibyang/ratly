@@ -4,6 +4,7 @@ package net.xdob.ratly.client.impl;
 import net.xdob.ratly.client.DataStreamClient;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.client.RaftClientRpc;
+import net.xdob.ratly.client.api.DRpcApi;
 import net.xdob.ratly.client.api.DataStreamApi;
 import net.xdob.ratly.client.api.LeaderElectionManagementApi;
 import net.xdob.ratly.client.api.SnapshotManagementApi;
@@ -174,6 +175,7 @@ public final class RaftClientImpl implements RaftClient {
   private final ConcurrentMap<RaftPeerId, SnapshotManagementApi> snapshotManagement = new ConcurrentHashMap<>();
   private final ConcurrentMap<RaftPeerId, LeaderElectionManagementApi>
       leaderElectionManagement = new ConcurrentHashMap<>();
+  private final ConcurrentMap<RaftPeerId, DRpcApiImpl> dRpcApi = new ConcurrentHashMap<>();
 
   private final AtomicBoolean closed = new AtomicBoolean();
 
@@ -305,6 +307,11 @@ public final class RaftClientImpl implements RaftClient {
   @Override
   public LeaderElectionManagementApi getLeaderElectionManagementApi(RaftPeerId server) {
     return leaderElectionManagement.computeIfAbsent(server, id -> new LeaderElectionManagementImpl(id, this));
+  }
+
+  @Override
+  public DRpcApi getDRpcApiApi(RaftPeerId server) {
+    return dRpcApi.computeIfAbsent(server, id -> new DRpcApiImpl(id, this));
   }
 
   @Override

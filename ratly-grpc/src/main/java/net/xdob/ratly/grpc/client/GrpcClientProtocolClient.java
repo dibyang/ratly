@@ -8,17 +8,7 @@ import net.xdob.ratly.grpc.GrpcConfigKeys;
 import net.xdob.ratly.grpc.GrpcTlsConfig;
 import net.xdob.ratly.grpc.GrpcUtil;
 import net.xdob.ratly.grpc.metrics.intercept.client.MetricClientInterceptor;
-import net.xdob.ratly.proto.raft.GroupInfoReplyProto;
-import net.xdob.ratly.proto.raft.GroupInfoRequestProto;
-import net.xdob.ratly.proto.raft.GroupListReplyProto;
-import net.xdob.ratly.proto.raft.GroupListRequestProto;
-import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
-import net.xdob.ratly.proto.raft.LeaderElectionManagementRequestProto;
-import net.xdob.ratly.proto.raft.RaftClientReplyProto;
-import net.xdob.ratly.proto.raft.RaftClientRequestProto;
-import net.xdob.ratly.proto.raft.SetConfigurationRequestProto;
-import net.xdob.ratly.proto.raft.SnapshotManagementRequestProto;
-import net.xdob.ratly.proto.raft.TransferLeadershipRequestProto;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.proto.grpc.AdminProtocolServiceGrpc;
 import net.xdob.ratly.proto.grpc.AdminProtocolServiceGrpc.AdminProtocolServiceBlockingStub;
 import net.xdob.ratly.proto.grpc.RaftClientProtocolServiceGrpc;
@@ -169,6 +159,12 @@ public class GrpcClientProtocolClient implements Closeable {
     return adminBlockingStub
         .withDeadlineAfter(requestTimeoutDuration.getDuration(), requestTimeoutDuration.getUnit())
         .groupInfo(request);
+  }
+
+  DRpcReplyProto invokeRpc(DRpcRequestProto request) {
+    return adminBlockingStub
+        .withDeadlineAfter(requestTimeoutDuration.getDuration(), requestTimeoutDuration.getUnit())
+        .invokeRpc(request);
   }
 
   RaftClientReplyProto setConfiguration(

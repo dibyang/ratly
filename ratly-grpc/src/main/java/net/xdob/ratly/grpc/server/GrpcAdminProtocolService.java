@@ -1,16 +1,11 @@
 package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
+import net.xdob.ratly.client.impl.FastsImpl;
+import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.grpc.GrpcUtil;
 import net.xdob.ratly.proto.raft.*;
-import net.xdob.ratly.protocol.AdminAsynchronousProtocol;
-import net.xdob.ratly.protocol.GroupInfoRequest;
-import net.xdob.ratly.protocol.GroupListRequest;
-import net.xdob.ratly.protocol.GroupManagementRequest;
-import net.xdob.ratly.protocol.LeaderElectionManagementRequest;
-import net.xdob.ratly.protocol.SetConfigurationRequest;
-import net.xdob.ratly.protocol.SnapshotManagementRequest;
-import net.xdob.ratly.protocol.TransferLeadershipRequest;
+import net.xdob.ratly.protocol.*;
 import io.grpc.stub.StreamObserver;
 import net.xdob.ratly.proto.raft.RaftClientReplyProto;
 import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
@@ -18,9 +13,22 @@ import net.xdob.ratly.proto.grpc.AdminProtocolServiceGrpc.AdminProtocolServiceIm
 
 public class GrpcAdminProtocolService extends AdminProtocolServiceImplBase {
   private final AdminAsynchronousProtocol protocol;
+  private final FastsImpl fasts = new FastsImpl();
 
   public GrpcAdminProtocolService(AdminAsynchronousProtocol protocol) {
     this.protocol = protocol;
+  }
+
+
+  @Override
+  public void invokeRpc(DRpcRequestProto proto, StreamObserver<DRpcReplyProto> responseObserver) {
+    try {
+      DRpcRequest<Object, Object> request = ClientProtoUtils.toDRpcRequest(proto, fasts);
+      GrpcUtil.asyncCall(responseObserver, () -> protocol.invokeRpcAsync(request),
+          r->ClientProtoUtils.toDRpcReplyProto(r, fasts));
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

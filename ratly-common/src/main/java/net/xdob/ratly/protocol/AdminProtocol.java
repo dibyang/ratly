@@ -21,4 +21,6 @@ public interface AdminProtocol {
   RaftClientReply setConfiguration(SetConfigurationRequest request) throws IOException;
 
   RaftClientReply transferLeadership(TransferLeadershipRequest request) throws IOException;
+
+  <T,R> DRpcReply<R> invokeRpc(DRpcRequest<T,R> request) throws IOException;
 }

@@ -2,51 +2,8 @@
 package net.xdob.ratly.client.impl;
 
 import net.xdob.ratly.datastream.impl.DataStreamReplyByteBuffer;
-import net.xdob.ratly.proto.raft.AlreadyClosedExceptionProto;
-import net.xdob.ratly.proto.raft.ClientMessageEntryProto;
-import net.xdob.ratly.proto.raft.GroupAddRequestProto;
-import net.xdob.ratly.proto.raft.GroupInfoReplyProto;
-import net.xdob.ratly.proto.raft.GroupInfoRequestProto;
-import net.xdob.ratly.proto.raft.GroupListReplyProto;
-import net.xdob.ratly.proto.raft.GroupListRequestProto;
-import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
-import net.xdob.ratly.proto.raft.GroupRemoveRequestProto;
-import net.xdob.ratly.proto.raft.LeaderElectionManagementRequestProto;
-import net.xdob.ratly.proto.raft.LeaderElectionPauseRequestProto;
-import net.xdob.ratly.proto.raft.LeaderElectionResumeRequestProto;
-import net.xdob.ratly.proto.raft.LeaderNotReadyExceptionProto;
-import net.xdob.ratly.proto.raft.NotLeaderExceptionProto;
-import net.xdob.ratly.proto.raft.NotReplicatedExceptionProto;
-import net.xdob.ratly.proto.raft.RaftClientReplyProto;
-import net.xdob.ratly.proto.raft.RaftClientRequestProto;
-import net.xdob.ratly.proto.raft.RaftPeerRole;
-import net.xdob.ratly.proto.raft.RaftRpcReplyProto;
-import net.xdob.ratly.proto.raft.RaftRpcRequestProto;
-import net.xdob.ratly.proto.raft.RouteProto;
-import net.xdob.ratly.proto.raft.SetConfigurationRequestProto;
-import net.xdob.ratly.proto.raft.SnapshotCreateRequestProto;
-import net.xdob.ratly.proto.raft.SnapshotManagementRequestProto;
-import net.xdob.ratly.proto.raft.StateMachineExceptionProto;
-import net.xdob.ratly.proto.raft.TransferLeadershipRequestProto;
-import net.xdob.ratly.protocol.ClientId;
-import net.xdob.ratly.protocol.DataStreamReply;
-import net.xdob.ratly.protocol.GroupInfoReply;
-import net.xdob.ratly.protocol.GroupInfoRequest;
-import net.xdob.ratly.protocol.GroupListReply;
-import net.xdob.ratly.protocol.GroupListRequest;
-import net.xdob.ratly.protocol.GroupManagementRequest;
-import net.xdob.ratly.protocol.LeaderElectionManagementRequest;
-import net.xdob.ratly.protocol.Message;
-import net.xdob.ratly.protocol.RaftClientReply;
-import net.xdob.ratly.protocol.RaftClientRequest;
-import net.xdob.ratly.protocol.RaftGroupId;
-import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.protocol.RaftPeer;
-import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.protocol.RoutingTable;
-import net.xdob.ratly.protocol.SetConfigurationRequest;
-import net.xdob.ratly.protocol.SnapshotManagementRequest;
-import net.xdob.ratly.protocol.TransferLeadershipRequest;
+import net.xdob.ratly.proto.raft.*;
+import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.AlreadyClosedException;
 import net.xdob.ratly.protocol.exceptions.DataStreamException;
 import net.xdob.ratly.protocol.exceptions.LeaderNotReadyException;
@@ -63,6 +20,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.util.ProtoUtils;
 import net.xdob.ratly.util.ReflectionUtils;
+import net.xdob.ratly.util.function.SerialFunction;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -500,6 +458,16 @@ public interface ClientProtoUtils {
         replyProto.getLogInfo());
   }
 
+  static <R> DRpcReply<R> toDRpcReply(DRpcReplyProto replyProto, SerialSupport serialSupport) {
+    final RaftRpcReplyProto rpc = replyProto.getRpcReply();
+    return new DRpcReply<R>(ClientId.valueOf(rpc.getRequestorId()),
+        RaftPeerId.valueOf(rpc.getReplyId()),
+        ProtoUtils.toRaftGroupId(rpc.getRaftGroupId()),
+        rpc.getCallId(),
+        (R)serialSupport.asObject(replyProto.getData()),
+        (Exception) serialSupport.asObject(replyProto.getEx()));
+  }
+
   static Message toMessage(final ClientMessageEntryProto p) {
     return Message.valueOf(p.getContent());
   }
@@ -599,6 +567,41 @@ public interface ClientProtoUtils {
     }
   }
 
+  static <T> BeanTarget<T> toBeanTarget(BeanTargetProto proto) throws ClassNotFoundException {
+    if(proto!=null){
+      Class<T> aClass = (Class<T>)Class.forName(proto.getClassName());
+      return BeanTarget.valueOf(aClass, proto.getBeanName());
+    }
+    return null;
+  }
+
+  static <T,R> DRpcRequest<T,R> toDRpcRequest(
+      DRpcRequestProto p, SerialSupport serialSupport) throws ClassNotFoundException {
+    final RaftRpcRequestProto m = p.getRpcRequest();
+
+    SerialFunction<T,R> fun = serialSupport.as(p.getFun());
+    return new DRpcRequest<T,R>(
+        ClientId.valueOf(m.getRequestorId()),
+        RaftPeerId.valueOf(m.getReplyId()),
+        ProtoUtils.toRaftGroupId(m.getRaftGroupId()),
+        m.getCallId(),
+        toBeanTarget(p.getBeanTarget()),
+        fun);
+  }
+
+  static <R> DRpcReplyProto toDRpcReplyProto(DRpcReply<R> reply, SerialSupport serialSupport) {
+    final DRpcReplyProto.Builder b =
+        DRpcReplyProto.newBuilder();
+    if (reply != null) {
+      b.setRpcReply(toRaftRpcReplyProtoBuilder(reply.getClientId().toByteString(),
+          reply.getServerId().toByteString(), reply.getRaftGroupId(),
+          reply.getCallId(), reply.isSuccess()));
+      b.setEx(serialSupport.asByteString(reply.getEx()));
+      b.setData(serialSupport.asByteString(reply.getData()));
+    }
+    return b.build();
+  }
+
   static GroupInfoRequest toGroupInfoRequest(
       GroupInfoRequestProto p) {
     final RaftRpcRequestProto m = p.getRpcRequest();
@@ -695,6 +698,31 @@ public interface ClientProtoUtils {
       b.setResume(LeaderElectionResumeRequestProto.newBuilder().build());
     }
     return b.build();
+  }
+
+
+  static <T,R> DRpcRequestProto toDRpcRequestProto(
+      DRpcRequest<T,R> request, SerialSupport serialSupport) {
+    DRpcRequestProto.Builder builder = DRpcRequestProto.newBuilder()
+        .setRpcRequest(toRaftRpcRequestProtoBuilder(request));
+    BeanTargetProto beanTargetProto = toBeanTargetProto(request.getTarget());
+    if(beanTargetProto !=null){
+      builder.setBeanTarget(beanTargetProto);
+    }
+    builder.setFun(serialSupport.asByteString(request.getFun()));
+    return builder.build();
+  }
+
+  static <T> BeanTargetProto toBeanTargetProto(BeanTarget<T> target) {
+    if(target==null){
+      return null;
+    }
+    BeanTargetProto.Builder builder = BeanTargetProto.newBuilder()
+        .setClassName(target.getClazz().getName());
+    if(target.getBeanName()!=null){
+      builder.setBeanName(target.getBeanName());
+    }
+    return builder.build();
   }
 
   static GroupInfoRequestProto toGroupInfoRequestProto(

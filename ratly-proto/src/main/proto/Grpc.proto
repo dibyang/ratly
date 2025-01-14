@@ -67,4 +67,7 @@ service AdminProtocolService {
   // 查询指定组的信息。
   rpc groupInfo(ratly.raft.GroupInfoRequestProto)
       returns(ratly.raft.GroupInfoReplyProto) {}
+  // 指定节点的远程调用。
+  rpc invokeRpc(ratly.raft.DRpcRequestProto)
+      returns(ratly.raft.DRpcReplyProto) {}
 }

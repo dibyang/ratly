@@ -2,15 +2,8 @@
 package net.xdob.ratly.client;
 
 import net.xdob.ratly.RaftConfigKeys;
+import net.xdob.ratly.client.api.*;
 import net.xdob.ratly.protocol.*;
-import net.xdob.ratly.client.api.AdminApi;
-import net.xdob.ratly.client.api.AsyncApi;
-import net.xdob.ratly.client.api.BlockingApi;
-import net.xdob.ratly.client.api.DataStreamApi;
-import net.xdob.ratly.client.api.GroupManagementApi;
-import net.xdob.ratly.client.api.LeaderElectionManagementApi;
-import net.xdob.ratly.client.api.MessageStreamApi;
-import net.xdob.ratly.client.api.SnapshotManagementApi;
 import net.xdob.ratly.client.impl.ClientImplUtils;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
@@ -54,6 +47,11 @@ public interface RaftClient extends Closeable {
 
   /** Get the {@link LeaderElectionManagementApi} for the given server. */
   LeaderElectionManagementApi getLeaderElectionManagementApi(RaftPeerId server);
+
+  /**
+   * 获取DRpcApi
+   */
+  DRpcApi getDRpcApiApi(RaftPeerId server);
 
   /** @return the {@link BlockingApi}. */
   BlockingApi io();

@@ -4,8 +4,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Objects;
 
+import com.google.common.collect.Lists;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.protocol.AdminAsynchronousProtocol;
@@ -33,7 +35,8 @@ import org.slf4j.LoggerFactory;
 public interface RaftServer extends Closeable, RpcType.Get,
     RaftServerProtocol, RaftServerAsynchronousProtocol,
     RaftClientProtocol, RaftClientAsynchronousProtocol,
-    AdminProtocol, AdminAsynchronousProtocol {
+    AdminProtocol, AdminAsynchronousProtocol,
+    BeansFactory{
   Logger LOG = LoggerFactory.getLogger(RaftServer.class);
 
   /**
@@ -150,18 +153,32 @@ public interface RaftServer extends Closeable, RpcType.Get,
     private RaftProperties properties;
     private Parameters parameters;
     private ThreadGroup threadGroup;
+    private final List<BeanFinder> beanFinders = Lists.newCopyOnWriteArrayList();
+
 
     /** @return a {@link RaftServer} object. */
     public RaftServer build() throws IOException {
-      return newRaftServer(
+      RaftServer raftServer = newRaftServer(
           serverId,
           group,
           option,
-          Objects.requireNonNull(stateMachineRegistry , "Neither 'stateMachine' nor 'setStateMachineRegistry' " +
+          Objects.requireNonNull(stateMachineRegistry, "Neither 'stateMachine' nor 'setStateMachineRegistry' " +
               "is initialized."),
           threadGroup,
           Objects.requireNonNull(properties, "The 'properties' field is not initialized."),
           parameters);
+      beanFinders.forEach(e->raftServer.addBeanFinder(e));
+      return raftServer;
+    }
+
+    public Builder addBeanFinder(BeanFinder beanFinder){
+      beanFinders.add(beanFinder);
+      return this;
+    }
+
+    public Builder removeBeanFinder(BeanFinder beanFinder){
+      beanFinders.remove(beanFinder);
+      return this;
     }
 
     /** Set the server ID. */

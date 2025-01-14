@@ -43,6 +43,8 @@ message RaftNettyServerRequestProto {
     ratly.raft.SnapshotManagementRequestProto snapshotManagementRequest = 11;
     // 管理领导者选举（例如暂停或恢复选举）请求。
     ratly.raft.LeaderElectionManagementRequestProto leaderElectionManagementRequest = 12;
+    // DRpc请求。
+    ratly.raft.DRpcRequestProto dRpcRequest = 20;
   }
 }
 
@@ -66,5 +68,6 @@ message RaftNettyServerReplyProto {
     RaftNettyExceptionReplyProto exceptionReply = 7;
     // 领导者选举请求的回复。
     ratly.raft.StartLeaderElectionReplyProto startLeaderElectionReply = 8;
+    ratly.raft.DRpcReplyProto dRpcReply = 20;
   }
 }

@@ -1,13 +1,11 @@
 package net.xdob.ratly.netty.server;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
+import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.netty.NettyConfigKeys;
 import net.xdob.ratly.netty.NettyRpcProxy;
 import net.xdob.ratly.netty.NettyUtils;
-import net.xdob.ratly.protocol.GroupInfoReply;
-import net.xdob.ratly.protocol.GroupListReply;
-import net.xdob.ratly.protocol.RaftClientReply;
-import net.xdob.ratly.protocol.RaftPeerId;
+import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.rpc.SupportedRpcType;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.RaftServerRpcWithProxy;
@@ -69,6 +67,8 @@ public final class NettyRpcService extends RaftServerRpcWithProxy<NettyRpcProxy,
   private final EventLoopGroup workerGroup;
   private final MemoizedSupplier<ChannelFuture> channel;
   private final InetSocketAddress socketAddress;
+
+  private final FastsImpl fasts = new FastsImpl();
 
   @ChannelHandler.Sharable
   class InboundHandler extends SimpleChannelInboundHandler<RaftNettyServerRequestProto> {
@@ -271,6 +271,20 @@ public final class NettyRpcService extends RaftServerRpcWithProxy<NettyRpcProxy,
           return RaftNettyServerReplyProto.newBuilder()
               .setGroupInfoReply(ClientProtoUtils.toGroupInfoReplyProto(groupInfoReply))
               .build();
+
+        case DRPCREQUEST:
+          final DRpcRequestProto dRpcRequestProto = proto.getDRpcRequest();
+          rpcRequest = dRpcRequestProto.getRpcRequest();
+          DRpcReply dRpcReply;
+          try{
+            DRpcRequest dRpcRequest = ClientProtoUtils.toDRpcRequest(dRpcRequestProto, fasts);
+            dRpcReply = server.invokeRpc(dRpcRequest);
+            return RaftNettyServerReplyProto.newBuilder()
+                .setDRpcReply(ClientProtoUtils.toDRpcReplyProto(dRpcReply, fasts))
+                .build();
+          }catch(ClassNotFoundException e){
+            throw new IOException("class not find.", e);
+          }
 
         case RAFTNETTYSERVERREQUEST_NOT_SET:
           throw new IllegalArgumentException("Request case not set in proto: "

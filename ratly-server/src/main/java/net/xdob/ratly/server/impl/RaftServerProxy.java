@@ -1,5 +1,6 @@
 package net.xdob.ratly.server.impl;
 
+import com.google.common.collect.Lists;
 import net.xdob.ratly.RaftConfigKeys;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.conf.Parameters;
@@ -18,6 +19,7 @@ import net.xdob.ratly.proto.raft.StartLeaderElectionReplyProto;
 import net.xdob.ratly.proto.raft.StartLeaderElectionRequestProto;
 import net.xdob.ratly.protocol.exceptions.AlreadyClosedException;
 import net.xdob.ratly.protocol.exceptions.AlreadyExistsException;
+import net.xdob.ratly.protocol.exceptions.BeanNotFindException;
 import net.xdob.ratly.protocol.exceptions.GroupMismatchException;
 import net.xdob.ratly.rpc.RpcType;
 import net.xdob.ratly.server.*;
@@ -55,6 +57,29 @@ import java.util.stream.Stream;
 
 
 class RaftServerProxy implements RaftServer {
+  private final List<BeanFinder> beanFinders = Lists.newCopyOnWriteArrayList();
+
+  @Override
+  public <T> Optional<T> getBean(BeanTarget<T> target) {
+    for (BeanFinder beanFinder : beanFinders) {
+      T bean = beanFinder.getBean(target);
+      if(bean!=null){
+        return Optional.ofNullable(bean);
+      }
+    }
+    return Optional.empty();
+  }
+
+  @Override
+  public void addBeanFinder(BeanFinder beanFinder) {
+    beanFinders.add(beanFinder);
+  }
+
+  @Override
+  public void removeBeanFinder(BeanFinder beanFinder) {
+    beanFinders.remove(beanFinder);
+  }
+
   /**
    * A map: {@link RaftGroupId} -> {@link RaftServerImpl} futures.
    * <p>
@@ -457,6 +482,11 @@ class RaftServerProxy implements RaftServer {
   }
 
   @Override
+  public <T, R> DRpcReply<R> invokeRpc(DRpcRequest<T, R> request) throws IOException {
+    return RaftServerImpl.waitForReply(getId(), request, invokeRpcAsync(request), r -> null);
+  }
+
+  @Override
   public RaftClientReply groupManagement(GroupManagementRequest request) throws IOException {
     return RaftServerImpl.waitForReply(getId(), request, groupManagementAsync(request),
         e -> RaftClientReply.newBuilder()
@@ -614,6 +644,31 @@ class RaftServerProxy implements RaftServer {
   public CompletableFuture<RaftClientReply> transferLeadershipAsync(TransferLeadershipRequest request) {
     return getImplFuture(request.getRaftGroupId())
         .thenCompose(impl -> impl.executeSubmitServerRequestAsync(() -> impl.transferLeadershipAsync(request)));
+  }
+
+  @Override
+  public <T, R> CompletableFuture<DRpcReply<R>> invokeRpcAsync(DRpcRequest<T, R> request) {
+    return CompletableFuture.supplyAsync(()->{
+      Exception ex= null;
+      R data = null;
+      try {
+        if(request.getTarget()!=null) {
+          T bean = getBean(request.getTarget()).orElse(null);
+          if (bean != null) {
+            data = request.getFun().apply(bean);
+          } else {
+            ex = new BeanNotFindException(request.getTarget());
+          }
+        }else{
+          data = request.getFun().apply(null);
+        }
+
+      } catch (Exception e) {
+        ex = e;
+      }
+
+      return new DRpcReply<R>(request, data, ex);
+    });
   }
 
   @Override

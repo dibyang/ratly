@@ -1,6 +1,8 @@
 
 package net.xdob.ratly.grpc.client;
 
+import net.xdob.ratly.client.impl.FastsImpl;
+import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.GroupListRequest;
 import net.xdob.ratly.protocol.GroupManagementRequest;
 import net.xdob.ratly.protocol.LeaderElectionManagementRequest;
@@ -15,15 +17,6 @@ import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.AlreadyClosedException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import net.xdob.ratly.proto.raft.GroupInfoRequestProto;
-import net.xdob.ratly.proto.raft.GroupListRequestProto;
-import net.xdob.ratly.proto.raft.GroupManagementRequestProto;
-import net.xdob.ratly.proto.raft.RaftClientReplyProto;
-import net.xdob.ratly.proto.raft.RaftClientRequestProto;
-import net.xdob.ratly.proto.raft.SetConfigurationRequestProto;
-import net.xdob.ratly.proto.raft.TransferLeadershipRequestProto;
-import net.xdob.ratly.proto.raft.SnapshotManagementRequestProto;
-import net.xdob.ratly.proto.raft.LeaderElectionManagementRequestProto;
 import net.xdob.ratly.util.IOUtils;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.PeerProxyMap;
@@ -40,6 +33,7 @@ import java.util.concurrent.TimeoutException;
 public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClient> {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientRpc.class);
 
+  private final FastsImpl fasts = new FastsImpl();
   private final ClientId clientId;
   private final int maxMessageSize;
 
@@ -98,7 +92,11 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto(
           (GroupInfoRequest) request);
       return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
-    } else if (request instanceof TransferLeadershipRequest) {
+    } else if (request instanceof DRpcRequest){
+      final DRpcRequestProto proto = ClientProtoUtils.toDRpcRequestProto(
+          (DRpcRequest) request, fasts);
+      return ClientProtoUtils.toDRpcReply(proxy.invokeRpc(proto), fasts);
+    }else if (request instanceof TransferLeadershipRequest) {
       final TransferLeadershipRequestProto proto = ClientProtoUtils.toTransferLeadershipRequestProto(
           (TransferLeadershipRequest) request);
       return ClientProtoUtils.toRaftClientReply(proxy.transferLeadership(proto));

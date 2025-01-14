@@ -816,3 +816,27 @@ message LogInfoProto {
   // 最后的日志条目索引和任期。
   TermIndexProto lastEntry = 4;
 }
+
+message BeanTargetProto{
+  string className = 1;
+  string beanName = 2;
+}
+
+// 用于请求指定的远程调用。
+message DRpcRequestProto {
+  // 封装请求的元数据。
+  RaftRpcRequestProto rpcRequest = 1;
+  BeanTargetProto beanTarget = 2;
+  // 封装请求的闭包
+  bytes fun = 4;
+}
+
+// 用于响应指定的远程调用。
+message DRpcReplyProto {
+  // 封装响应的元数据。
+  RaftRpcReplyProto rpcReply = 1;
+  // 封装返回的数据
+  bytes data = 2;
+  // 封调用的异常
+  bytes ex = 3;
+}
