@@ -13,6 +13,7 @@ import net.xdob.ratly.statemachine.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.LifeCycle;
+import net.xdob.ratly.util.MemoizedSupplier;
 import net.xdob.ratly.util.Preconditions;
 
 import java.io.IOException;
@@ -81,7 +82,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
   }
 
   @Override
-  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftStorage storage) throws IOException {
+  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
     this.groupId = raftGroupId;
     this.server.complete(raftServer);
     lifeCycle.setName("" + this);
@@ -94,6 +95,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
 
   @Override
   public void pause() {
+
   }
 
   @Override

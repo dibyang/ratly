@@ -12,11 +12,17 @@ import java.util.Properties;
 
 public final class RatlyDriver extends AbstractDriver
 {
-	public static final String START_URL = "jdbc:ratly-jdbc:";
-	public static final String URL_FORMAT = START_URL+":{db}:group={group};peers={peers}";
 
 	private static final Logger logger = LoggerFactory.getLogger(RatlyDriver.class);
+	static final RatlyDriver INSTANCE = new RatlyDriver();
+	public static final String START_URL = "jdbc:ratly:";
+	public static final String URL_FORMAT = START_URL+":{db}:group={group};peers={peers}";
 
+	private static boolean registered;
+
+	static {
+		load();
+	}
 
 	@Override
 	public Connection connect(String url, Properties info) throws SQLException {
@@ -47,5 +53,31 @@ public final class RatlyDriver extends AbstractDriver
 	@Override
 	public java.util.logging.Logger getParentLogger() throws SQLFeatureNotSupportedException {
 		return null;
+	}
+
+	public static synchronized RatlyDriver load() {
+		try {
+			if (!registered) {
+				registered = true;
+				DriverManager.registerDriver(INSTANCE);
+			}
+		} catch (SQLException e) {
+			DbException.traceThrowable(e);
+		}
+		return INSTANCE;
+	}
+
+	/**
+	 * INTERNAL
+	 */
+	public static synchronized void unload() {
+		try {
+			if (registered) {
+				registered = false;
+				DriverManager.deregisterDriver(INSTANCE);
+			}
+		} catch (SQLException e) {
+			DbException.traceThrowable(e);
+		}
 	}
 }

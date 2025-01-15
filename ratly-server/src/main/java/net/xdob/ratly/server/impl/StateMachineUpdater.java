@@ -12,6 +12,7 @@ import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
+import net.xdob.ratly.statemachine.RaftLogQuery;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.SnapshotRetentionPolicy;
@@ -206,7 +207,7 @@ class StateMachineUpdater implements Runnable {
   }
 
   private void reload() throws IOException {
-    Preconditions.assertTrue(stateMachine.getLifeCycleState() == LifeCycle.State.PAUSED);
+    //Preconditions.assertTrue(state == State.RELOAD);
 
     stateMachine.reinitialize();
 
@@ -343,7 +344,7 @@ class StateMachineUpdater implements Runnable {
     this.isRemoving = true;
   }
 
-  private long getLastAppliedIndex() {
+  public long getLastAppliedIndex() {
     return appliedIndex.get();
   }
 

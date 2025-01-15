@@ -615,7 +615,7 @@ RaftServerConfigKeys {
      * log size limit (in number of log entries) that triggers the snapshot
      */
     String AUTO_TRIGGER_THRESHOLD_KEY = PREFIX + ".auto.trigger.threshold";
-    long AUTO_TRIGGER_THRESHOLD_DEFAULT = 40000L;
+    long AUTO_TRIGGER_THRESHOLD_DEFAULT = 200000L;
 
     static long autoTriggerThreshold(RaftProperties properties) {
       return ConfUtils.getLong(properties::getLong,

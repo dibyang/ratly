@@ -1,5 +1,6 @@
 package net.xdob.ratly.jdbc;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
@@ -14,8 +15,8 @@ import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.statemachine.SnapshotInfo;
+import net.xdob.ratly.statemachine.impl.BaseSMPlugin;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
-import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.MD5FileUtil;
 import org.apache.commons.dbcp2.BasicDataSource;
@@ -26,12 +27,14 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.*;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public class DBSMPlugin implements SMPlugin {
+public class DBSMPlugin extends BaseSMPlugin {
 
   public static final String DEFAULT_USER = "remote";
   public static final String DEFAULT_PASSWORD = "hhrhl2016";
@@ -41,7 +44,7 @@ public class DBSMPlugin implements SMPlugin {
   private final BasicDataSource dataSource = new BasicDataSource();
   private final String db;
   private final Map<String, Method> methodCache = Maps.newConcurrentMap();
-  private JdbcTransactionMgr jdbcTransactionMgr;
+  private TransactionMgr transactionMgr;
 
   private String username = DEFAULT_USER;
   private String password = DEFAULT_PASSWORD;
@@ -49,12 +52,8 @@ public class DBSMPlugin implements SMPlugin {
   private SMPluginContext context;
 
   public DBSMPlugin(String db) {
+    super(DB);
     this.db = db;
-  }
-
-  @Override
-  public String getId() {
-    return DB;
   }
 
   @Override
@@ -73,9 +72,9 @@ public class DBSMPlugin implements SMPlugin {
       dataSource.setUsername(username);
       dataSource.setPassword(password);
       //连接验证方式超时时间
-      dataSource.setValidationQueryTimeout(100000);
+      dataSource.setValidationQueryTimeout(Duration.ofSeconds(10));
       //连接验证方式
-      dataSource.setValidationQuery("SELECT 1");
+      //dataSource.setValidationQuery("SELECT 1");
       //创建连接的时候是否进行验证
       dataSource.setTestOnCreate(false);
       //从连接池中获取的时候验证
@@ -85,22 +84,22 @@ public class DBSMPlugin implements SMPlugin {
       //换回连接池进行验证
       dataSource.setTestOnReturn(true);
       //设置空闲连接验证时间间隔
-      dataSource.setTimeBetweenEvictionRunsMillis(-1);
+      dataSource.setDurationBetweenEvictionRuns(Duration.ofSeconds(60));
       //设置验证空闲连接的数量
       dataSource.setNumTestsPerEvictionRun(3);
       //设置空闲连接验证间隔（不生效的）
-      dataSource.setMinEvictableIdleTimeMillis(1800000);
+      dataSource.setMinEvictableIdle(Duration.ofSeconds(600));
       //初始化连接数量
       dataSource.setInitialSize(4);
       //最大连接数量
-      dataSource.setMaxTotal(6);
+      dataSource.setMaxTotal(16);
       //设置默认超时时间
-      dataSource.setDefaultQueryTimeout(6);
+      dataSource.setDefaultQueryTimeout(Duration.ofSeconds(10));
 
-      this.jdbcTransactionMgr = new DefaultJdbcTransactionMgr();
+      this.transactionMgr = new DefaultTransactionMgr();
 
       context.getScheduler().scheduleAtFixedRate(()->{
-        jdbcTransactionMgr.checkTimeoutTx();
+        transactionMgr.checkTimeoutTx();
       },10, 10, TimeUnit.SECONDS);
     } catch (SQLException e) {
       throw new RuntimeException("Failed to initialize H2 database", e);
@@ -117,9 +116,8 @@ public class DBSMPlugin implements SMPlugin {
     QueryReplyProto.Builder builder = QueryReplyProto.newBuilder();
     try {
       QueryRequestProto queryRequest = QueryRequestProto.parseFrom(request.getContent());
-
       String tx = queryRequest.getTx();
-      Connection conn = jdbcTransactionMgr.getConnection(tx);
+      Connection conn = transactionMgr.getConnection(tx);
       if(conn==null){
         try (Connection connection = dataSource.getConnection()) {
           query(queryRequest, connection, builder);
@@ -275,19 +273,23 @@ public class DBSMPlugin implements SMPlugin {
       if(tx.isEmpty()) {
         try (Connection connection = dataSource.getConnection()) {
           executeUpdate(updateRequest, connection, builder);
+          updateAppliedIndexToMax(termIndex.getIndex());
         } catch (SQLException e) {
           builder.setEx(getSqlExceptionProto(e));
         }
       }else {
-        jdbcTransactionMgr.initializeTx(tx, dataSource::getConnection);
+        transactionMgr.initializeTx(tx, dataSource::getConnection);
         applyLog(updateRequest, builder);
-        if (!UpdateType.commit.equals(updateRequest.getType())
-            &&!UpdateType.rollback.equals(updateRequest.getType()))
+        if (UpdateType.commit.equals(updateRequest.getType())
+            ||UpdateType.rollback.equals(updateRequest.getType()))
         {
-          jdbcTransactionMgr.addIndex(tx, termIndex.getIndex());
+          //事务完成更新插件事务阶段性索引
+          updateAppliedIndexToMax(termIndex.getIndex());
+        }else{
+          transactionMgr.addIndex(tx, termIndex.getIndex());
         }
       }
-      context.updateLastAppliedTermIndex2(termIndex);
+
     } catch (InvalidProtocolBufferException e) {
       LOG.warn("", e);
     } catch (SQLException e) {
@@ -296,31 +298,34 @@ public class DBSMPlugin implements SMPlugin {
     return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
   }
 
+
+
+
   private void applyLog(UpdateRequestProto updateRequest, UpdateReplyProto.Builder builder) throws SQLException {
     String tx = updateRequest.getTx();
     if(UpdateType.execute.equals(updateRequest.getType())){
       try {
-        Connection connection = jdbcTransactionMgr.getConnection(tx);
+        Connection connection = transactionMgr.getConnection(tx);
         executeUpdate(updateRequest, connection, builder);
       } catch (SQLException e) {
         builder.setEx(getSqlExceptionProto(e));
       }
     }else if(UpdateType.commit.equals(updateRequest.getType())){
-      jdbcTransactionMgr.commit(tx);
+      transactionMgr.commit(tx);
     }else if(UpdateType.rollback.equals(updateRequest.getType())){
-      jdbcTransactionMgr.rollback(tx);
+      transactionMgr.rollback(tx);
     }else if(UpdateType.savepoint.equals(updateRequest.getType())){
       String name = updateRequest.getSql();
-      Savepoint savepoint = jdbcTransactionMgr.setSavepoint(tx, name);
+      Savepoint savepoint = transactionMgr.setSavepoint(tx, name);
       builder.setSavepoint(SavepointProto.newBuilder()
           .setId(savepoint.getSavepointId())
           .setName(savepoint.getSavepointName()).build());
     }else if(UpdateType.releaseSavepoint.equals(updateRequest.getType())){
       SavepointProto savepoint = updateRequest.getSavepoint();
-      jdbcTransactionMgr.releaseSavepoint(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
+      transactionMgr.releaseSavepoint(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
     }else if(UpdateType.rollbackSavepoint.equals(updateRequest.getType())){
       SavepointProto savepoint = updateRequest.getSavepoint();
-      jdbcTransactionMgr.rollback(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
+      transactionMgr.rollback(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
     }
   }
 
@@ -386,8 +391,9 @@ public class DBSMPlugin implements SMPlugin {
 
   @Override
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     final File snapshotFile =  storage.getSnapshotFile(DB, last.getTerm(), last.getIndex());
-    LOG.info("Taking a snapshot to file {}", snapshotFile);
+    LOG.info("Taking a DB snapshot to file {}", snapshotFile);
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
       statement.execute("SCRIPT DROP TO '" + snapshotFile.toString() + "'");
@@ -396,7 +402,9 @@ public class DBSMPlugin implements SMPlugin {
     }
     final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
     final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
-    return Lists.newArrayList(info);
+    ArrayList<FileInfo> fileInfos = Lists.newArrayList(info);
+    LOG.info("Taking a DB snapshot use time: {}", stopwatch);
+    return fileInfos;
   }
 
   @Override
@@ -406,11 +414,12 @@ public class DBSMPlugin implements SMPlugin {
     }
     List<FileInfo> files = snapshot.getFiles(DB);
     if(!files.isEmpty()) {
+      Stopwatch stopwatch = Stopwatch.createStarted();
       FileInfo fileInfo = files.get(0);
       final File snapshotFile = fileInfo.getPath().toFile();
       final String snapshotFileName = snapshotFile.getPath();
-      LOG.info("restore db snapshot from {}", snapshotFileName);
-      final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
+      LOG.info("restore DB snapshot from {}", snapshotFileName);
+      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
       if (md5.equals(fileInfo.getFileDigest())) {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
@@ -419,8 +428,10 @@ public class DBSMPlugin implements SMPlugin {
           throw new IOException(e);
         }
       }
+      LOG.info("restore DB snapshot use time: {}", stopwatch);
     }
   }
+
 
   @Override
   public void close() throws IOException {

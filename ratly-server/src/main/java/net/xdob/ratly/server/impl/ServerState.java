@@ -5,6 +5,7 @@ import net.xdob.onlooker.MessageToken;
 import net.xdob.onlooker.OnlookerClient;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.server.storage.RaftStorageMetadata;
 import net.xdob.ratly.conf.RaftProperties;
@@ -22,36 +23,27 @@ import net.xdob.ratly.server.storage.*;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.server.util.SignHelper;
+import net.xdob.ratly.statemachine.RaftLogQuery;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.TransactionContext;
 import net.xdob.ratly.util.*;
 
 import java.io.IOException;
-import java.lang.ref.Reference;
-import java.lang.ref.SoftReference;
-import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 import static net.xdob.ratly.server.Division.LOG;
 
 /**
  * Common states of a raft peer. Protected by RaftServer's lock.
  */
-class ServerState {
+class ServerState implements RaftLogQuery {
   private final RaftGroupMemberId memberId;
   private final RaftServerImpl server;
   /** Raft log */
@@ -138,10 +130,10 @@ class ServerState {
     // read configuration from the storage
     Optional.ofNullable(storage.readRaftConfiguration()).ifPresent(this::setRaftConf);
 
-    stateMachine.initialize(server.getRaftServer(), getMemberId().getGroupId(), storage);
+    stateMachine.initialize(server.getRaftServer(), getMemberId().getGroupId(), storage,
+        JavaUtils.memoize(()->this));
 
-    // we cannot apply log entries to the state machine in this step, since we
-    // do not know whether the local log entries have been committed.
+    // 在此步骤中，我们无法将日志条目应用于状态机，因为我们不知道本地日志是否已经提交。
     final RaftStorageMetadata metadata = log.get().loadMetadata();
     currentTerm.set(metadata.getTerm());
     votedFor = metadata.getVotedFor();
@@ -529,8 +521,33 @@ class ServerState {
     return Math.max(logNextIndex, snapshotNextIndex);
   }
 
-  long getLastAppliedIndex() {
+  public long getLastAppliedIndex() {
     return getStateMachineUpdater().getStateMachineLastAppliedIndex();
+  }
+
+  @Override
+  public TermIndex getTermIndex(long index) {
+    return log.get().getTermIndex(index);
+  }
+
+  @Override
+  public LogEntryProto get(long index) throws RaftLogIOException {
+    return log.get().get(index);
+  }
+
+  @Override
+  public LogEntryProto getStateMachineLog(long index) throws RaftLogIOException {
+    RaftLog raftLog = log.get();
+    LogEntryProto logEntryProto = raftLog.get(index);
+    while(!logEntryProto.hasStateMachineLogEntry()){
+      index-=1;
+      if(index<0){
+        logEntryProto = null;
+        break;
+      }
+      logEntryProto = raftLog.get(index);
+    }
+    return logEntryProto;
   }
 
   boolean containsTermIndex(TermIndex ti) {
@@ -548,4 +565,5 @@ class ServerState {
   ReadRequests getReadRequests() {
     return readRequests;
   }
+
 }

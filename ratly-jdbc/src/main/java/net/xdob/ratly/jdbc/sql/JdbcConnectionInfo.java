@@ -15,7 +15,7 @@ public class JdbcConnectionInfo {
   private final List<RaftPeer> peers = new ArrayList<>();
 
   /**
-   * jdbc:ratly-jdbc:{db}:group={group};peers={peers}
+   * jdbc:ratly:{db}:group={group};peers={peers}
    * @param url
    * @param info
    */

@@ -2,16 +2,17 @@ package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Lists;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
-public class TxInfo {
+public class TxInfo implements Serializable {
   private final String tx;
   private final LinkedList<Long> indexes = Lists.newLinkedList();
-  private Connection connection;
-  private volatile long accessTime = System.nanoTime();
+  private transient Connection connection;
+  private transient volatile long accessTime = System.nanoTime();
 
   public TxInfo(String tx) {
     this.tx = tx;

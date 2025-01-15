@@ -1,6 +1,7 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import org.slf4j.Logger;
@@ -12,22 +13,17 @@ import java.sql.Savepoint;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class DefaultJdbcTransactionMgr implements JdbcTransactionMgr{
-  public static final String TMP = ".tmp";
+public class DefaultTransactionMgr implements TransactionMgr {
   public static final int TIME_OUT = 30;
-  static Logger LOG = LoggerFactory.getLogger(DefaultJdbcTransactionMgr.class);
+  static Logger LOG = LoggerFactory.getLogger(DefaultTransactionMgr.class);
 
   private final Map<String, TxInfo> txInfoMap = Maps.newConcurrentMap();
 
 
 
-  public DefaultJdbcTransactionMgr() {
+  public DefaultTransactionMgr() {
   }
 
-  @Override
-  public void initialize(String path, RaftLog raftLog) {
-
-  }
 
   @Override
   public Connection getConnection(String tx) throws SQLException {
@@ -38,7 +34,7 @@ public class DefaultJdbcTransactionMgr implements JdbcTransactionMgr{
   }
 
   @Override
-  public synchronized void initializeTx(String tx, ConnSupplier connSupplier) throws SQLException {
+  public void initializeTx(String tx, ConnSupplier connSupplier) throws SQLException {
     synchronized (txInfoMap) {
       TxInfo txInfo = getTxInfo(tx).orElse(null);
       if (txInfo == null) {
@@ -56,21 +52,20 @@ public class DefaultJdbcTransactionMgr implements JdbcTransactionMgr{
   }
 
   @Override
-  public synchronized void checkTimeoutTx() {
-    List<TxInfo> timeoutTxInfos = txInfoMap.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
-        .collect(Collectors.toList());
-    for (TxInfo txInfo : timeoutTxInfos) {
-      try {
-        LOG.info("tx={} release because timeout.", txInfo.getTx());
-        releaseTx(txInfo.getTx());
-      }catch (SQLException e){
-        LOG.warn("", e);
+  public void checkTimeoutTx() {
+    synchronized (txInfoMap) {
+      List<TxInfo> timeoutTxInfos = txInfoMap.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
+          .collect(Collectors.toList());
+      for (TxInfo txInfo : timeoutTxInfos) {
+        try {
+          LOG.info("tx={} release because timeout.", txInfo.getTx());
+          releaseTx(txInfo.getTx());
+        } catch (SQLException e) {
+          LOG.warn("", e);
+        }
       }
     }
   }
-
-
-
 
   void releaseTx(String tx) throws SQLException {
     synchronized (txInfoMap) {
@@ -128,7 +123,6 @@ public class DefaultJdbcTransactionMgr implements JdbcTransactionMgr{
   public void releaseSavepoint(String tx, Savepoint savepoint) throws SQLException {
     TxInfo txInfo = getTxInfoOrThrow(tx);
     txInfo.getConnection().releaseSavepoint(savepoint);
-
   }
 
   @Override
