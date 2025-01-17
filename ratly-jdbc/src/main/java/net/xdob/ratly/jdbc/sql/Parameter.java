@@ -1,23 +1,19 @@
 package net.xdob.ratly.jdbc.sql;
 
 
-import com.google.protobuf.ByteString;
-import net.xdob.ratly.proto.jdbc.ParamProto;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
-
 import java.io.Serializable;
 
 
 public class Parameter implements Serializable {
-  private final int parameterIndex;
+  private final int index;
   private Object value;
 
-  public Parameter(int parameterIndex) {
-    this.parameterIndex = parameterIndex;
+  public Parameter(int index) {
+    this.index = index;
   }
 
-  public int getParameterIndex() {
-    return parameterIndex;
+  public int getIndex() {
+    return index;
   }
 
   public Object getValue() {
@@ -29,12 +25,6 @@ public class Parameter implements Serializable {
     return this;
   }
 
-  public ParamProto toParamProto(FSTConfiguration conf){
-    ParamProto.Builder builder = ParamProto.newBuilder()
-        .setIndex(parameterIndex);
-    builder.setValue(ByteString.copyFrom(conf.asByteArray(value)));
-    return builder.build();
-  }
 
   public static Parameter c(int parameterIndex){
     return new Parameter(parameterIndex);

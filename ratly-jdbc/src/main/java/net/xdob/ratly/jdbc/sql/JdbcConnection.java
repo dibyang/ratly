@@ -1,17 +1,20 @@
 package net.xdob.ratly.jdbc.sql;
 
 import net.xdob.ratly.client.RaftClient;
+import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.grpc.GrpcFactory;
-import net.xdob.ratly.jdbc.DBSMPlugin;
+import net.xdob.ratly.jdbc.*;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.retry.RetryLimited;
 import net.xdob.ratly.retry.RetryPolicies;
+import net.xdob.ratly.server.util.RsaHelper;
 import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
@@ -21,19 +24,23 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class JdbcConnection implements Connection {
+  static final Logger LOG = LoggerFactory.getLogger(JdbcConnection.class);
+
   private final String url;
   private final JdbcConnectionInfo ci;
   private final RaftClient client;
-  private final FSTConfiguration fasts = FSTConfiguration.createDefaultConfiguration();
+  private final SerialSupport fasts = new FastsImpl();
   private boolean autoCommit;
   private String tx = UUID.randomUUID().toString();
   private final AtomicInteger updateCount = new AtomicInteger();
+  private final Properties properties = new Properties();
+  private final RsaHelper rsaHelper = new RsaHelper();
+  private final String session;
 
-  public JdbcConnection(JdbcConnectionInfo ci) {
+  public JdbcConnection(JdbcConnectionInfo ci) throws SQLException {
     this.url = ci.getUrl();
     this.ci = ci;
     RaftProperties raftProperties = new RaftProperties();
@@ -47,13 +54,47 @@ public class JdbcConnection implements Connection {
     builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     client = builder.build();
+    QueryRequest queryRequest = new QueryRequest()
+        .setDb(ci.getDb())
+        .setSender(Sender.connection)
+        .setType(QueryType.check)
+        .setSql("validUser")
+        .setUser( ci.getUser())
+        .setPassword(rsaHelper.encrypt(ci.getPassword()));
+    QueryReply queryReplyProto = sendQueryRequest(queryRequest);
+    if(queryReplyProto.getEx()!=null){
+      throw queryReplyProto.getEx();
+    }
+    session = queryReplyProto.getRs().toString();
+  }
+
+  QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
+    try {
+      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
+          .setType(DBSMPlugin.DB)
+          .setMsg( fasts.asByteString(queryRequest))
+          .build();
+      RaftClientReply reply =
+          client.io().sendReadOnly(Message.valueOf(msgProto));
+      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+      if(!replyProto.getEx().isEmpty()){
+        throw (SQLException) fasts.as(replyProto.getEx());
+      }
+      return fasts.as(replyProto.getRelay());
+    } catch (IOException e) {
+      throw new SQLException(e);
+    }
+  }
+
+  public String getSession() {
+    return session;
   }
 
   public AtomicInteger getUpdateCount() {
     return updateCount;
   }
 
-  public FSTConfiguration getFasts() {
+  public SerialSupport getFasts() {
     return fasts;
   }
 
@@ -107,22 +148,14 @@ public class JdbcConnection implements Connection {
   @Override
   public void commit() throws SQLException {
     if(updateCount.get()>0) {
-      UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-          .setSender(Sender.connection)
-          .setTx(tx)
-          .setDb(ci.getDb())
+      UpdateRequest builder = newUpdateRequestBuilder()
           .setType(UpdateType.commit);
-      sendUpdate(builder.build());
+      sendUpdate(builder);
       this.tx = UUID.randomUUID().toString();
       updateCount.set(0);
     }
   }
 
-  public SQLException getSQLException(SQLExceptionProto ex) {
-    SQLException e = new SQLException(ex.getReason(), ex.getState(), ex.getErrorCode());
-    e.setStackTrace((StackTraceElement[]) fasts.asObject(ex.getStacktrace().toByteArray()));
-    return e;
-  }
 
   protected void checkClose() throws SQLException {
     if(isClosed()){
@@ -130,18 +163,22 @@ public class JdbcConnection implements Connection {
     }
   }
 
-  protected UpdateReplyProto sendUpdate(UpdateRequestProto updateRequest) throws SQLException {
+  protected UpdateReply sendUpdate(UpdateRequest updateRequest) throws SQLException {
     checkClose();
     try {
-      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
           .setType(DBSMPlugin.DB)
-          .setMsg(updateRequest.toByteString())
+          .setMsg(fasts.asByteString(updateRequest))
           .build();
       RaftClientReply reply =
           client.io().send(Message.valueOf(msgProto));
-      UpdateReplyProto updateReply = UpdateReplyProto.parseFrom(reply.getMessage().getContent());
-      if(updateReply.hasEx()) {
-        throw getSQLException(updateReply.getEx());
+      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+      if(!replyProto.getEx().isEmpty()){
+        throw (SQLException) fasts.as(replyProto.getEx());
+      }
+      UpdateReply updateReply = fasts.as(replyProto.getRelay());
+      if(updateReply.getEx()!=null) {
+        throw updateReply.getEx();
       }else{
         return updateReply;
       }
@@ -154,15 +191,20 @@ public class JdbcConnection implements Connection {
   @Override
   public void rollback() throws SQLException {
     if(updateCount.get()>0) {
-      UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-          .setSender(Sender.connection)
-          .setTx(tx)
-          .setDb(ci.getDb())
+      UpdateRequest builder = newUpdateRequestBuilder()
           .setType(UpdateType.rollback);
-      sendUpdate(builder.build());
+      sendUpdate(builder);
       this.tx = UUID.randomUUID().toString();
       updateCount.set(0);
     }
+  }
+
+  private UpdateRequest newUpdateRequestBuilder() {
+    return new UpdateRequest()
+        .setDb(ci.getDb())
+        .setSender(Sender.connection)
+        .setSession(session)
+        .setTx(tx);
   }
 
   @Override
@@ -275,75 +317,59 @@ public class JdbcConnection implements Connection {
 
   @Override
   public Savepoint setSavepoint(String name) throws SQLException {
-    UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-        .setSender(Sender.connection)
-        .setTx(tx)
-        .setDb(ci.getDb())
+    UpdateRequest builder = newUpdateRequestBuilder()
         .setType(UpdateType.savepoint);
     if(name!=null){
       builder.setSql(name);
     }
-    UpdateReplyProto updateReplyProto = sendUpdate(builder.build());
-    SavepointProto savepoint = updateReplyProto.getSavepoint();
-    return new JdbcSavepoint(savepoint.getId(), savepoint.getName());
+    UpdateReply updateReply = sendUpdate(builder);
+    return updateReply.getSavepoint();
   }
 
   @Override
   public void rollback(Savepoint savepoint) throws SQLException {
-    UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-        .setSender(Sender.connection)
-        .setTx(tx)
-        .setDb(ci.getDb())
+    UpdateRequest builder = newUpdateRequestBuilder()
         .setType(UpdateType.rollbackSavepoint)
-        .setSavepoint(SavepointProto.newBuilder()
-            .setId(savepoint.getSavepointId())
-            .setName(savepoint.getSavepointName())
-            .build());
-    sendUpdate(builder.build());
+        .setSavepoint(JdbcSavepoint.of(savepoint));
+    sendUpdate(builder);
   }
 
   @Override
   public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-    UpdateRequestProto.Builder builder = UpdateRequestProto.newBuilder()
-        .setSender(Sender.connection)
-        .setTx(tx)
-        .setDb(ci.getDb())
+    UpdateRequest builder = newUpdateRequestBuilder()
         .setType(UpdateType.releaseSavepoint)
-        .setSavepoint(SavepointProto.newBuilder()
-            .setId(savepoint.getSavepointId())
-            .setName(savepoint.getSavepointName())
-            .build());
-    sendUpdate(builder.build());
+        .setSavepoint(JdbcSavepoint.of(savepoint));
+    sendUpdate(builder);
   }
 
   @Override
   public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return null;
+    return createStatement();
   }
 
   @Override
   public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return null;
+    return prepareStatement(sql);
   }
 
   @Override
   public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return null;
+    return prepareCall(sql);
   }
 
   @Override
   public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
-    return null;
+    return prepareStatement(sql);
   }
 
   @Override
   public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
-    return null;
+    return prepareStatement(sql);
   }
 
   @Override
   public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
-    return null;
+    return prepareStatement(sql);
   }
 
   @Override
@@ -368,22 +394,22 @@ public class JdbcConnection implements Connection {
 
   @Override
   public boolean isValid(int timeout) throws SQLException {
-    return false;
+    return !isClosed();
   }
 
   @Override
   public void setClientInfo(String name, String value) throws SQLClientInfoException {
-
+    properties.setProperty(name, value);
   }
 
   @Override
   public void setClientInfo(Properties properties) throws SQLClientInfoException {
-
+    properties.putAll(properties);
   }
 
   @Override
   public String getClientInfo(String name) throws SQLException {
-    return "";
+    return properties.getProperty(name);
   }
 
   @Override

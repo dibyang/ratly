@@ -5,104 +5,12 @@ option java_generate_equals_and_hash = true;
 
 package ratly.jdbc;
 
-message WrapMsgProto{
+message WrapRequestProto{
   string type = 1;
   bytes msg = 2;
 }
 
-message SQLExceptionProto {
-  string reason = 1;
-  string state = 2;
-  fixed32 errorCode = 3;
-  // 堆栈跟踪信息。提供异常发生时的调用栈，用于调试。
-  bytes stacktrace = 4;
-}
-
-enum QueryType{
-  check = 0;
-  meta = 1;
-  query = 2;
-}
-// 发送者类型
-enum Sender{
-  statement = 0;
-  prepared = 1;
-  callable = 2;
-  connection = 3;
-}
-
-// 参数结构
-message ParamProto {
-  fixed32 index = 1;           // 参数索引
-  bytes value = 2;
-}
-
-message ParamListProto {
-  repeated ParamProto param = 3;
-}
-
-message QueryRequestProto {
-  string tx = 1;
-  QueryType type = 2;
-  Sender  sender = 3;
-  string db = 4;
-  string sql = 5;
-  ParamListProto param = 6;
-  fixed32 fetchDirection = 7;
-  fixed32 fetchSize = 8;
-}
-
-message QueryReplyProto {
-  SQLExceptionProto ex = 1;
-  bytes rs = 2;
-  bytes paramMeta = 3;
-  bytes rsMeta = 4;
-}
-
-enum UpdateType{
-  execute = 0;
-  commit = 1;
-  rollback = 2;
-  savepoint = 3;
-  releaseSavepoint = 4;
-  rollbackSavepoint = 5;
-}
-
-message array_fixed32{
-  repeated fixed32 value = 1;
-}
-
-message array_string{
-  repeated string value = 1;
-}
-
-message SavepointProto{
-  fixed32 id = 1;
-  string name= 2;
-}
-
-message UpdateRequestProto {
-  string tx = 1;
-  UpdateType type = 2;
-  Sender  sender = 3;
-  string db = 4;
-  string sql = 5;
-  ParamListProto param = 6;
-  repeated string batchSql = 7;
-  repeated ParamListProto batchParam = 8;
-  SavepointProto savepoint = 9;
-  oneof option{
-    fixed32 generatedKeys = 10;
-    array_fixed32 columnIndexes = 11;
-    array_string columnNames =12;
-  }
-}
-
-message UpdateReplyProto {
-  SQLExceptionProto ex = 1;
-  fixed64 count = 2;
-  bytes rs = 3;
-  repeated fixed64 counts = 4;
-  bytes rsList = 5;
-  SavepointProto savepoint = 6;
+message WrapReplyProto{
+  bytes relay = 2;
+  bytes ex = 3;
 }

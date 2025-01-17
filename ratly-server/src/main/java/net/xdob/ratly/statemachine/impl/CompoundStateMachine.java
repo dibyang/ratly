@@ -6,12 +6,9 @@ import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.client.impl.FastsImpl;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.io.MD5Hash;
-import net.xdob.ratly.proto.jdbc.QueryReplyProto;
-import net.xdob.ratly.proto.jdbc.SQLExceptionProto;
-import net.xdob.ratly.proto.jdbc.UpdateReplyProto;
-import net.xdob.ratly.proto.jdbc.WrapMsgProto;
+import net.xdob.ratly.proto.jdbc.WrapReplyProto;
+import net.xdob.ratly.proto.jdbc.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.server.RaftServer;
@@ -29,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -139,60 +135,54 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public CompletableFuture<Message> query(Message request) {
 
-    QueryReplyProto.Builder builder = QueryReplyProto.newBuilder();
+    WrapReplyProto.Builder builder = WrapReplyProto.newBuilder();
     try(AutoCloseableLock readLock = readLock()) {
-      WrapMsgProto wrapMsgProto = WrapMsgProto.parseFrom(request.getContent());
-      SMPlugin smPlugin = pluginMap.get(wrapMsgProto.getType());
+      WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(request.getContent());
+      String pluginId = wrapMsgProto.getType();
+      SMPlugin smPlugin = pluginMap.get(pluginId);
       if(smPlugin!=null) {
-        return smPlugin.query(Message.valueOf(wrapMsgProto.getMsg()));
+        Object reply = smPlugin.query(Message.valueOf(wrapMsgProto.getMsg()));
+        builder.setRelay(fasts.asByteString(reply));
+      }else {
+        throw new SQLException("plugin " + pluginId + " not find.");
       }
-      throw new SQLException("plugin {} not find.");
     } catch (SQLException e) {
-      builder.setEx(getSqlExceptionProto(e));
+      builder.setEx(fasts.asByteString(e));
     } catch (Exception e) {
       LOG.warn("", e);
     }
     return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
   }
 
-  public SQLExceptionProto getSqlExceptionProto(SQLException e) {
-    SQLExceptionProto.Builder builder = SQLExceptionProto.newBuilder();
-    if(e.getMessage()!=null){
-      builder.setReason(e.getMessage());
-    }
-    if(e.getSQLState()!=null){
-      builder.setState(e.getSQLState());
-    }
-    builder.setErrorCode(e.getErrorCode())
-        .setStacktrace(getByteString(e.getStackTrace()));
-    return builder.build();
-  }
+
 
 
   @Override
   public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
 
-    UpdateReplyProto.Builder builder = UpdateReplyProto.newBuilder();
+    WrapReplyProto.Builder builder = WrapReplyProto.newBuilder();
     ReferenceCountedObject<LogEntryProto> logEntryRef = trx.getLogEntryRef();
     try(AutoCloseableLock writeLock = writeLock()) {
       LogEntryProto entry = logEntryRef.retain();
-      WrapMsgProto wrapMsgProto = WrapMsgProto.parseFrom(entry.getStateMachineLogEntry().getLogData());
-      SMPlugin smPlugin = pluginMap.get(wrapMsgProto.getType());
+      WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(entry.getStateMachineLogEntry().getLogData());
+      String pluginId = wrapMsgProto.getType();
+      SMPlugin smPlugin = pluginMap.get(pluginId);
       if(smPlugin!=null) {
         //跳过已应用过的日志
         if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
-          return CompletableFuture.completedFuture(null);
+          builder.setRelay(fasts.asByteString(null));
+        }else {
+          Object reply = smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto.getMsg());
+          updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
+          builder.setRelay(fasts.asByteString(reply));
         }
-        CompletableFuture<Message> future = smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto.getMsg());
-        updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
-        return future;
+      }else {
+        throw new SQLException("plugin ["+pluginId+"] not find.");
       }
-      throw new SQLException("plugin {} not find.");
-
     } catch (InvalidProtocolBufferException e) {
       LOG.warn("", e);
     } catch (SQLException e) {
-      builder.setEx(getSqlExceptionProto(e));
+      builder.setEx(fasts.asByteString(e));
     }finally {
       logEntryRef.release();
     }
@@ -342,6 +332,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public RaftLogQuery getRaftLogQuery() {
     return logQuery.get();
+  }
+
+  @Override
+  public boolean isLeader() {
+    return isLeader;
   }
 
 }

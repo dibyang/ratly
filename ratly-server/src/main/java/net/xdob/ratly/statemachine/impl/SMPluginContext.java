@@ -22,4 +22,5 @@ public interface SMPluginContext {
   <T> T as(ByteString byteString);
   <T> T as(AbstractMessage msg);
   RaftLogQuery getRaftLogQuery();
+  boolean isLeader();
 }

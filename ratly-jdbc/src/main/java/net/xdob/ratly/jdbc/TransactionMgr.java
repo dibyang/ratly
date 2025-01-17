@@ -14,4 +14,9 @@ public interface TransactionMgr {
   void releaseSavepoint(String tx, Savepoint savepoint) throws SQLException;
   void rollback(String tx, Savepoint savepoint) throws SQLException;
   void checkTimeoutTx();
+
+  /**
+   * 是否正处于事务中
+   */
+  boolean isTransaction();
 }

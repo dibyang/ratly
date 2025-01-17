@@ -35,4 +35,11 @@ public class JdbcSavepoint implements Savepoint, Serializable {
   public String getSavepointName() throws SQLException {
     return name;
   }
+
+  public static JdbcSavepoint of(Savepoint savepoint) throws SQLException {
+    if(savepoint instanceof JdbcSavepoint){
+      return (JdbcSavepoint) savepoint;
+    }
+    return new JdbcSavepoint(savepoint.getSavepointId(), savepoint.getSavepointName());
+  }
 }

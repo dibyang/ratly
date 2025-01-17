@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JdbcConnectionInfo {
+  public static final String PASSWORD = "password";
+  public static final String USER = "user";
   private final String db;
   private final String group;
   private final String url;
@@ -84,4 +86,13 @@ public class JdbcConnectionInfo {
   public List<RaftPeer> getPeers() {
     return peers;
   }
+
+  public String getUser(){
+    return info.getProperty(USER);
+  }
+
+  public String getPassword(){
+    return info.getProperty(PASSWORD);
+  }
+
 }

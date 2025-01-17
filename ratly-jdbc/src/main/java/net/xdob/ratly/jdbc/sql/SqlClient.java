@@ -1,12 +1,9 @@
 package net.xdob.ratly.jdbc.sql;
 
 import net.xdob.ratly.client.RaftClient;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
-import net.xdob.ratly.proto.jdbc.SQLExceptionProto;
+import net.xdob.ratly.protocol.SerialSupport;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.function.Supplier;
 
 public class SqlClient {
   private RaftClient client;
@@ -35,7 +32,7 @@ public class SqlClient {
     return ci;
   }
 
-  public FSTConfiguration getFasts() {
+  public SerialSupport getFasts() {
     return connection.getFasts();
   }
 
@@ -43,9 +40,6 @@ public class SqlClient {
     return connection;
   }
 
-  public SQLException getSQLException(SQLExceptionProto ex) {
-    return connection.getSQLException(ex);
-  }
 
   public void close() throws SQLException {
     if(connection!=null){

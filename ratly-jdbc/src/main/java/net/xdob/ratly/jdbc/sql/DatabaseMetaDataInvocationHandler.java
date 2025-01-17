@@ -1,9 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
-import net.xdob.ratly.jdbc.DBSMPlugin;
-import net.xdob.ratly.jdbc.Version;
+import net.xdob.ratly.jdbc.*;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
@@ -59,41 +57,44 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
 
 
   public ResultSet queryMeta(Method method, Object... args) throws SQLException {
-    QueryRequestProto.Builder builder = QueryRequestProto.newBuilder()
+    QueryRequest queryRequest = new QueryRequest()
         .setSender(Sender.connection)
         .setType(QueryType.meta)
+        .setSession(client.getConnection().getSession())
         .setTx(client.getTx())
         .setDb(client.getCi().getDb())
         .setSql(method.getName());
-    ParamListProto.Builder ParamListBuilder = ParamListProto.newBuilder();
-    ParamListBuilder
-        .addParam(ParamProto.newBuilder().setIndex(1)
-            .setValue(ByteString.copyFrom(client.getFasts().asByteArray(args))));
-    builder.setParam(ParamListBuilder);
-    return sendQuery(builder.build());
+
+    queryRequest.getParams().getParameters().add(new Parameter(1).setValue(args));
+
+    return sendQuery(queryRequest);
   }
 
 
-  protected SerialResultSet sendQuery(QueryRequestProto queryRequest) throws SQLException {
-    QueryReplyProto queryReplyProto = sendQueryRequest(queryRequest);
-    if(!queryReplyProto.hasEx()) {
-      SerialResultSet rs = (SerialResultSet) client.getFasts().asObject(queryReplyProto.getRs().toByteArray());
+  protected SerialResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
+    QueryReply queryReply = sendQueryRequest(queryRequest);
+    if(queryReply.getEx()==null) {
+      SerialResultSet rs = (SerialResultSet) queryReply.getRs();
       rs.resetResult();
       return rs;
     }else{
-      throw client.getSQLException(queryReplyProto.getEx());
+      throw queryReply.getEx();
     }
   }
 
-  protected QueryReplyProto sendQueryRequest(QueryRequestProto queryRequest) throws SQLException {
+  protected QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
     try {
-      WrapMsgProto msgProto = WrapMsgProto.newBuilder()
+      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
           .setType(DBSMPlugin.DB)
-          .setMsg(queryRequest.toByteString())
+          .setMsg(client.getFasts().asByteString(queryRequest))
           .build();
       RaftClientReply reply =
           client.getClient().io().sendReadOnly(Message.valueOf(msgProto));
-      return QueryReplyProto.parseFrom(reply.getMessage().getContent());
+      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+      if(!replyProto.getEx().isEmpty()){
+        throw (SQLException) client.getFasts().as(replyProto.getEx());
+      }
+      return client.getFasts().as(replyProto.getRelay());
     } catch (IOException e) {
       throw new SQLException(e);
     }

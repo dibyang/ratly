@@ -27,12 +27,12 @@ public interface SMPlugin extends Closeable {
   default void reinitialize() throws IOException{
 
   }
-  default CompletableFuture<Message> query(Message request){
-    return CompletableFuture.completedFuture(null);
+  default Object query(Message request){
+    return null;
   }
 
-  default CompletableFuture<Message> applyTransaction(TermIndex termIndex, ByteString msg){
-    return CompletableFuture.completedFuture(null);
+  default Object applyTransaction(TermIndex termIndex, ByteString msg){
+    return null;
   }
 
   default List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException{

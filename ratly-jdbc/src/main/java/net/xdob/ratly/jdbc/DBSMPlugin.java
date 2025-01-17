@@ -6,6 +6,7 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.Message;
@@ -14,6 +15,7 @@ import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
+import net.xdob.ratly.server.util.RsaHelper;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.BaseSMPlugin;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
@@ -28,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
@@ -54,7 +57,9 @@ public class DBSMPlugin extends BaseSMPlugin {
 
   private Path dbStore;
   private SMPluginContext context;
+  private DefaultSessionMgr sessionMgr = new DefaultSessionMgr();
 
+  private final RsaHelper rsaHelper = new RsaHelper();
 
   public DBSMPlugin(String db) {
     super(DB);
@@ -133,81 +138,99 @@ public class DBSMPlugin extends BaseSMPlugin {
   }
 
   @Override
-  public CompletableFuture<Message> query(Message request) {
-    QueryReplyProto.Builder builder = QueryReplyProto.newBuilder();
+  public Object query(Message request) {
+    QueryReply queryReply = new QueryReply();
     try {
-      QueryRequestProto queryRequest = QueryRequestProto.parseFrom(request.getContent());
-      String tx = queryRequest.getTx();
-      Connection conn = transactionMgr.getConnection(tx);
-      if(conn==null){
-        try (Connection connection = dataSource.getConnection()) {
-          query(queryRequest, connection, builder);
-        } catch (SQLException e) {
-          builder.setEx(getSqlExceptionProto(e));
+      QueryRequest queryRequest = context.as(request.getContent());
+      Sender sender = queryRequest.getSender();
+      QueryType type = queryRequest.getType();
+      if(Sender.connection.equals(sender)&&QueryType.check.equals(type)){
+        String user = queryRequest.getUser();
+        String password = rsaHelper.decrypt(queryRequest.getPassword());
+        if(!this.password.equals(password)){
+          throw new SQLInvalidAuthorizationSpecException();
         }
+        Session session = sessionMgr.newSession(user, password);
+        LOG.info("open session user={}, id={}", user, session.getId());
+        queryReply.setRs(session.getId());
+
       }else{
-        try {
-          query(queryRequest, conn, builder);
-        } catch (SQLException e) {
-          builder.setEx(getSqlExceptionProto(e));
+        String sessionId = queryRequest.getSession();
+        Session session = sessionMgr.getSession(sessionId)
+            .orElseThrow(()->new NoSessionException(sessionId));
+        String tx = session.getTx();
+        Connection conn = transactionMgr.getConnection(tx);
+        if(conn==null){
+          try (Connection connection = dataSource.getConnection()) {
+            query(queryRequest, connection, queryReply);
+          } catch (SQLException e) {
+            queryReply.setEx(e);
+          }
+        }else{
+          try {
+            query(queryRequest, conn, queryReply);
+          } catch (SQLException e) {
+            queryReply.setEx(e);
+          }
         }
       }
+
     } catch (SQLException e) {
-      builder.setEx(getSqlExceptionProto(e));
+      queryReply.setEx(e);
     } catch (Exception e) {
       LOG.warn("", e);
     }
-    return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
+    return queryReply;
   }
 
 
-  private void query(QueryRequestProto queryRequest, Connection connection, QueryReplyProto.Builder builder) throws SQLException {
+  private void query(QueryRequest queryRequest, Connection connection, QueryReply queryReply) throws SQLException {
     if(queryRequest.getType().equals(QueryType.check)){
-      doCheck(connection, queryRequest.getSql());
+      doSqlCheck(connection, queryRequest.getSql());
     }else if(queryRequest.getType().equals(QueryType.meta)){
-      doMeta(queryRequest, connection, queryRequest.getSql(), builder);
+      doMeta(queryRequest, connection, queryRequest.getSql(), queryReply);
     }else if(queryRequest.getType().equals(QueryType.query)){
-      doQuery(connection, queryRequest, builder);
+      doQuery(connection, queryRequest, queryReply);
     }
   }
 
-  private void doQuery(Connection connection, QueryRequestProto queryRequest,
-                       QueryReplyProto.Builder builder) throws SQLException {
+  private void doQuery(Connection connection, QueryRequest queryRequest,
+                       QueryReply queryReply) throws SQLException {
     if(Sender.prepared.equals(queryRequest.getSender())
         ||Sender.callable.equals(queryRequest.getSender())){
       try(CallableStatement ps = connection.prepareCall(queryRequest.getSql())) {
         ps.setFetchDirection(queryRequest.getFetchDirection());
         ps.setFetchSize(queryRequest.getFetchSize());
-        if(queryRequest.hasParam()){
-          for (ParamProto paramProto : queryRequest.getParam().getParamList()) {
-            Object value = context.asObject(paramProto.getValue());
-            ps.setObject(paramProto.getIndex(), value);
+        if(!queryRequest.getParams().isEmpty()){
+          for (Parameter param : queryRequest.getParams().getParameters()) {
+            Object value = param.getValue();
+            ps.setObject(param.getIndex(), value);
           }
         }
 
         ResultSet rs = ps.executeQuery();
-        builder.setRs(context.getByteString(new SerialResultSet(rs)));
+        queryReply.setRs(new SerialResultSet(rs));
       }
     }else{
       try(Statement s = connection.createStatement()) {
         ResultSet rs = s.executeQuery(queryRequest.getSql());
-        builder.setRs(context.getByteString(new SerialResultSet(rs)));
+        queryReply.setRs(new SerialResultSet(rs));
       }
     }
   }
 
-  private void doCheck(Connection connection, String sql) throws SQLException {
+  private void doSqlCheck(Connection connection, String sql) throws SQLException {
     try(PreparedStatement ps = connection.prepareStatement(sql)) {
       //check sql
     }
   }
 
-  private void doMeta(QueryRequestProto queryRequest, Connection connection, String sql, QueryReplyProto.Builder builder) throws SQLException {
+  private void doMeta(QueryRequest queryRequest, Connection connection, String sql, QueryReply queryReply) throws SQLException {
     if(Sender.connection.equals(queryRequest.getSender())){
       DatabaseMetaData metaData = connection.getMetaData();
       try {
         Method method = getMethod(metaData, sql);
-        Object[] args = (Object[])context.asObject(queryRequest.getParam().getParam(0).getValue());
+        Object[] args = (Object[])queryRequest.getParams().getParameters().get(0).getValue();
         Object o = method.invoke(metaData, args);
         SerialResultSet resultSet;
         if (ResultSet.class.isAssignableFrom(method.getReturnType())) {
@@ -217,7 +240,7 @@ public class DBSMPlugin extends BaseSMPlugin {
           resultSet = new SerialResultSet(resultSetMetaData);
           resultSet.addRows(new SerialRow(1).setValue(0, o));
         }
-        builder.setRs(context.getByteString(resultSet));
+        queryReply.setRs(resultSet);
       } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
         throw new SQLException(e);
       }
@@ -227,10 +250,10 @@ public class DBSMPlugin extends BaseSMPlugin {
         //LOG.info("sql= {} ResultSetMetaData={}", sql, metaData);
         if(metaData!=null) {
           SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData(metaData);
-          builder.setRsMeta(context.getByteString(resultSetMetaData));
+          queryReply.setRsMeta(resultSetMetaData);
         }
         SerialParameterMetaData parameterMetaData = new SerialParameterMetaData(ps.getParameterMetaData());
-        builder.setParamMeta(context.getByteString(parameterMetaData));
+        queryReply.setParamMeta(parameterMetaData);
       }
     }
   }
@@ -269,38 +292,31 @@ public class DBSMPlugin extends BaseSMPlugin {
   }
 
 
-  private SQLExceptionProto getSqlExceptionProto(SQLException e) {
-    SQLExceptionProto.Builder builder = SQLExceptionProto.newBuilder();
-    if(e.getMessage()!=null){
-      builder.setReason(e.getMessage());
-    }
-    if(e.getSQLState()!=null){
-      builder.setState(e.getSQLState());
-    }
-    builder.setErrorCode(e.getErrorCode())
-        .setStacktrace(context.getByteString(e.getStackTrace()));
-    return builder.build();
-  }
-
 
   @Override
-  public CompletableFuture<Message> applyTransaction(TermIndex termIndex, ByteString msg) {
+  public Object applyTransaction(TermIndex termIndex, ByteString msg) {
 
-    UpdateReplyProto.Builder builder = UpdateReplyProto.newBuilder();
+    UpdateReply updateReply = new UpdateReply();
     try {
-      UpdateRequestProto updateRequest = UpdateRequestProto.parseFrom(msg);
+      UpdateRequest updateRequest = context.as(msg);
+      String sessionId = updateRequest.getSession();
+      Session session = sessionMgr.getSession(sessionId).orElse(null);
+
       //LOG.info("type={}, tx={}, sql={}", updateRequest.getType(), updateRequest.getTx(), updateRequest.getSql());
       String tx = updateRequest.getTx();
+      if(session!=null){
+        session.setTx(tx);
+      }
       if(tx.isEmpty()) {
         try (Connection connection = dataSource.getConnection()) {
-          executeUpdate(updateRequest, connection, builder);
+          executeUpdate(updateRequest, connection, updateReply);
           updateAppliedIndexToMax(termIndex.getIndex());
         } catch (SQLException e) {
-          builder.setEx(getSqlExceptionProto(e));
+          updateReply.setEx(e);
         }
       }else {
         transactionMgr.initializeTx(tx, dataSource::getConnection);
-        applyLog(updateRequest, builder);
+        applyLog(updateRequest, updateReply);
         if (UpdateType.commit.equals(updateRequest.getType())
             ||UpdateType.rollback.equals(updateRequest.getType()))
         {
@@ -311,25 +327,23 @@ public class DBSMPlugin extends BaseSMPlugin {
         }
       }
 
-    } catch (InvalidProtocolBufferException e) {
-      LOG.warn("", e);
     } catch (SQLException e) {
-      builder.setEx(getSqlExceptionProto(e));
+      updateReply.setEx(e);
     }
-    return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
+    return updateReply;
   }
 
 
 
 
-  private void applyLog(UpdateRequestProto updateRequest, UpdateReplyProto.Builder builder) throws SQLException {
+  private void applyLog(UpdateRequest updateRequest, UpdateReply updateReply) throws SQLException {
     String tx = updateRequest.getTx();
     if(UpdateType.execute.equals(updateRequest.getType())){
       try {
         Connection connection = transactionMgr.getConnection(tx);
-        executeUpdate(updateRequest, connection, builder);
+        executeUpdate(updateRequest, connection, updateReply);
       } catch (SQLException e) {
-        builder.setEx(getSqlExceptionProto(e));
+        updateReply.setEx(e);
       }
     }else if(UpdateType.commit.equals(updateRequest.getType())){
       transactionMgr.commit(tx);
@@ -338,74 +352,71 @@ public class DBSMPlugin extends BaseSMPlugin {
     }else if(UpdateType.savepoint.equals(updateRequest.getType())){
       String name = updateRequest.getSql();
       Savepoint savepoint = transactionMgr.setSavepoint(tx, name);
-      builder.setSavepoint(SavepointProto.newBuilder()
-          .setId(savepoint.getSavepointId())
-          .setName(savepoint.getSavepointName()).build());
+      updateReply.setSavepoint(JdbcSavepoint.of(savepoint));
     }else if(UpdateType.releaseSavepoint.equals(updateRequest.getType())){
-      SavepointProto savepoint = updateRequest.getSavepoint();
-      transactionMgr.releaseSavepoint(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
+      JdbcSavepoint savepoint = updateRequest.getSavepoint();
+      transactionMgr.releaseSavepoint(tx, savepoint);
     }else if(UpdateType.rollbackSavepoint.equals(updateRequest.getType())){
-      SavepointProto savepoint = updateRequest.getSavepoint();
-      transactionMgr.rollback(tx, new JdbcSavepoint(savepoint.getId(), savepoint.getName()));
+      JdbcSavepoint savepoint = updateRequest.getSavepoint();
+      transactionMgr.rollback(tx, savepoint);
     }
   }
 
-  private void executeUpdate(UpdateRequestProto updateRequest, Connection connection,
-                             UpdateReplyProto.Builder builder) throws SQLException {
+  private void executeUpdate(UpdateRequest updateRequest, Connection connection,
+                             UpdateReply updateReply) throws SQLException {
     if (Sender.prepared.equals(updateRequest.getSender())
         || Sender.callable.equals(updateRequest.getSender())) {
-      update4Prepared(connection, updateRequest, builder);
+      update4Prepared(connection, updateRequest, updateReply);
     } else {
-      update4Statement(connection, updateRequest, builder);
+      update4Statement(connection, updateRequest, updateReply);
     }
   }
 
   void update4Prepared(Connection connection,
-                       UpdateRequestProto updateRequest,
-                       UpdateReplyProto.Builder builder) throws SQLException {
+                       UpdateRequest updateRequest,
+                       UpdateReply updateReply) throws SQLException {
     try (PreparedStatement ps = connection.prepareStatement(updateRequest.getSql())) {
-      if (updateRequest.getBatchParamCount() > 0) {
-        for (int i = 0; i < updateRequest.getBatchParamCount(); i++) {
-          ParamListProto paramListProto = updateRequest.getBatchParam(i);
-          setParams(ps, paramListProto);
+      if (!updateRequest.getBatchParams().isEmpty()) {
+        for (Parameters batchParam : updateRequest.getBatchParams()) {
+          setParams(ps, batchParam);
           ps.addBatch();
         }
+
         long[] updateCounts = ps.executeLargeBatch();
         for (int i = 0; i < updateCounts.length; i++) {
-          builder.setCounts(i, updateCounts[i]);
+          updateReply.getCounts().add(updateCounts[i]);
         }
       } else {
-        setParams(ps, updateRequest.getParam());
+        setParams(ps, updateRequest.getParams());
         long updateCount = ps.executeLargeUpdate();
-        builder.setCount(updateCount);
+        updateReply.setCount(updateCount);
       }
     }
   }
 
-  private void setParams(PreparedStatement ps, ParamListProto paramList) throws SQLException {
-    if(paramList.getParamCount()>0) {
-      for (int i = 0; i < paramList.getParamCount(); i++) {
-        ParamProto param = paramList.getParam(i);
-        ps.setObject(param.getIndex(), context.asObject(param.getValue()));
+  private void setParams(PreparedStatement ps, Parameters paramList) throws SQLException {
+    if(!paramList.isEmpty()) {
+      for (Parameter param : paramList.getParameters()) {
+        ps.setObject(param.getIndex(), param.getValue());
       }
     }
   }
 
   void update4Statement(Connection connection,
-                        UpdateRequestProto updateRequest,
-                        UpdateReplyProto.Builder builder) throws SQLException {
+                        UpdateRequest updateRequest,
+                        UpdateReply updateReply) throws SQLException {
     try (Statement s = connection.createStatement()) {
-      if (updateRequest.getBatchSqlCount() > 0) {
-        for (int i = 0; i < updateRequest.getBatchSqlCount(); i++) {
-          s.addBatch(updateRequest.getBatchSql(i));
+      if (!updateRequest.getBatchSql().isEmpty()) {
+        for (String sql : updateRequest.getBatchSql()) {
+          s.addBatch(sql);
         }
         long[] updateCounts = s.executeLargeBatch();
         for (int i = 0; i < updateCounts.length; i++) {
-          builder.setCounts(i, updateCounts[i]);
+          updateReply.getCounts().add(updateCounts[i]);
         }
       } else {
         long updateCount = s.executeLargeUpdate(updateRequest.getSql());
-        builder.setCount(updateCount);
+        updateReply.setCount(updateCount);
       }
     }
   }

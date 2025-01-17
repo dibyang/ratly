@@ -1,9 +1,7 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import net.xdob.ratly.server.raftlog.RaftLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +63,11 @@ public class DefaultTransactionMgr implements TransactionMgr {
         }
       }
     }
+  }
+
+  @Override
+  public boolean isTransaction() {
+    return !txInfoMap.isEmpty();
   }
 
   void releaseTx(String tx) throws SQLException {
