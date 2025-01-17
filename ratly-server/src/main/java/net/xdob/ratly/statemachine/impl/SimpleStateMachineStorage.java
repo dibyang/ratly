@@ -41,7 +41,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   /**
    * 快照文件的前缀名
    */
-  static final String SNAPSHOT_FILE_SUFFIX = ".snapshot";
+  static final String SNAPSHOT_FILE_PREFIX = "snapshot";
   /**
    * 用于标记损坏快照文件的后缀
    */
@@ -51,12 +51,12 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
    * snapshot.term_index
    */
   public static final Pattern SNAPSHOT_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)" + SNAPSHOT_FILE_SUFFIX);
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)");
   /**
    * 用于匹配包含 MD5 校验的快照文件名的正则表达式
    */
   public static final Pattern SNAPSHOT_MD5_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)" + SNAPSHOT_FILE_SUFFIX + MD5_SUFFIX);
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)" + MD5_SUFFIX);
   /**
    * 过滤器，用于在目录中查找符合 MD5 校验规则的文件。
    */
@@ -246,7 +246,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   }
 
   public static String getSnapshotFileName(long term, long endIndex) {
-    return term + "_" + endIndex + SNAPSHOT_FILE_SUFFIX;
+    return SNAPSHOT_FILE_PREFIX + "." + term + "_" + endIndex;
   }
 
   /**

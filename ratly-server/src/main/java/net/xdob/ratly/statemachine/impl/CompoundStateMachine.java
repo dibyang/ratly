@@ -79,13 +79,15 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     for (SMPlugin plugin : pluginMap.values()) {
       plugin.initialize(server, groupId, raftStorage, this);
     }
-    restoreFromSnapshot(getLatestSnapshot());
   }
 
 
   @Override
   public void reinitialize() throws IOException {
     restoreFromSnapshot(getLatestSnapshot());
+    for (SMPlugin plugin : pluginMap.values()) {
+      plugin.reinitialize();
+    }
   }
 
   public void addLeaderChangedListener(LeaderChangedListener listener) {

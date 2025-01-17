@@ -38,7 +38,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   /**
    * 快照文件的前缀名
    */
-  static final String SNAPSHOT_FILE_SUFFIX = ".snapshot";
+  static final String SNAPSHOT_FILE_PREFIX = "snapshot";
   /**
    * 用于标记损坏快照文件的后缀
    */
@@ -48,12 +48,12 @@ public class FileListStateMachineStorage implements StateMachineStorage {
    * snapshot.term_index
    */
   public static final Pattern SNAPSHOT_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)_(.*)" + SNAPSHOT_FILE_SUFFIX);
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+(?<!\\.md5)$)" );
   /**
    * 用于匹配包含 MD5 校验的快照文件名的正则表达式
    */
   public static final Pattern SNAPSHOT_MD5_REGEX =
-      Pattern.compile("(\\d+)_(\\d+)_(.*)" + SNAPSHOT_FILE_SUFFIX + MD5_SUFFIX);
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+)" + MD5_SUFFIX+"$");
 
 
   /**
@@ -121,8 +121,13 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   }
 
   public static void main(String[] args) throws IOException {
-    FileListSnapshotInfo snapshotInfo = findLatestSnapshot(Paths.get("d:/test/db/sm/"));
-    System.out.println("snapshotInfo = " + snapshotInfo);
+    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db.zip.md5";
+    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
+    System.out.println("pp matches() = " + matcher.matches());
+
+    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
+    System.out.println("pp md5 matches() = " + matcher2.matches());
+    System.out.println("matcher2.group(3) = " + matcher2.group(3));
   }
 
   /**
@@ -249,7 +254,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   }
 
   public static String getSnapshotFileName(String module, long term, long endIndex) {
-    return term + "_" + endIndex + "_" + module + SNAPSHOT_FILE_SUFFIX;
+    return SNAPSHOT_FILE_PREFIX  + "." + term + "_" + endIndex + "_" + module;
   }
 
   /**

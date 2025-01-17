@@ -6,11 +6,13 @@ import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.protocol.SerialSupport;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.statemachine.RaftLogQuery;
+import net.xdob.ratly.statemachine.SnapshotInfo;
 
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface SMPluginContext {
   ScheduledExecutorService getScheduler();
+  SnapshotInfo getLatestSnapshot();
   SerialSupport getFasts();
   Object asObject(byte[] bytes);
   Object asObject(ByteString byteString);

@@ -19,18 +19,20 @@ import net.xdob.ratly.statemachine.impl.BaseSMPlugin;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.MD5FileUtil;
+import net.xdob.ratly.util.ZipUtils;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.h2.Driver;
+import org.h2.util.JdbcUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +41,7 @@ public class DBSMPlugin extends BaseSMPlugin {
   public static final String DEFAULT_USER = "remote";
   public static final String DEFAULT_PASSWORD = "hhrhl2016";
   public static final String DB = "db";
+  public static final String DB2ZIP = "db.zip";
 
 
   private final BasicDataSource dataSource = new BasicDataSource();
@@ -49,7 +52,9 @@ public class DBSMPlugin extends BaseSMPlugin {
   private String username = DEFAULT_USER;
   private String password = DEFAULT_PASSWORD;
 
+  private Path dbStore;
   private SMPluginContext context;
+
 
   public DBSMPlugin(String db) {
     super(DB);
@@ -64,10 +69,12 @@ public class DBSMPlugin extends BaseSMPlugin {
      */
     try {
       this.context = context;
-      //this.path = Paths.get(raftStorage.getStorageDir().getRoot().getPath(), "db").toString();
+      this.dbStore = Paths.get(raftStorage.getStorageDir().getRoot().getPath(), "db");
       DriverManager.registerDriver(new Driver());
+      String dbPath = dbStore.resolve(db).toString();
       // 基于存储目录初始化
-      dataSource.setUrl("jdbc:h2:mem:"+db);//file:" + path + "/"+db+";AUTO_SERVER=TRUE");
+      String url = "jdbc:h2:file:" + dbPath;
+      dataSource.setUrl(url + ";AUTO_SERVER=TRUE");
       dataSource.setDriverClassName("org.h2.Driver");
       dataSource.setUsername(username);
       dataSource.setPassword(password);
@@ -101,14 +108,28 @@ public class DBSMPlugin extends BaseSMPlugin {
       context.getScheduler().scheduleAtFixedRate(()->{
         transactionMgr.checkTimeoutTx();
       },10, 10, TimeUnit.SECONDS);
+      boolean exists = dbStore.resolve(db + ".mv.db").toFile().exists();
+      if(!exists||hasDBError(url, username, password)){
+        restoreFromSnapshot(context.getLatestSnapshot());
+      }
     } catch (SQLException e) {
       throw new RuntimeException("Failed to initialize H2 database", e);
     }
   }
 
+  private boolean hasDBError(String url, String user, String password) throws SQLException {
+    try (Connection conn = JdbcUtils.getConnection(null, url,user,password)){
+      PreparedStatement ps = conn.prepareStatement("show tables");
+      ps.execute();
+      ResultSet rs = ps.executeQuery();
+    } catch(SQLException e){
+      return true;
+    }
+    return false;
+  }
+
   @Override
   public void reinitialize() throws IOException {
-
   }
 
   @Override
@@ -392,14 +413,21 @@ public class DBSMPlugin extends BaseSMPlugin {
   @Override
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    final File snapshotFile =  storage.getSnapshotFile(DB, last.getTerm(), last.getIndex());
-    LOG.info("Taking a DB snapshot to file {}", snapshotFile);
+    final File snapshotFile =  storage.getSnapshotFile(DB2ZIP, last.getTerm(), last.getIndex());
+    Path tmpPath = snapshotFile.toPath().resolveSibling(DB + "_tmp");
+    if(!tmpPath.toFile().exists()){
+      tmpPath.toFile().mkdirs();
+    }
+    File sqlFile = tmpPath.resolve(db+".sql").toFile();
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
-      statement.execute("SCRIPT DROP TO '" + snapshotFile.toString() + "'");
+      statement.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
     }catch (SQLException e){
       throw new IOException(e);
     }
+    ZipUtils.compressFiles(snapshotFile, sqlFile);
+    deleteDir(tmpPath);
+    LOG.info("Taking a DB snapshot to file {}", snapshotFile);
     final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
     final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
     ArrayList<FileInfo> fileInfos = Lists.newArrayList(info);
@@ -407,28 +435,62 @@ public class DBSMPlugin extends BaseSMPlugin {
     return fileInfos;
   }
 
+  private static void deleteDir(Path tmpPath) {
+    Arrays.stream(Objects.requireNonNull(tmpPath.toFile().listFiles()))
+        .forEach(File::delete);
+    tmpPath.toFile().delete();
+  }
+
   @Override
   public void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException {
     if(snapshot==null){
       return;
     }
-    List<FileInfo> files = snapshot.getFiles(DB);
-    if(!files.isEmpty()) {
-      Stopwatch stopwatch = Stopwatch.createStarted();
-      FileInfo fileInfo = files.get(0);
+    List<FileInfo> zipfiles = snapshot.getFiles(DB2ZIP);
+    if(!zipfiles.isEmpty()) {
+
+      FileInfo fileInfo = zipfiles.get(0);
       final File snapshotFile = fileInfo.getPath().toFile();
       final String snapshotFileName = snapshotFile.getPath();
-      LOG.info("restore DB snapshot from {}", snapshotFileName);
       final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
       if (md5.equals(fileInfo.getFileDigest())) {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-          statement.execute("RUNSCRIPT FROM '" + snapshotFileName + "'");
-        } catch (SQLException e) {
-          throw new IOException(e);
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        LOG.info("restore DB snapshot from {}", snapshotFileName);
+        Path tmpPath = snapshotFile.toPath().resolveSibling(DB + "_tmp");
+        File sqlFile = tmpPath.resolve(db+".sql").toFile();
+        ZipUtils.decompressFiles(snapshotFile, tmpPath.toFile());
+        if(sqlFile.exists()) {
+          try (Connection connection = dataSource.getConnection();
+               Statement statement = connection.createStatement()) {
+            statement.execute("RUNSCRIPT FROM '" + sqlFile.toString() + "'");
+          } catch (SQLException e) {
+            throw new IOException(e);
+          }
+        }
+        deleteDir(tmpPath);
+        LOG.info("restore DB snapshot use time: {}", stopwatch);
+      }
+
+    }else{
+      List<FileInfo> files = snapshot.getFiles(DB);
+      if(!files.isEmpty()) {
+        FileInfo fileInfo = files.get(0);
+        final File snapshotFile = fileInfo.getPath().toFile();
+        final String snapshotFileName = snapshotFile.getPath();
+
+        final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
+        if (md5.equals(fileInfo.getFileDigest())) {
+          Stopwatch stopwatch = Stopwatch.createStarted();
+          LOG.info("restore DB snapshot from {}", snapshotFileName);
+          try (Connection connection = dataSource.getConnection();
+               Statement statement = connection.createStatement()) {
+            statement.execute("RUNSCRIPT FROM '" + snapshotFileName + "'");
+          } catch (SQLException e) {
+            throw new IOException(e);
+          }
+          LOG.info("restore DB snapshot use time: {}", stopwatch);
         }
       }
-      LOG.info("restore DB snapshot use time: {}", stopwatch);
     }
   }
 
