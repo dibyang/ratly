@@ -12,7 +12,6 @@ dependencies {
     api("org.apache.commons:commons-dbcp2:2.13.0")
     implementation "ch.qos.logback:logback-core:${logback_version}"
     implementation "ch.qos.logback:logback-classic:${logback_version}"
-    //implementation 'com.github.jsqlparser:jsqlparser:4.9'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

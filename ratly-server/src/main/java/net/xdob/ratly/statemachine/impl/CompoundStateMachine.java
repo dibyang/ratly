@@ -11,6 +11,8 @@ import net.xdob.ratly.proto.jdbc.WrapReplyProto;
 import net.xdob.ratly.proto.jdbc.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.*;
+import net.xdob.ratly.security.crypto.factory.PasswordEncoderFactories;
+import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -34,13 +36,12 @@ import java.util.function.Consumer;
 
 public class CompoundStateMachine extends BaseStateMachine implements SMPluginContext {
   static final Logger LOG = LoggerFactory.getLogger(CompoundStateMachine.class);
-  public static final String INDEX4PLUGIN = "index4plugin";
 
 
   private final FastsImpl fasts = new FastsImpl();
   private final List<LeaderChangedListener> leaderChangedListeners = new ArrayList<>();
 
-
+  private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
   private ScheduledExecutorService scheduler;
   private final FileListStateMachineStorage storage = new FileListStateMachineStorage();
   private MemoizedSupplier<RaftLogQuery> logQuery;
@@ -57,7 +58,15 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   private Map<String,SMPlugin> pluginMap = Maps.newConcurrentMap();
 
   public void addSMPlugin(SMPlugin plugin){
+    plugin.setSMPluginContext(this);
+
     pluginMap.put(plugin.getId(), plugin);
+  }
+
+  public <T extends SMPlugin> Optional<T> getSMPlugin(Class<T> clazz){
+    return (Optional<T>) pluginMap.values().stream()
+        .filter(e->e.getClass().equals(clazz))
+        .findFirst();
   }
 
   @Override
@@ -73,7 +82,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     storage.init(raftStorage);
     this.scheduler = Executors.newSingleThreadScheduledExecutor();
     for (SMPlugin plugin : pluginMap.values()) {
-      plugin.initialize(server, groupId, raftStorage, this);
+      plugin.initialize(server, groupId, raftStorage);
     }
   }
 
@@ -195,26 +204,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
     LOG.info("restore from snapshot {} files={}",snapshot.getTermIndex(), snapshot.getFiles());
     try(AutoCloseableLock writeLock = writeLock()) {
-      Properties appliedIndexMap = new Properties();;
-      FileInfo fileInfo = snapshot.getFiles(INDEX4PLUGIN).stream().findFirst().orElse(null);
-      if(fileInfo!=null){
-        File snapshotFile = fileInfo.getPath().toFile();
-        final String snapshotFileName = snapshotFile.getPath();
-        LOG.info("restore index4plugin snapshot from {}", snapshotFileName);
-        final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
-        if (md5.equals(fileInfo.getFileDigest())) {
-          try(BufferedReader br = new BufferedReader(new InputStreamReader(
-              FileUtils.newInputStream(snapshotFile), StandardCharsets.UTF_8))){
-            appliedIndexMap.load(br);
-          }
-        }
-      }
       for (SMPlugin plugin : pluginMap.values()) {
-        long newIndex = Optional.ofNullable(appliedIndexMap.getProperty(plugin.getId()))
-            .map(Long::parseLong).orElse(RaftLog.INVALID_LOG_INDEX);
-        if(newIndex>RaftLog.INVALID_LOG_INDEX){
-          plugin.updateAppliedIndexToMax(newIndex);
-        }
         plugin.restoreFromSnapshot(snapshot);
       }
     }
@@ -239,16 +229,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         }
       }
       if(!infos.isEmpty()) {
-        final File snapshotFile =  storage.getSnapshotFile(INDEX4PLUGIN, last.getTerm(), last.getIndex());
-        LOG.info("Taking a index4plugin snapshot to file {}", snapshotFile);
-        try(BufferedWriter out = new BufferedWriter(
-            new OutputStreamWriter(new AtomicFileOutputStream(snapshotFile), StandardCharsets.UTF_8))){
-          appliedIndexMap.store(out, "last ="+last);
-        }
-        final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
-        LOG.info("index4plugin md5={}", md5);
-        final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
-        infos.add(info);
         storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
         return last.getIndex();
       }
@@ -337,6 +317,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public boolean isLeader() {
     return isLeader;
+  }
+
+  @Override
+  public PasswordEncoder getPasswordEncoder() {
+    return passwordEncoder;
   }
 
 }

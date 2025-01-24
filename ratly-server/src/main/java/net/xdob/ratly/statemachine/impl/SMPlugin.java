@@ -16,22 +16,25 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface SMPlugin extends Closeable {
   Logger LOG = LoggerFactory.getLogger(SMPlugin.class);
   String getId();
-  void initialize(RaftServer server, RaftGroupId groupId,
-                  RaftStorage raftStorage, SMPluginContext context) throws IOException;
+  void initialize(RaftServer server, RaftGroupId groupId, RaftStorage raftStorage) throws IOException;
+
+  void setSMPluginContext(SMPluginContext context);
+
   default void reinitialize() throws IOException{
 
   }
-  default Object query(Message request){
+  default Object query(Message request) throws SQLException {
     return null;
   }
 
-  default Object applyTransaction(TermIndex termIndex, ByteString msg){
+  default Object applyTransaction(TermIndex termIndex, ByteString msg) throws SQLException {
     return null;
   }
 
@@ -43,11 +46,6 @@ public interface SMPlugin extends Closeable {
 
   }
 
-  /**
-   * 事务完成更新插件事务阶段性索引
-   * @param newIndex 插件事务阶段性索引
-   */
-  boolean updateAppliedIndexToMax(long newIndex);
 
   /**
    * 获取插件最新的已应用的日志索引，
@@ -55,5 +53,7 @@ public interface SMPlugin extends Closeable {
    * @see RaftLog#INVALID_LOG_INDEX
    * @return 插件事务阶段性索引
    */
-  long getLastPluginAppliedIndex();
+  default long getLastPluginAppliedIndex(){
+    return RaftLog.INVALID_LOG_INDEX;
+  }
 }

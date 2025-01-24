@@ -121,7 +121,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   }
 
   public static void main(String[] args) throws IOException {
-    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db.zip.md5";
+    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.md5";
     Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
     System.out.println("pp matches() = " + matcher.matches());
 

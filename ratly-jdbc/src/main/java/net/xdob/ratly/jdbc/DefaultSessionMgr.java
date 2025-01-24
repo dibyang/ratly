@@ -10,7 +10,7 @@ public class DefaultSessionMgr implements SessionMgr{
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
 
   @Override
-  public Session newSession(String user, String password) {
+  public Session newSession(String user) {
     Session session = new Session(UUID.randomUUID().toString(), user);
     sessions.put(session.getId(), session);
     return session;
