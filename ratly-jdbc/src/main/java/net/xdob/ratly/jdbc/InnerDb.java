@@ -469,11 +469,6 @@ public class InnerDb {
     }
   }
 
-  private void deleteDir(Path tmpPath) {
-    Arrays.stream(Objects.requireNonNull(tmpPath.toFile().listFiles()))
-        .forEach(File::delete);
-    tmpPath.toFile().delete();
-  }
 
   public void close() throws IOException {
     try {

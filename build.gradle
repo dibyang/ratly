@@ -77,7 +77,6 @@ subprojects {
     buildscript {
         repositories {
             mavenCentral()
-            maven { url "https://${nexus_host}:8082/repository/maven-public/" }
             maven { url 'https://maven.aliyun.com/repository/public/' }
             mavenLocal()
         }
@@ -112,7 +111,6 @@ subprojects {
 
     repositories {
         mavenCentral()
-        maven { url "https://${nexus_host}:8082/repository/maven-public/" }
         maven { url 'https://maven.aliyun.com/repository/public/' }
         mavenLocal()
     }
@@ -172,6 +170,33 @@ subprojects {
                 artifact sourceJar
                 // 添加javadocjar
                 artifact javadocJar
+                pom {
+                    name = 'ratly'
+                    description = "强一致性分布式数据库支持"
+                    // 构件主页
+                    url = 'https://github.com/dibyang/ratly'
+                    // 许可证名称和地址
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    // 开发者信息
+                    developers {
+                        developer {
+                            id = 'dib.yang'
+                            name = 'yangzj'
+                            email = 'dib.yang@gmail.com'
+                        }
+                    }
+                    // 版本控制仓库地址
+                    scm {
+                        url = 'https://github.com/dibyang/ratly'
+                        connection = 'scm:git:https://github.com/dibyang/ratly.git'
+                        developerConnection = 'scm:git:https://github.com/dibyang/ratly.git'
+                    }
+                }
             }
         }
         repositories {
