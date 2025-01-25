@@ -13,4 +13,5 @@ include 'ratly-shell'
 include 'ratly-netty'
 include 'ratly-jdbc'
 include 'ratly-fasts'
+include 'ratly-rmap'
 
