@@ -172,7 +172,7 @@ subprojects {
                 artifact javadocJar
                 pom {
                     name = 'ratly'
-                    description = "强一致性分布式数据库支持"
+                    description = "Distributed Database with Strong Consistency Based on Raft Protocol"
                     // 构件主页
                     url = 'https://github.com/dibyang/ratly'
                     // 许可证名称和地址
@@ -186,7 +186,7 @@ subprojects {
                     developers {
                         developer {
                             id = 'dib.yang'
-                            name = 'yangzj'
+                            name = 'dib.yang'
                             email = 'dib.yang@gmail.com'
                         }
                     }
