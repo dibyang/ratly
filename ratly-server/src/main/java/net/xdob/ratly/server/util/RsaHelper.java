@@ -1,6 +1,6 @@
 package net.xdob.ratly.server.util;
 
-import com.ls.luava.security.RSAUtil;
+import net.xdob.onlooker.security.RSAUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
