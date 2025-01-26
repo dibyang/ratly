@@ -222,7 +222,5 @@ subprojects {
         sign publishing.publications.maven
     }
 
-    afterReleaseBuild.dependsOn publishMavenPublicationToMavenRepository
-
 
 }
