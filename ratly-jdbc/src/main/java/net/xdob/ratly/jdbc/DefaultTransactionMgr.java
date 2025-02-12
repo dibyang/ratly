@@ -5,7 +5,6 @@ import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.util.*;
@@ -24,22 +23,20 @@ public class DefaultTransactionMgr implements TransactionMgr {
 
 
   @Override
-  public Connection getConnection(String tx) throws SQLException {
+  public Session getSession(String tx) throws SQLException {
     if(!Strings.isNullOrEmpty(tx)) {
-      return getTxInfo(tx).map(TxInfo::getConnection).orElse(null);
+      return getTxInfo(tx).map(TxInfo::getSession).orElse(null);
     }
     return null;
   }
 
   @Override
-  public void initializeTx(String tx, ConnSupplier connSupplier) throws SQLException {
+  public void initializeTx(String tx, Session session) throws SQLException {
     synchronized (txInfoMap) {
       TxInfo txInfo = getTxInfo(tx).orElse(null);
       if (txInfo == null) {
         txInfo = new TxInfo(tx);
-        Connection connection = connSupplier.getConnection();
-        txInfo.setConnection(connection);
-        connection.setAutoCommit(false);
+        txInfo.setSession(session);
         txInfoMap.put(tx, txInfo);
       }
     }
@@ -74,7 +71,7 @@ public class DefaultTransactionMgr implements TransactionMgr {
     synchronized (txInfoMap) {
       TxInfo txInfo = txInfoMap.remove(tx);
       if (txInfo != null) {
-        txInfo.getConnection().close();
+        txInfo.getSession().closeConnection();
       }
     }
   }
@@ -91,14 +88,14 @@ public class DefaultTransactionMgr implements TransactionMgr {
   @Override
   public void commit(String tx) throws SQLException {
     TxInfo txInfo = getTxInfoOrThrow(tx);
-    txInfo.getConnection().commit();
+    txInfo.getSession().getConnection().commit();
     releaseTx(tx);
   }
 
   @Override
   public void rollback(String tx) throws SQLException {
     TxInfo txInfo = getTxInfoOrThrow(tx);
-    txInfo.getConnection().rollback();
+    txInfo.getSession().getConnection().rollback();
     releaseTx(tx);
   }
 
@@ -107,9 +104,9 @@ public class DefaultTransactionMgr implements TransactionMgr {
     TxInfo txInfo = getTxInfoOrThrow(tx);
     Savepoint savepoint = null;
     if(name.isEmpty()) {
-      savepoint = txInfo.getConnection().setSavepoint();
+      savepoint = txInfo.getSession().getConnection().setSavepoint();
     }else {
-      savepoint = txInfo.getConnection().setSavepoint(name);
+      savepoint = txInfo.getSession().getConnection().setSavepoint(name);
     }
     return savepoint;
   }
@@ -125,13 +122,13 @@ public class DefaultTransactionMgr implements TransactionMgr {
   @Override
   public void releaseSavepoint(String tx, Savepoint savepoint) throws SQLException {
     TxInfo txInfo = getTxInfoOrThrow(tx);
-    txInfo.getConnection().releaseSavepoint(savepoint);
+    txInfo.getSession().getConnection().releaseSavepoint(savepoint);
   }
 
   @Override
   public void rollback(String tx, Savepoint savepoint) throws SQLException {
     TxInfo txInfo = getTxInfoOrThrow(tx);
-    txInfo.getConnection().rollback(savepoint);
+    txInfo.getSession().getConnection().rollback(savepoint);
   }
 
 }

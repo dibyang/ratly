@@ -3,7 +3,6 @@ package net.xdob.ratly.jdbc;
 import net.xdob.ratly.jdbc.sql.Parameters;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
 public class QueryRequest implements Serializable {
   private String db;
@@ -17,6 +16,12 @@ public class QueryRequest implements Serializable {
   private int  fetchDirection;
   private int  fetchSize;
   private final Parameters params = new Parameters();
+  /**
+   * invoke专用参数
+   */
+  private String methodName;
+  private Class<?>[] parametersTypes;
+  private Object[] args;
 
   public String getDb() {
     return db;
@@ -117,5 +122,30 @@ public class QueryRequest implements Serializable {
     return params;
   }
 
+  public String getMethodName() {
+    return methodName;
+  }
 
+  public QueryRequest setMethodName(String methodName) {
+    this.methodName = methodName;
+    return this;
+  }
+
+  public Class<?>[] getParametersTypes() {
+    return parametersTypes;
+  }
+
+  public QueryRequest setParametersTypes(Class<?>[] parametersTypes) {
+    this.parametersTypes = parametersTypes;
+    return this;
+  }
+
+  public Object[] getArgs() {
+    return args;
+  }
+
+  public QueryRequest setArgs(Object[] args) {
+    this.args = args;
+    return this;
+  }
 }

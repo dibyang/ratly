@@ -502,7 +502,7 @@ RaftServerConfigKeys {
     }
 
     String REQUEST_TIMEOUT_KEY = PREFIX + ".request.timeout";
-    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(3000, TimeUnit.MILLISECONDS);
+    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(5000, TimeUnit.MILLISECONDS);
 
     static TimeDuration requestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(REQUEST_TIMEOUT_DEFAULT.getUnit()),

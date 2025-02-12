@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class TxInfo implements Serializable {
   private final String tx;
   private final LinkedList<Long> indexes = Lists.newLinkedList();
-  private transient Connection connection;
+  private transient Session session;
   private transient volatile long accessTime = System.nanoTime();
 
   public TxInfo(String tx) {
@@ -33,12 +33,12 @@ public class TxInfo implements Serializable {
     return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - accessTime);
   }
 
-  public Connection getConnection() {
-    return connection;
+  public Session getSession() {
+    return session;
   }
 
-  public TxInfo setConnection(Connection connection) {
-    this.connection = connection;
+  public TxInfo setSession(Session session) {
+    this.session = session;
     return this;
   }
 

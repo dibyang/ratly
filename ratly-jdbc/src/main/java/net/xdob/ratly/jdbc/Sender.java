@@ -4,5 +4,6 @@ public enum Sender {
   statement,
   prepared,
   callable,
-  connection
+  connection,
+  databaseMetaData
 }

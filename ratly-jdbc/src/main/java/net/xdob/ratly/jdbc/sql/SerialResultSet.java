@@ -59,12 +59,13 @@ public class SerialResultSet implements ResultSet, Serializable {
     currentRow = null;
   }
 
-  public void addRows(SerialRow... rows) {
-    addRows(Arrays.asList(rows));
+  public SerialResultSet addRows(SerialRow... rows) {
+    return addRows(Arrays.asList(rows));
   }
 
-  public void addRows(Collection<SerialRow> rows) {
+  public SerialResultSet addRows(Collection<SerialRow> rows) {
     this.rows.addAll(rows);
+    return this;
   }
 
   /**

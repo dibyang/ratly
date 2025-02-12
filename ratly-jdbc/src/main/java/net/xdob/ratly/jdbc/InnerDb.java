@@ -1,7 +1,6 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.Maps;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
@@ -10,7 +9,6 @@ import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.server.storage.FileInfo;
-import net.xdob.ratly.server.util.RsaHelper;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
@@ -43,7 +41,6 @@ public class InnerDb {
   private final Path dbStore;
   private final DbInfo dbInfo;
 
-  private final Map<String, Method> methodCache = Maps.newConcurrentMap();
   private final TransactionMgr transactionMgr = new DefaultTransactionMgr();
 
   private final DbsContext context;
@@ -52,6 +49,7 @@ public class InnerDb {
 
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
+  private final ClassCache classCache = new ClassCache();
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
@@ -121,6 +119,10 @@ public class InnerDb {
           transactionMgr.checkTimeoutTx();
         },10, 10, TimeUnit.SECONDS);
 
+        context.getScheduler().scheduleAtFixedRate(()->{
+          sessionMgr.checkTimeout();
+        },30, 30, TimeUnit.SECONDS);
+
         boolean exists = dbStore.resolve(getName() + ".mv.db").toFile().exists();
         if(!exists||hasDBError(url)){
           restoreFromSnapshot(context.getLatestSnapshot());
@@ -139,43 +141,76 @@ public class InnerDb {
     QueryType type = queryRequest.getType();
     if(Sender.connection.equals(sender)&&QueryType.check.equals(type)){
       String user = queryRequest.getUser();
-      Session session = sessionMgr.newSession(user);
-      //LOG.info("open session user={}, id={}", user, session.getId());
+      String password = context.getRsaHelper().decrypt(queryRequest.getPassword());
+      DbUser dbUser = getDbInfo().getUser(user).orElse(null);
+      if (dbUser == null) {
+        throw new SQLInvalidAuthorizationSpecException();
+      } else {
+        PasswordEncoder passwordEncoder = context.getPasswordEncoder();
+        if (!passwordEncoder.matches(password, dbUser.getPassword())) {
+          throw new SQLInvalidAuthorizationSpecException();
+        } else {
+          if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
+            dbUser.setPassword(passwordEncoder.encode(password));
+            context.updateDbs();
+          }
+        }
+      }
+      Session session = sessionMgr.newSession(user, dataSource::getConnection);
       queryReply.setRs(session.getId());
 
     }else{
       String sessionId = queryRequest.getSession();
       Session session = sessionMgr.getSession(sessionId)
           .orElseThrow(()->new NoSessionException(sessionId));
-      String tx = session.getTx();
-      Connection conn = transactionMgr.getConnection(tx);
-      if(conn==null){
-        try (Connection connection = dataSource.getConnection()) {
-          query(queryRequest, connection, queryReply);
+      query(queryRequest, session, queryReply);
+    }
+
+  }
+
+
+  private void query(QueryRequest queryRequest, Session session, QueryReply queryReply) throws SQLException {
+    if(queryRequest.getType().equals(QueryType.check)){
+      doSqlCheck(session, queryRequest.getSql());
+    }else if(queryRequest.getType().equals(QueryType.meta)){
+      doMeta(session, queryRequest, queryRequest.getSql(), queryReply);
+    }else if(queryRequest.getType().equals(QueryType.query)){
+      doQuery(session, queryRequest, queryReply);
+    }else if(queryRequest.getType().equals(QueryType.invoke)){
+      doInvoke(session, queryRequest, queryReply);
+    }
+  }
+
+  private void doInvoke(Session session, QueryRequest queryRequest,  QueryReply queryReply) throws SQLException {
+    if(Sender.databaseMetaData.equals(queryRequest.getSender())){
+      DatabaseMetaData metaData = session.getConnection().getMetaData();
+      try {
+        String methodName  = queryRequest.getMethodName();
+        Class<?>[] paramTypes = queryRequest.getParametersTypes();
+        Method method = classCache.getMethod(metaData.getClass(), methodName, paramTypes);;
+        Object[] args = queryRequest.getArgs();
+        Object o = method.invoke(metaData, args);
+        ResultSet resultSet;
+        if (ResultSet.class.isAssignableFrom(method.getReturnType())) {
+          resultSet = new SerialResultSet((ResultSet) o);
+        } else {
+          SerialResultSetMetaData resultSetMetaData = buildResultSetMetaData(method.getReturnType());
+          resultSet = new SerialResultSet(resultSetMetaData)
+              .addRows(new SerialRow(1).setValue(0, o));
         }
-      }else{
-        query(queryRequest, conn, queryReply);
+        queryReply.setRs(resultSet);
+      } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+        throw new SQLException(e);
       }
     }
 
   }
 
-
-  private void query(QueryRequest queryRequest, Connection connection, QueryReply queryReply) throws SQLException {
-    if(queryRequest.getType().equals(QueryType.check)){
-      doSqlCheck(connection, queryRequest.getSql());
-    }else if(queryRequest.getType().equals(QueryType.meta)){
-      doMeta(queryRequest, connection, queryRequest.getSql(), queryReply);
-    }else if(queryRequest.getType().equals(QueryType.query)){
-      doQuery(connection, queryRequest, queryReply);
-    }
-  }
-
-  private void doQuery(Connection connection, QueryRequest queryRequest,
+  private void doQuery(Session session, QueryRequest queryRequest,
                        QueryReply queryReply) throws SQLException {
     if(Sender.prepared.equals(queryRequest.getSender())
         ||Sender.callable.equals(queryRequest.getSender())){
-      try(CallableStatement ps = connection.prepareCall(queryRequest.getSql())) {
+      try(CallableStatement ps = session.getConnection().prepareCall(queryRequest.getSql())) {
         ps.setFetchDirection(queryRequest.getFetchDirection());
         ps.setFetchSize(queryRequest.getFetchSize());
         if(!queryRequest.getParams().isEmpty()){
@@ -189,49 +224,29 @@ public class InnerDb {
         queryReply.setRs(new SerialResultSet(rs));
       }
     }else{
-      try(Statement s = connection.createStatement()) {
+      try(Statement s = session.getConnection().createStatement()) {
         ResultSet rs = s.executeQuery(queryRequest.getSql());
         queryReply.setRs(new SerialResultSet(rs));
       }
     }
   }
 
-  private void doSqlCheck(Connection connection, String sql) throws SQLException {
-    try(PreparedStatement ps = connection.prepareStatement(sql)) {
+  private void doSqlCheck(Session session, String sql) throws SQLException {
+    try(PreparedStatement ps = session.getConnection().prepareStatement(sql)) {
       //check sql
     }
   }
 
-  private void doMeta(QueryRequest queryRequest, Connection connection, String sql, QueryReply queryReply) throws SQLException {
-    if(Sender.connection.equals(queryRequest.getSender())){
-      DatabaseMetaData metaData = connection.getMetaData();
-      try {
-        Method method = getMethod(metaData, sql);
-        Object[] args = (Object[])queryRequest.getParams().getParameters().get(0).getValue();
-        Object o = method.invoke(metaData, args);
-        SerialResultSet resultSet;
-        if (ResultSet.class.isAssignableFrom(method.getReturnType())) {
-          resultSet = new SerialResultSet((ResultSet) o);
-        } else {
-          SerialResultSetMetaData resultSetMetaData = buildResultSetMetaData(method.getReturnType());
-          resultSet = new SerialResultSet(resultSetMetaData);
-          resultSet.addRows(new SerialRow(1).setValue(0, o));
-        }
-        queryReply.setRs(resultSet);
-      } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-        throw new SQLException(e);
+  private void doMeta(Session session, QueryRequest queryRequest, String sql, QueryReply queryReply) throws SQLException {
+    try(PreparedStatement ps = session.getConnection().prepareStatement(sql)) {
+      ResultSetMetaData metaData = ps.getMetaData();
+      //LOG.info("sql= {} ResultSetMetaData={}", sql, metaData);
+      if(metaData!=null) {
+        SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData(metaData);
+        queryReply.setRsMeta(resultSetMetaData);
       }
-    }else {
-      try(PreparedStatement ps = connection.prepareStatement(sql)) {
-        ResultSetMetaData metaData = ps.getMetaData();
-        //LOG.info("sql= {} ResultSetMetaData={}", sql, metaData);
-        if(metaData!=null) {
-          SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData(metaData);
-          queryReply.setRsMeta(resultSetMetaData);
-        }
-        SerialParameterMetaData parameterMetaData = new SerialParameterMetaData(ps.getParameterMetaData());
-        queryReply.setParamMeta(parameterMetaData);
-      }
+      SerialParameterMetaData parameterMetaData = new SerialParameterMetaData(ps.getParameterMetaData());
+      queryReply.setParamMeta(parameterMetaData);
     }
   }
 
@@ -254,51 +269,34 @@ public class InnerDb {
     return resultSetMetaData;
   }
 
-  private Method getMethod(DatabaseMetaData metaData, String name) throws NoSuchMethodException {
-    Method method = methodCache.get(name);
-    if(method==null){
-      Method[] methods = metaData.getClass().getMethods();
-      for (Method m : methods) {
-        if(m.getName().equals(name)){
-          method = m;
-        }
-        methodCache.put(m.getName(), m);
-      }
-    }
-    return method;
-  }
 
   public void applyTransaction(UpdateRequest updateRequest, TermIndex termIndex, UpdateReply updateReply) throws SQLException {
 
     String sessionId = updateRequest.getSession();
-    Session session = sessionMgr.getSession(sessionId).orElse(null);
+    Session session = sessionMgr.getOrOpenSession(sessionId, dataSource::getConnection);
 
-    //LOG.info("type={}, tx={}, sql={}", updateRequest.getType(), updateRequest.getTx(), updateRequest.getSql());
     String tx = updateRequest.getTx();
-    if(session!=null){
-      session.setTx(tx);
-    }
+    session.setTx(tx);
     if(tx.isEmpty()) {
-      try (Connection connection = dataSource.getConnection()) {
-        executeUpdate(updateRequest, connection, updateReply);
-        updateAppliedIndexToMax(termIndex.getIndex());
-      } catch (SQLException e) {
-        updateReply.setEx(e);
-      }
+      executeUpdate(updateRequest, session.getConnection(), updateReply);
+      updateAppliedIndexToMax(termIndex.getIndex());
+      session.closeConnection();
     }else {
-      transactionMgr.initializeTx(tx, dataSource::getConnection);
+      transactionMgr.initializeTx(tx, session);
       applyLog(updateRequest, updateReply);
       if (UpdateType.commit.equals(updateRequest.getType())
           ||UpdateType.rollback.equals(updateRequest.getType()))
       {
         //事务完成更新插件事务阶段性索引
         updateAppliedIndexToMax(termIndex.getIndex());
+        session.closeConnection();
       }else{
         transactionMgr.addIndex(tx, termIndex.getIndex());
       }
     }
 
   }
+
 
   /**
    * 事务完成更新插件事务阶段性索引
@@ -321,7 +319,7 @@ public class InnerDb {
     String tx = updateRequest.getTx();
     if(UpdateType.execute.equals(updateRequest.getType())){
       try {
-        Connection connection = transactionMgr.getConnection(tx);
+        Connection connection = transactionMgr.getSession(tx).getConnection();
         executeUpdate(updateRequest, connection, updateReply);
       } catch (SQLException e) {
         updateReply.setEx(e);

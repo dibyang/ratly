@@ -8,6 +8,7 @@ import net.xdob.ratly.protocol.SerialSupport;
 import org.h2.message.DbException;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -44,11 +45,13 @@ public class JdbcStatement implements Statement {
         .setFetchSize(fetchSize);
   }
 
-  protected SerialResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
+  protected ResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
     QueryReply queryReply = sendQueryRequest(queryRequest);
     if(queryReply.getEx()==null) {
-      SerialResultSet rs = (SerialResultSet) queryReply.getRs();
-      rs.resetResult();
+      ResultSet rs =  (ResultSet)queryReply.getRs();
+      if(rs instanceof SerialResultSet) {
+        ((SerialResultSet)rs).resetResult();
+      }
       return rs;
     }else{
       throw queryReply.getEx();

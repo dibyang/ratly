@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
@@ -58,24 +59,27 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
 
   public ResultSet queryMeta(Method method, Object... args) throws SQLException {
     QueryRequest queryRequest = new QueryRequest()
-        .setSender(Sender.connection)
-        .setType(QueryType.meta)
+        .setSender(Sender.databaseMetaData)
+        .setType(QueryType.invoke)
         .setSession(client.getConnection().getSession())
         .setTx(client.getTx())
-        .setDb(client.getCi().getDb())
-        .setSql(method.getName());
+        .setDb(client.getCi().getDb());
 
-    queryRequest.getParams().getParameters().add(new Parameter(1).setValue(args));
+    queryRequest.setMethodName(method.getName());
+    queryRequest.setParametersTypes(method.getParameterTypes());
+    queryRequest.setArgs(args);
 
     return sendQuery(queryRequest);
   }
 
 
-  protected SerialResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
+  protected ResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
     QueryReply queryReply = sendQueryRequest(queryRequest);
     if(queryReply.getEx()==null) {
-      SerialResultSet rs = (SerialResultSet) queryReply.getRs();
-      rs.resetResult();
+      ResultSet rs =  (ResultSet)queryReply.getRs();
+      if(rs instanceof SerialResultSet) {
+        ((SerialResultSet)rs).resetResult();
+      }
       return rs;
     }else{
       throw queryReply.getEx();

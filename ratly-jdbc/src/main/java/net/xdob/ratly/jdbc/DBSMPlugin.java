@@ -91,6 +91,16 @@ public class DBSMPlugin implements SMPlugin {
       public PasswordEncoder getPasswordEncoder() {
         return context.getPasswordEncoder();
       }
+
+      @Override
+      public RsaHelper getRsaHelper() {
+        return rsaHelper;
+      }
+
+      @Override
+      public void updateDbs() {
+        saveDbs();
+      }
     };
   }
 
@@ -176,27 +186,11 @@ public class DBSMPlugin implements SMPlugin {
     String db = queryRequest.getDb();
     InnerDb innerDb = dbMap.get(db);
     if(innerDb!=null){
-      Sender sender = queryRequest.getSender();
-      QueryType type = queryRequest.getType();
-      if(Sender.connection.equals(sender)&&QueryType.check.equals(type)) {
-        String user = queryRequest.getUser();
-        String password = rsaHelper.decrypt(queryRequest.getPassword());
-        DbUser dbUser = innerDb.getDbInfo().getUser(user).orElse(null);
-        if (dbUser == null) {
-          throw new SQLInvalidAuthorizationSpecException();
-        } else {
-          PasswordEncoder passwordEncoder = context.getPasswordEncoder();
-          if (!passwordEncoder.matches(password, dbUser.getPassword())) {
-            throw new SQLInvalidAuthorizationSpecException();
-          } else {
-            if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
-              dbUser.setPassword(passwordEncoder.encode(password));
-              saveDbs();
-            }
-          }
-        }
+      try {
+        innerDb.query(queryRequest, queryReply);
+      } catch (SQLException e) {
+        queryReply.setEx(e);
       }
-      innerDb.query(queryRequest, queryReply);
     } else {
       throw new NoDatabaseException(db);
     }
