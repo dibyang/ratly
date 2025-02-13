@@ -439,7 +439,7 @@ RaftServerConfigKeys {
     String PREFIX = RaftServerConfigKeys.PREFIX + ".rpc";
 
     String TIMEOUT_MIN_KEY = PREFIX + ".timeout.min";
-    TimeDuration TIMEOUT_MIN_DEFAULT = TimeDuration.valueOf(200, TimeUnit.MILLISECONDS);
+    TimeDuration TIMEOUT_MIN_DEFAULT = TimeDuration.valueOf(400, TimeUnit.MILLISECONDS);
 
     static TimeDuration timeoutMin(RaftProperties properties, Consumer<String> logger) {
       return getTimeDuration(properties.getTimeDuration(TIMEOUT_MIN_DEFAULT.getUnit()),
@@ -455,7 +455,7 @@ RaftServerConfigKeys {
     }
 
     String TIMEOUT_MAX_KEY = PREFIX + ".timeout.max";
-    TimeDuration TIMEOUT_MAX_DEFAULT = TimeDuration.valueOf(400, TimeUnit.MILLISECONDS);
+    TimeDuration TIMEOUT_MAX_DEFAULT = TimeDuration.valueOf(800, TimeUnit.MILLISECONDS);
 
     static TimeDuration timeoutMax(RaftProperties properties, Consumer<String> logger) {
       return getTimeDuration(properties.getTimeDuration(TIMEOUT_MAX_DEFAULT.getUnit()),

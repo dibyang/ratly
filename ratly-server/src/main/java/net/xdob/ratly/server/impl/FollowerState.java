@@ -117,6 +117,13 @@ class FollowerState extends Daemon {
   }
 
   private boolean roleChangeChecking(TimeDuration electionTimeout) {
+    /*
+     * 当前没有待处理的操作（outstandingOp.get() == 0）。
+     * 当前是 follower 角色（server.getInfo().isFollower()）。
+     * 当前追随者的选举超时已到（lastRpcTime.elapsedTime().compareTo(electionTimeout) >= 0）。
+     * 没有丧失大多数心跳（!lostMajorityHeartbeatsRecently()）。
+     * Raft 服务器正在运行（server.isRunning()）。
+     */
     return outstandingOp.get() == 0
             && isRunning && server.getInfo().isFollower()
             && lastRpcTime.elapsedTime().compareTo(electionTimeout) >= 0

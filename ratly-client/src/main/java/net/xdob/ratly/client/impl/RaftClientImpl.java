@@ -48,10 +48,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -112,42 +109,51 @@ public final class RaftClientImpl implements RaftClient {
 
   static class RepliedCallIds {
     private final Object name;
-    /** The replied callIds. */
-    private Set<Long> replied = new TreeSet<>();
-    /**
-     * Map: callId to-be-sent -> replied callIds to-be-included.
-     * When retrying the same callId, the request will include the same set of replied callIds.
-     *
-     * @see RaftClientRequest#getRepliedCallIds()
-     */
-    private final ConcurrentMap<Long, Set<Long>> sent = new ConcurrentHashMap<>();
+
+    // 使用 AtomicReference 管理 replied 集合，并采用线程安全且有序的 ConcurrentSkipListSet
+    private final AtomicReference<Set<Long>> repliedRef =
+        new AtomicReference<>(new ConcurrentSkipListSet<>());
+
+    // 使用 Guava Cache 限制 sent 的最大容量，并设置自动过期时间（例如：2 分钟内未访问则过期）
+    private final Cache<Long, Set<Long>> sent = CacheBuilder.newBuilder()
+        .maximumSize(100000) // 根据实际情况调整容量
+        .expireAfterAccess(2, TimeUnit.MINUTES)
+        .build();
+
+
 
     RepliedCallIds(Object name) {
       this.name = name;
     }
 
-    /** The given callId is replied. */
+    /** 标记 repliedCallId 已经回复，同时从 sent 中清除对应记录 */
     void add(long repliedCallId) {
       LOG.debug("{}: add replied callId {}", name, repliedCallId);
-      synchronized (this) {
-        // synchronized to avoid adding to a previous set.
-        replied.add(repliedCallId);
-      }
-      sent.remove(repliedCallId);
+      // 无锁添加到 replied 集合中
+      repliedRef.get().add(repliedCallId);
+      // 从缓存中失效对应的 entry
+      sent.invalidate(repliedCallId);
     }
 
-    /** @return the replied callIds for the given callId. */
+    /**
+     * 获取对应 callId 的 replied callIds 集合。
+     * 当 cache 中不存在该 callId 时，调用 getAndReset() 获取当前 replied 集合的快照，并自动重置。
+     */
     Iterable<Long> get(long callId) {
-      final Supplier<Set<Long>> supplier = MemoizedSupplier.valueOf(this::getAndReset);
-      final Set<Long> set = Collections.unmodifiableSet(sent.computeIfAbsent(callId, cid -> supplier.get()));
-      LOG.debug("{}: get {} returns {}", name, callId, set);
-      return set;
+      try {
+        Set<Long> set = sent.get(callId, () -> {
+          // 当 callId 首次出现时，返回 replied 集合的快照（并重置 replied）
+          return Collections.unmodifiableSet(getAndReset());
+        });
+        LOG.debug("{}: get {} returns {}", name, callId, set);
+        return set;
+      } catch (ExecutionException e) {
+        throw new RuntimeException("Error retrieving replied callIds for callId: " + callId, e);
+      }
     }
 
     private synchronized Set<Long> getAndReset() {
-      final Set<Long> previous = replied;
-      replied = new TreeSet<>();
-      return previous;
+      return  repliedRef.getAndSet(new ConcurrentSkipListSet<>());
     }
   }
 

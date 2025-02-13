@@ -60,15 +60,29 @@ public class Session {
     return connection;
   }
 
+  /**
+   * 没有事务则关闭连接，有则不关闭，等待释放事务后关闭连接
+   * @throws SQLException
+   */
   public void closeConnection() throws SQLException {
-    if(connection!=null){
-      connection.rollback();
-      connection.close();
-      connection = null;
-      //LOG.info("session close connection, id={}", id);
+    if(!hasTx()) {
+      if (connection != null) {
+        connection.rollback();
+        connection.close();
+        connection = null;
+        //LOG.info("session close connection, id={}", id);
+      }
     }
   }
 
+  public void releaseTx() throws SQLException {
+    this.tx = "";
+    closeConnection();
+  }
+
+  boolean hasTx(){
+    return tx!=null&&!tx.isEmpty();
+  }
 
   public String getTx() {
     updateAccessTime();
@@ -80,10 +94,8 @@ public class Session {
     this.tx = tx;
   }
 
-
-
   public void close() throws Exception {
-    closeConnection();
+    releaseTx();
     if(closed!=null){
       closed.accept(id);
     }

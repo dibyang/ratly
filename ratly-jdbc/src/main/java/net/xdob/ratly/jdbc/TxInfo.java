@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
@@ -35,6 +36,12 @@ public class TxInfo implements Serializable {
 
   public Session getSession() {
     return session;
+  }
+
+  public void releaseTx() throws SQLException {
+    if(session!=null){
+      session.releaseTx();
+    }
   }
 
   public TxInfo setSession(Session session) {

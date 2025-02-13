@@ -163,7 +163,12 @@ public class InnerDb {
       String sessionId = queryRequest.getSession();
       Session session = sessionMgr.getSession(sessionId)
           .orElseThrow(()->new NoSessionException(sessionId));
-      query(queryRequest, session, queryReply);
+      try {
+        query(queryRequest, session, queryReply);
+      } finally {
+        //没有事务则直接关闭连接
+        session.closeConnection();
+      }
     }
 
   }
@@ -289,7 +294,6 @@ public class InnerDb {
       {
         //事务完成更新插件事务阶段性索引
         updateAppliedIndexToMax(termIndex.getIndex());
-        session.closeConnection();
       }else{
         transactionMgr.addIndex(tx, termIndex.getIndex());
       }

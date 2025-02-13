@@ -47,7 +47,7 @@ public class DefaultSessionMgr implements SessionMgr{
   void removeSession(String sessionId) {
     if (sessionId != null) {
       sessions.remove(sessionId);
-      LOG.info("remove session={}", sessionId);
+      //LOG.info("remove session={}", sessionId);
     }
   }
 

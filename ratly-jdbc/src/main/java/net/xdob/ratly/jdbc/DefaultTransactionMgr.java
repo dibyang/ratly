@@ -39,6 +39,7 @@ public class DefaultTransactionMgr implements TransactionMgr {
         txInfo.setSession(session);
         txInfoMap.put(tx, txInfo);
       }
+      session.setTx(tx);
     }
   }
 
@@ -71,7 +72,7 @@ public class DefaultTransactionMgr implements TransactionMgr {
     synchronized (txInfoMap) {
       TxInfo txInfo = txInfoMap.remove(tx);
       if (txInfo != null) {
-        txInfo.getSession().closeConnection();
+        txInfo.releaseTx();
       }
     }
   }
