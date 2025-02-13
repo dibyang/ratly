@@ -783,7 +783,7 @@ RaftServerConfigKeys {
     }
 
     String PURGE_PRESERVATION_LOG_NUM_KEY = PREFIX + ".purge.preservation.log.num";
-    long PURGE_PRESERVATION_LOG_NUM_DEFAULT = 2L;
+    long PURGE_PRESERVATION_LOG_NUM_DEFAULT = 0L;
 
     static long purgePreservationLogNum(RaftProperties properties) {
       return getLong(properties::getLong, PURGE_PRESERVATION_LOG_NUM_KEY,
