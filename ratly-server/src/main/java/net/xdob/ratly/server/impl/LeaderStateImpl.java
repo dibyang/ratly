@@ -419,6 +419,8 @@ class LeaderStateImpl implements LeaderState {
     if (entry.getTerm() == server.getState().getCurrentTerm() && startupLogEntry.get().checkStartIndex(entry)) {
       server.getStateMachine().leaderEvent().notifyLeaderReady();
     }
+    //清除强制启动标志
+    LeaderElection.cleanForceMode();
   }
 
   CompletableFuture<Void> stop() {

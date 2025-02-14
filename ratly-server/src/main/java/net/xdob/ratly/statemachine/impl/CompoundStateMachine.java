@@ -6,7 +6,6 @@ import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.client.impl.FastsImpl;
-import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.proto.jdbc.WrapReplyProto;
 import net.xdob.ratly.proto.jdbc.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -27,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -103,7 +101,13 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     leaderChangedListeners.remove(listener);
   }
 
+  private volatile CompletableFuture<RaftPeerId> leaderChangedFuture = new CompletableFuture<>();
+
   volatile boolean isLeader = false;
+
+  public CompletableFuture<RaftPeerId> getLeaderChangedFuture() {
+    return leaderChangedFuture;
+  }
 
   @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
@@ -111,6 +115,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     if(!isLeader) {
       fireLeaderStateEvent(l -> l.notifyLeaderChanged(false));
     }
+    leaderChangedFuture.complete(newLeaderId);
+    leaderChangedFuture = new CompletableFuture<>();
   }
 
   private void fireLeaderStateEvent(Consumer<LeaderChangedListener> consumer) {
@@ -137,6 +143,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public void notifyLeaderReady() {
+
     fireLeaderStateEvent(l -> l.notifyLeaderChanged(true));
   }
 

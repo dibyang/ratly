@@ -49,6 +49,8 @@ import static net.xdob.ratly.util.LifeCycle.State.STARTING;
  */
 class LeaderElection implements Runnable {
   public static final Logger LOG = LoggerFactory.getLogger(LeaderElection.class);
+  public static final String FORCE_MODE = "force_mode";
+  public static final String LEADER = "leader";
 
   private ResultAndTerm logAndReturn(Phase phase, Result result, Map<RaftPeerId, RequestVoteReplyProto> responses,
       List<Exception> exceptions) {
@@ -463,6 +465,7 @@ class LeaderElection implements Runnable {
         } else {
           rejectedPeers.add(replierId);
           if (conf.majorityRejectVotes(rejectedPeers)) {
+            LOG.warn("majorityRejectVotes is true, phase={}, electionTerm={}", phase, electionTerm);
             return logAndReturn(phase, Result.REJECTED, responses, exceptions);
           }
         }
@@ -478,24 +481,33 @@ class LeaderElection implements Runnable {
     } else if (singleMode) {
       return logAndReturn(phase, Result.SINGLE_MODE_PASSED, responses, exceptions);
     } else {
+      boolean forceLeader = isForceMode();
+      LOG.warn("forceLeader={}, phase={}, electionTerm={}", forceLeader, phase, electionTerm);
+      if(forceLeader){
+        LOG.warn("force election this node leader phase={}, electionTerm={}", phase, electionTerm);
+        //强制以leader启动
+        return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+      }
       //双节点模式时，观察者记录的最后一个任期是当前选举人则通过本次投票
       if(conf.isTwoNodeMode()) {
         try {
           TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
-
-          if (lastLeaderTerm != null ) {
-            if(lastLeaderTerm.getLeaderId().equals(server.getId())) {
-              LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm,  phase, electionTerm);
-              //辅助主节点选主
-              return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
-            }else if(lastEntry!=null){
-              LOG.info("lastLeaderTerm={} lastIndex={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
-                  lastLeaderTerm.getIndex(),  lastEntry.getIndex(), phase, electionTerm);
-              long offset = lastEntry.getIndex() - lastLeaderTerm.getIndex();
-              if(lastEntry.getTerm() == lastLeaderTerm.getTerm()
-                  && offset >=0  && offset <=1) {
-                //辅助从节点选主
+          //存在历史数据
+          if (lastLeaderTerm != null && lastEntry!=null) {
+            LOG.info("lastLeaderTerm={} lastIndex={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
+                lastLeaderTerm.getIndex(),  lastEntry.getIndex(), phase, electionTerm);
+            long offset = lastEntry.getIndex() - lastLeaderTerm.getIndex();
+            //数据和观察者任期一致
+            if(lastEntry.getTerm() == lastLeaderTerm.getTerm()){
+              if(lastLeaderTerm.getLeaderId().equals(server.getId())) {
+                LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm,  phase, electionTerm);
+                //辅助主节点选主
                 return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+              }else {
+                if(offset >=0  && offset <=1) {
+                  //辅助从节点选主
+                  return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
+                }
               }
             }
           }
@@ -507,8 +519,24 @@ class LeaderElection implements Runnable {
     }
   }
 
+  /**
+   * 是否强制以leader启动
+   * @return 是否强制以leader启动
+   */
+  public static boolean isForceMode() {
+    return LEADER.equals(System.getProperty(FORCE_MODE, ""));
+  }
+
   @Override
   public String toString() {
     return name;
+  }
+
+  /**
+   * 清除强制启动标志
+   */
+  public static void cleanForceMode(){
+    //清除强制启动标志
+    System.clearProperty(FORCE_MODE);
   }
 }
