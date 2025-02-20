@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.metrics.impl;
 
 import net.xdob.ratly.metrics.Timekeeper;

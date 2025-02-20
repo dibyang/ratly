@@ -1,10 +1,8 @@
 dependencies {
     api project(':ratly-proto')
-    api project(':ratly-tools')
     api project(':ratly-common')
     api project(':ratly-client')
     api project(':ratly-server')
-    api project(':ratly-metrics-default')
     api project(':ratly-grpc')
     implementation "ch.qos.logback:logback-core:${logback_version}"
     implementation "ch.qos.logback:logback-classic:${logback_version}"

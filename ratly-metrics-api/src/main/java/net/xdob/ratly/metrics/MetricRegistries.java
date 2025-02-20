@@ -18,6 +18,7 @@ public abstract class MetricRegistries {
     private static final MetricRegistries GLOBAL = MetricRegistriesLoader.load();
   }
 
+  public abstract String name();
   /**
    * Return the global singleton instance for the MetricRegistries.
    *
@@ -102,4 +103,5 @@ public abstract class MetricRegistries {
    * @param consoleReportRate Console report rate.
    */
   public abstract void enableConsoleReporter(TimeDuration consoleReportRate);
+
 }

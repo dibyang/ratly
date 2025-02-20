@@ -5,6 +5,7 @@ dependencies {
     api project(':ratly-client')
     api project(':ratly-server-api')
     api project(':ratly-metrics-api')
+    api project(':ratly-metrics-default')
     implementation "io.grpc:grpc-netty:${grpc_version}" // 或 grpc-okhttp，根据需要选择传输层实现
     implementation "io.grpc:grpc-protobuf:${grpc_version}"
     implementation "io.grpc:grpc-protobuf-lite:${grpc_version}"

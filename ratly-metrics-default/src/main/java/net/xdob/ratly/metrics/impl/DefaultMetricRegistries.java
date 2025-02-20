@@ -9,6 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import net.xdob.ratly.metrics.MetricRegistries;
+import net.xdob.ratly.metrics.MetricRegistryFactory;
 import net.xdob.ratly.metrics.MetricRegistryInfo;
 import net.xdob.ratly.metrics.RatlyMetricRegistry;
 import net.xdob.ratly.util.RefCountingMap;
@@ -19,24 +20,25 @@ import org.slf4j.LoggerFactory;
 /**
  * Implementation of MetricRegistries that does ref-counting.
  */
-public class MetricRegistriesImpl extends MetricRegistries {
+public class DefaultMetricRegistries extends MetricRegistries {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MetricRegistriesImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultMetricRegistries.class);
+  public static final String NAME = "default";
 
   private final List<Consumer<RatlyMetricRegistry>> reporterRegistrations = new CopyOnWriteArrayList<>();
 
   private final List<Consumer<RatlyMetricRegistry>> stopReporters = new CopyOnWriteArrayList<>();
 
-  private final MetricRegistryFactoryImpl factory;
+  private final MetricRegistryFactory factory;
 
   private final RefCountingMap<MetricRegistryInfo, RatlyMetricRegistry> registries;
   private final Object registerLock = new Object();
 
-  public MetricRegistriesImpl() {
+  public DefaultMetricRegistries() {
     this(new MetricRegistryFactoryImpl());
   }
 
-  MetricRegistriesImpl(MetricRegistryFactoryImpl factory) {
+  DefaultMetricRegistries(MetricRegistryFactory factory) {
     this.factory = factory;
     this.registries = new RefCountingMap<>();
   }
@@ -80,6 +82,11 @@ public class MetricRegistriesImpl extends MetricRegistries {
   @Override
   public Collection<RatlyMetricRegistry> getMetricRegistries() {
     return Collections.unmodifiableCollection(registries.values());
+  }
+
+  @Override
+  public String name() {
+    return NAME;
   }
 
   @Override

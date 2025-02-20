@@ -1,4 +1,3 @@
-
 package net.xdob.ratly.metrics.impl;
 
 import net.xdob.ratly.metrics.MetricRegistries;
@@ -26,10 +25,12 @@ public interface JvmMetrics {
 
     RatlyMetricRegistry registry = registries.create(info);
 
-    final RatlyMetricRegistryImpl impl = RatlyMetricRegistryImpl.cast(registry);
-    impl.registerAll("gc", new GarbageCollectorMetricSet());
-    impl.registerAll("memory", new MemoryUsageGaugeSet());
-    impl.registerAll("threads", new ThreadStatesGaugeSet());
-    impl.registerAll("classLoading", new ClassLoadingGaugeSet());
+    registry.wrap(DropWizardMetricSupport.class).ifPresent(e->{
+      e.registerAll("gc", new GarbageCollectorMetricSet());
+      e.registerAll("memory", new MemoryUsageGaugeSet());
+      e.registerAll("threads", new ThreadStatesGaugeSet());
+      e.registerAll("classLoading", new ClassLoadingGaugeSet());
+    });
+
   }
 }

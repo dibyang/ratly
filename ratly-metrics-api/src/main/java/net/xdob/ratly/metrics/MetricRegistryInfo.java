@@ -9,9 +9,9 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * This class holds the name, description and JMX related context names for such group of metrics.
+ * 该类保存了度量指标的名称、描述以及与JMX相关的上下文名称。
  * <p>
- * This class is immutable.
+ * 该类是不可变的。
  */
 public class MetricRegistryInfo {
   private final String prefix;
@@ -22,11 +22,12 @@ public class MetricRegistryInfo {
   private final Supplier<Integer> hash = MemoizedSupplier.valueOf(this::computeHash);
 
   /**
-   * @param prefix   className or component name this metric registry collects metric for
-   * @param applicationName application Name needs to be in small case as it is used for hadoop2metrics
-   * @param metricsComponentName component name needs to be in small case as it is used for hadoop2metrics
-   * @param metricsDescription description of the metrics collected by this registry
+   * 构造一个新的MetricRegistryInfo对象。
    *
+   * @param prefix            类名或组件名，该度量注册表收集度量指标的对象
+   * @param applicationName   应用程序名称，需要小写，因为用于Hadoop2Metrics
+   * @param metricsComponentName 组件名称，需要小写，因为用于Hadoop2Metrics
+   * @param metricsDescription 该注册表收集的度量指标的描述
    */
   public MetricRegistryInfo(String prefix, String applicationName, String metricsComponentName,
       String metricsDescription) {
@@ -41,22 +42,27 @@ public class MetricRegistryInfo {
   }
 
   /**
+   * 获取正在收集度量指标的组件名称。
    *
-   * @return component name for which Metric is getting collected
+   * @return 正在收集度量指标的组件名称
    */
   public String getMetricsComponentName() {
     return metricsComponentName;
   }
 
   /**
-   * Get the description of what this metric registry exposes.
+   * 获取该度量注册表暴露的内容的描述。
+   *
+   * @return 该注册表收集的度量指标的描述
    */
   public String getMetricsDescription() {
     return metricsDescription;
   }
 
   /**
-   * Get the unique prefix for metrics that are being exported by this registry.
+   * 获取该注册表导出的度量指标的唯一前缀。
+   *
+   * @return 唯一前缀
    */
   public String getPrefix() {
     return prefix;

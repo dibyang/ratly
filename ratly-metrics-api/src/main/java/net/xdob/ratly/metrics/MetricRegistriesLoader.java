@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 public final class MetricRegistriesLoader {
   private static final Logger LOG = LoggerFactory.getLogger(MetricRegistriesLoader.class);
 
-  static final String DEFAULT_CLASS = "net.xdob.ratly.metrics.impl.MetricRegistriesImpl";
+  static final String DEFAULT_CLASS = "net.xdob.ratly.metrics.impl.DefaultMetricRegistries";
 
   private MetricRegistriesLoader() {
   }

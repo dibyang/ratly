@@ -233,7 +233,7 @@ RaftServerConfigKeys {
         + "." + JavaUtils.getClassSimpleName(Read.class).toLowerCase();
 
     String TIMEOUT_KEY = PREFIX + ".timeout";
-    TimeDuration TIMEOUT_DEFAULT = TimeDuration.valueOf(10, TimeUnit.SECONDS);
+    TimeDuration TIMEOUT_DEFAULT = TimeDuration.valueOf(15, TimeUnit.SECONDS);
 
     static TimeDuration timeout(RaftProperties properties) {
       return ConfUtils.getTimeDuration(properties.getTimeDuration(TIMEOUT_DEFAULT.getUnit()),
@@ -502,7 +502,7 @@ RaftServerConfigKeys {
     }
 
     String REQUEST_TIMEOUT_KEY = PREFIX + ".request.timeout";
-    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(5000, TimeUnit.MILLISECONDS);
+    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(10000, TimeUnit.MILLISECONDS);
 
     static TimeDuration requestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(REQUEST_TIMEOUT_DEFAULT.getUnit()),
