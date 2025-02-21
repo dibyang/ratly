@@ -3,17 +3,14 @@ package net.xdob.ratly.server.storage;
 import net.xdob.ratly.io.CorruptedFileException;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.proto.raft.FileChunkProto;
+import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.util.ServerStringUtils;
+import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.StateMachineStorage;
-import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.MD5FileUtil;
-import net.xdob.ratly.util.MemoizedSupplier;
-import net.xdob.ratly.util.Preconditions;
-import net.xdob.ratly.util.StringUtils;
+import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +98,29 @@ public class SnapshotManager {
     return out;
   }
 
+  public static String toInstallSnapshotRequestString(InstallSnapshotRequestProto request) {
+    if (request == null) {
+      return null;
+    }
+    final String s;
+    switch (request.getInstallSnapshotRequestBodyCase()) {
+      case SNAPSHOTCHUNK:
+        final InstallSnapshotRequestProto.SnapshotChunkProto chunk = request.getSnapshotChunk();
+        s = "chunk:" + chunk.getRequestId() + "," + chunk.getRequestIndex();
+        break;
+      case NOTIFICATION:
+        final InstallSnapshotRequestProto.NotificationProto notification = request.getNotification();
+        s = "notify:" + TermIndex.valueOf(notification.getFirstAvailableTermIndex());
+        break;
+      default:
+        throw new IllegalStateException("Unexpected body case in " + request);
+    }
+    return ProtoUtils.toString(request.getServerRequest())
+        + "-t" + request.getLeaderTerm()
+        + "," + s;
+  }
+
+
   /**
    * 该方法负责安装 Raft 协议的快照。它接收一个快照请求并将其中的文件块逐一写入到临时目录。具体步骤如下：
    * <p>
@@ -121,7 +141,7 @@ public class SnapshotManager {
     tmpDir.deleteOnExit();
 
     LOG.info("Installing snapshot:{}, to tmp dir:{}",
-        ServerStringUtils.toInstallSnapshotRequestString(request), tmpDir);
+        toInstallSnapshotRequestString(request), tmpDir);
 
     // TODO: Make sure that subsequent requests for the same installSnapshot are coming in order,
     // and are not lost when whole request cycle is done. Check requestId and requestIndex here

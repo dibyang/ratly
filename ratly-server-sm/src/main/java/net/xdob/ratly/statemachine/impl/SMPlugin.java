@@ -10,7 +10,6 @@ import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
 import net.xdob.ratly.statemachine.SnapshotInfo;
-import net.xdob.ratly.statemachine.TransactionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public interface SMPlugin extends Closeable {
   Logger LOG = LoggerFactory.getLogger(SMPlugin.class);

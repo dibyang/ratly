@@ -1,6 +1,5 @@
-package net.xdob.ratly.server.util;
+package net.xdob.ratly.security;
 
-import net.xdob.onlooker.security.RSAUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,25 +8,38 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
-public class RsaHelper {
-  static Logger LOG = LoggerFactory.getLogger(RsaHelper.class);
-  public static final String KEY = "ratly";
+/**
+ * 签名辅助工具类
+ */
+public class SignHelper {
+  public static final String SIGNER = "ratly";
 
-  public String encrypt(String text){
-    RSAUtil rsaUtil = RSAUtil.create();
-    String pub_key = getKey("/"+ KEY +".pub");
-    return rsaUtil.encryptByPublicKey(pub_key, text);
+  static Logger LOG = LoggerFactory.getLogger(SignHelper.class);
+
+  public String getSigner(){
+    return SIGNER;
   }
 
-  public String decrypt(String text){
-    RSAUtil rsaUtil = RSAUtil.create();
-    String pri_key = getKey("/"+ KEY +".pri");
-    return rsaUtil.decryptByPrivateKey(pri_key, text);
+  public String sign(String code4Sign ){
+    return doSign(code4Sign);
   }
+
+  public boolean verifySign(String code4Sign, String sign){
+    RSAUtil rsaUtil = RSAUtil.create();
+    String pub_key = getKey("/"+SIGNER+".pub");
+    return rsaUtil.verifySHA256WithRSA(pub_key, code4Sign, sign);
+  }
+
+  private String doSign(String text){
+    RSAUtil rsaUtil = RSAUtil.create();
+    String pri_key = getKey("/"+SIGNER+".pri");
+    return rsaUtil.signSha256withRSA(pri_key, text);
+  }
+
 
   private String getKey(String keyPath)  {
     try {
-      InputStream in = RsaHelper.class.getResourceAsStream(keyPath);
+      InputStream in = SignHelper.class.getResourceAsStream(keyPath);
       if(in!=null) {
         StringBuilder contentBuilder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
@@ -45,4 +57,6 @@ public class RsaHelper {
     }
     return null;
   }
+
+
 }

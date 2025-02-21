@@ -58,25 +58,23 @@ public final class StorageImplUtils {
   }
 
   /**
-   * Choose a {@link RaftStorage} for the given storage directory name from the given configuration properties
-   * and then try to call {@link RaftStorage#initialize()}.
+   * 根据给定的存储目录名称和配置属性，选择一个 {@link RaftStorage} 并尝试调用其 {@link RaftStorage#initialize()} 方法。
    * <p />
-   * {@link StartupOption#FORMAT}:
-   * - When there are more than one existing directories, throw an exception.
-   * - When there is an existing directory, throw an exception.
-   * - When there is no existing directory, try to initialize a new directory from the list specified
-   *   in the configuration properties until a directory succeeded or all directories failed.
+   * 当启动选项为 {@link StartupOption#FORMAT} 时：
+   * - 如果存在多个现有目录，则抛出异常。
+   * - 如果存在一个现有目录，则抛出异常。
+   * - 如果没有现有目录，则尝试从配置属性中指定的目录列表中初始化一个新的目录，直到成功初始化一个目录或所有目录都失败。
    * <p />
-   * {@link StartupOption#RECOVER}:
-   * - When there are more than one existing directories, throw an exception.
-   * - When there is an existing directory, if it fails to initialize, throw an exception but not try a new directory.
-   * - When there is no existing directory, if only one directory is specified in the configuration, format it;
-   *   otherwise, there are >1 directories specified, throw an exception.
+   * 当启动选项为 {@link StartupOption#RECOVER} 时：
+   * - 如果存在多个现有目录，则抛出异常。
+   * - 如果存在一个现有目录，如果初始化失败，则抛出异常且不尝试新的目录。
+   * - 如果没有现有目录，如果配置中仅指定了一个目录，则格式化该目录；
+   *   否则，如果配置中指定了多个目录，则抛出异常。
    *
-   * @param storageDirName the storage directory name
-   * @param option the startup option
-   * @param properties the configuration properties
-   * @return the chosen storage, which is initialized successfully.
+   * @param storageDirName 存储目录名称
+   * @param option 启动选项
+   * @param properties 配置属性
+   * @return 成功初始化的存储对象。
    */
   public static RaftStorageImpl initRaftStorage(String storageDirName, StartupOption option,
       RaftProperties properties) throws IOException {

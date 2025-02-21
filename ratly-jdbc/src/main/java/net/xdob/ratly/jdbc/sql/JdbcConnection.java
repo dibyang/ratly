@@ -10,7 +10,7 @@ import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.retry.RetryLimited;
 import net.xdob.ratly.retry.RetryPolicies;
-import net.xdob.ratly.server.util.RsaHelper;
+import net.xdob.ratly.security.RsaHelper;
 import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
 import org.slf4j.Logger;

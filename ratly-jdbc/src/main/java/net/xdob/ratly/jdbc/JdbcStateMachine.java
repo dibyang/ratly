@@ -1,6 +1,6 @@
 package net.xdob.ratly.jdbc;
 
-import net.xdob.ratly.statemachine.impl.*;
+import net.xdob.ratly.statemachine.impl.CompoundStateMachine;
 
 
 public class JdbcStateMachine extends CompoundStateMachine {

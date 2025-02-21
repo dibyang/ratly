@@ -1,21 +1,20 @@
-package net.xdob.ratly.server.impl;
+package net.xdob.ratly.server;
 
-import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.util.Finder;
 
 import java.util.Objects;
 
 public class TermLeader {
-  private final RaftPeerId leaderId;
+  private final String leaderId;
   private final long term;
   private long index;
 
-  public TermLeader(RaftPeerId leaderId, long term) {
+  public TermLeader(String leaderId, long term) {
     this.leaderId = leaderId;
     this.term = term;
   }
 
-  public RaftPeerId getLeaderId() {
+  public String getLeaderId() {
     return leaderId;
   }
 
@@ -48,12 +47,10 @@ public class TermLeader {
     return term + "," + leaderId;
   }
 
-  public static TermLeader of(long term, RaftPeerId leaderId){
+  public static TermLeader of(long term, String leaderId){
     return new TermLeader(leaderId, term);
   }
-  public static TermLeader of(long term, String leaderId){
-    return of(term, RaftPeerId.getRaftPeerId(leaderId));
-  }
+
 
   public static TermLeader parse(String token){
     Finder finder = Finder.c(token);

@@ -23,6 +23,7 @@ import net.xdob.ratly.protocol.exceptions.ReadIndexException;
 import net.xdob.ratly.protocol.exceptions.ReconfigurationTimeoutException;
 import net.xdob.ratly.server.PeerConfiguration;
 import net.xdob.ratly.server.RaftConfiguration;
+import net.xdob.ratly.server.RaftConfigurationImpl;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.impl.ReadIndexHeartbeats.AppendEntriesListener;
 import net.xdob.ratly.server.leader.FollowerInfo;

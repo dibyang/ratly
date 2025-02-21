@@ -1,10 +1,8 @@
-package net.xdob.ratly.server.impl;
+package net.xdob.ratly.server;
 
 import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.server.PeerConfiguration;
-import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.util.Preconditions;
 
@@ -25,13 +23,13 @@ import java.util.stream.Collectors;
  * <p>
  * The objects of this class are immutable.
  */
-final class RaftConfigurationImpl implements RaftConfiguration {
+public final class RaftConfigurationImpl implements RaftConfiguration {
   /** Create a {@link Builder}. */
-  static Builder newBuilder() {
+  public static Builder newBuilder() {
     return new Builder();
   }
 
-  static final class Builder {
+  public static final class Builder {
     private PeerConfiguration oldConf;
     private PeerConfiguration conf;
     private long logEntryIndex = RaftLog.INVALID_LOG_INDEX;
@@ -41,22 +39,22 @@ final class RaftConfigurationImpl implements RaftConfiguration {
 
     private Builder() {}
 
-    Builder setConf(PeerConfiguration conf) {
+    public Builder setConf(PeerConfiguration conf) {
       Objects.requireNonNull(conf, "PeerConfiguration == null");
       Preconditions.assertTrue(this.conf == null, "conf is already set.");
       this.conf = conf;
       return this;
     }
 
-    Builder setConf(Iterable<RaftPeer> peers) {
+    public Builder setConf(Iterable<RaftPeer> peers) {
       return setConf(new PeerConfiguration(peers));
     }
 
-    Builder setConf(Iterable<RaftPeer> peers, Iterable<RaftPeer> listeners) {
+    public Builder setConf(Iterable<RaftPeer> peers, Iterable<RaftPeer> listeners) {
       return setConf(new PeerConfiguration(peers, listeners));
     }
 
-    Builder setConf(RaftConfiguration transitionalConf) {
+    public Builder setConf(RaftConfiguration transitionalConf) {
       Objects.requireNonNull(transitionalConf, "transitionalConf == null");
       Preconditions.assertTrue(transitionalConf.isTransitional());
 
@@ -73,11 +71,11 @@ final class RaftConfigurationImpl implements RaftConfiguration {
       return this;
     }
 
-    Builder setOldConf(Iterable<RaftPeer> oldPeers, Iterable<RaftPeer> oldListeners) {
+    public Builder setOldConf(Iterable<RaftPeer> oldPeers, Iterable<RaftPeer> oldListeners) {
       return setOldConf(new PeerConfiguration(oldPeers, oldListeners));
     }
 
-    Builder setOldConf(RaftConfiguration stableConf) {
+    public Builder setOldConf(RaftConfiguration stableConf) {
       Objects.requireNonNull(stableConf, "stableConf == null");
       Preconditions.assertTrue(stableConf.isStable());
 
@@ -86,14 +84,14 @@ final class RaftConfigurationImpl implements RaftConfiguration {
       return setOldConf(stableConf.getConf());
     }
 
-    Builder setLogEntryIndex(long logEntryIndex) {
+    public Builder setLogEntryIndex(long logEntryIndex) {
       Preconditions.assertTrue(logEntryIndex != RaftLog.INVALID_LOG_INDEX);
       Preconditions.assertTrue(this.logEntryIndex == RaftLog.INVALID_LOG_INDEX, "logEntryIndex is already set.");
       this.logEntryIndex = logEntryIndex;
       return this;
     }
 
-    RaftConfigurationImpl build() {
+    public RaftConfigurationImpl build() {
       if (forceTransitional) {
         Preconditions.assertTrue(oldConf != null);
       }

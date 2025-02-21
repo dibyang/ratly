@@ -16,7 +16,7 @@ import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
-import net.xdob.ratly.server.util.RsaHelper;
+import net.xdob.ratly.security.RsaHelper;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;

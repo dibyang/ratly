@@ -12,6 +12,7 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.protocol.exceptions.GroupMismatchException;
 import net.xdob.ratly.server.RaftConfiguration;
+import net.xdob.ratly.server.RaftConfigurationImpl;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;

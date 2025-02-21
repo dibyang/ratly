@@ -6,7 +6,7 @@ import net.xdob.ratly.protocol.ClientId;
 import net.xdob.ratly.protocol.RaftClientRequest;
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.impl.ServerImplUtils;
+import net.xdob.ratly.server.RaftConfigurationImpl;
 import net.xdob.ratly.server.protocol.TermIndex;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
@@ -217,7 +217,18 @@ public final class LogProtoUtils {
     final List<RaftPeer> listener = ProtoUtils.toRaftPeers(proto.getListenersList());
     final List<RaftPeer> oldConf = ProtoUtils.toRaftPeers(proto.getOldPeersList());
     final List<RaftPeer> oldListener = ProtoUtils.toRaftPeers(proto.getOldListenersList());
-    return ServerImplUtils.newRaftConfiguration(conf, listener, entry.getIndex(), oldConf, oldListener);
+    return newRaftConfiguration(conf, listener, entry.getIndex(), oldConf, oldListener);
+  }
+
+  public static RaftConfiguration newRaftConfiguration(List<RaftPeer> conf, List<RaftPeer> listener,
+                                                       long index, List<RaftPeer> oldConf, List<RaftPeer> oldListener) {
+    final RaftConfigurationImpl.Builder b = RaftConfigurationImpl.newBuilder()
+        .setConf(conf, listener)
+        .setLogEntryIndex(index);
+    if (!oldConf.isEmpty() || !oldListener.isEmpty()) {
+      b.setOldConf(oldConf, oldListener);
+    }
+    return b.build();
   }
 
   public static LogEntryProto copy(LogEntryProto proto) {

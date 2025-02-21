@@ -1,9 +1,9 @@
 package net.xdob.ratly.server.impl;
 
-import net.xdob.onlooker.DefaultOnlookerClient;
-import net.xdob.onlooker.MessageToken;
-import net.xdob.onlooker.OnlookerClient;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
+import net.xdob.ratly.server.RaftConfigurationImpl;
+import net.xdob.ratly.server.StateObserver;
+import net.xdob.ratly.server.TermLeader;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -22,7 +22,6 @@ import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLog;
 import net.xdob.ratly.server.storage.*;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.server.util.SignHelper;
 import net.xdob.ratly.statemachine.RaftLogQuery;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
@@ -83,8 +82,7 @@ class ServerState implements RaftLogQuery {
    */
   private final AtomicReference<TermIndex> latestInstalledSnapshot = new AtomicReference<>();
 
-  private final OnlookerClient onlookerClient = new DefaultOnlookerClient();
-  private SignHelper signHelper = new SignHelper();
+  private final StateObserver stateObserver = new StateObserver4Onlooker();
 
   ServerState(RaftPeerId id, RaftGroup group, StateMachine stateMachine, RaftServerImpl server,
               StartupOption option, RaftProperties prop) {
@@ -148,7 +146,7 @@ class ServerState implements RaftLogQuery {
   }
 
   void start() {
-    onlookerClient.start();
+    stateObserver.start();
     // initialize stateMachineUpdater
     stateMachineUpdater.get().start();
 
@@ -246,7 +244,7 @@ class ServerState implements RaftLogQuery {
     setLeader(null, "grantVote");
   }
 
-  private final AtomicReference<MessageToken> tokenAtomicReference = new AtomicReference<>(null);
+  private final AtomicReference<TermLeader> termLeaderRef = new AtomicReference<>(null);
 
   void setLeader(RaftPeerId newLeaderId, Object op) {
     final RaftPeerId oldLeaderId = leaderId.getAndSet(newLeaderId);
@@ -266,46 +264,20 @@ class ServerState implements RaftLogQuery {
           getMemberId(), oldLeaderId, newLeaderId, getCurrentTerm(), op, suffix);
       if (newLeaderId != null) {
         server.onGroupLeaderElected();
-        TermLeader termLeader = TermLeader.of(getCurrentTerm(), newLeaderId);
-        MessageToken token = new MessageToken();
-        token.setSigner(signHelper.getSigner());
-        String message = termLeader.toString();
-        token.setMessage(message);
-        token.setSign(signHelper.sign(message));
-        tokenAtomicReference.set(token);
+        TermLeader termLeader = TermLeader.of(getCurrentTerm(), newLeaderId.toString());
+        termLeaderRef.set(termLeader);
       }
     }
   }
 
   void notifyTeamIndex(TermIndex termIndex){
-    MessageToken token = tokenAtomicReference.get();
-    token.setTeam(termIndex.getTerm());
-    token.setIndex(termIndex.getIndex());
-    onlookerClient.setMessage(memberId.getGroupId().toString(), token);
+    TermLeader termLeader = termLeaderRef.get();
+    termLeader.setIndex(termIndex.getIndex());
+    stateObserver.notifyTeamIndex(memberId.getGroupId().toString(), termLeader);
   }
 
   CompletableFuture<TermLeader> getLastLeaderTerm(int waitMS){
-    final CompletableFuture<TermLeader> future = new CompletableFuture<>();
-    onlookerClient.getMessageToken(memberId.getGroupId().toString(), waitMS)
-        .whenComplete((r,ex)->{
-          if(ex!=null){
-            future.completeExceptionally(ex);
-          }else{
-            List<TermLeader> termLeaders = r.stream()
-                .filter(e -> signHelper.verifySign(e.getMessage(), e.getSign()))
-                .map(m -> {
-                  TermLeader leader = TermLeader.parse(m.getMessage());
-                  leader.setIndex(m.getIndex());
-                  return leader;
-                }).collect(Collectors.toList());
-            long term = termLeaders.stream().mapToLong(TermLeader::getTerm).max().orElse(-1L);
-            TermLeader termLeader = termLeaders.stream().filter(e->e.getTerm()== term)
-                .max(Comparator.comparingLong(TermLeader::getIndex)).orElse(null);
-            //LOG.info("tokens={}, termLeader={}", r, termLeader);
-            future.complete(termLeader);
-          }
-        });
-    return  future;
+    return stateObserver.getLastLeaderTerm(memberId.getGroupId().toString(), waitMS);
   }
 
   boolean shouldNotifyExtendedNoLeader() {
@@ -476,7 +448,7 @@ class ServerState implements RaftLogQuery {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);
     }
     try {
-      onlookerClient.stop();
+      stateObserver.close();
     }catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to stop onlooker client", e);
     }
