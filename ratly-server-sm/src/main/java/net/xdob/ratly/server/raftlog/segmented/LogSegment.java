@@ -47,11 +47,11 @@ public final class LogSegment {
   static final Logger LOG = LoggerFactory.getLogger(LogSegment.class);
 
   enum Op {
-    LOAD_SEGMENT_FILE,
-    REMOVE_CACHE,
-    CHECK_SEGMENT_FILE_FULL,
-    WRITE_CACHE_WITH_STATE_MACHINE_CACHE,
-    WRITE_CACHE_WITHOUT_STATE_MACHINE_CACHE
+    LOAD_SEGMENT_FILE, // 加载日志段文件
+    REMOVE_CACHE, // 移除缓存
+    CHECK_SEGMENT_FILE_FULL, // 检查日志段文件是否已满
+    WRITE_CACHE_WITH_STATE_MACHINE_CACHE, // 带状态机缓存写入缓存
+    WRITE_CACHE_WITHOUT_STATE_MACHINE_CACHE // 不带状态机缓存写入缓存
   }
 
   static long getEntrySize(LogEntryProto entry, Op op) {
@@ -68,13 +68,16 @@ public final class LogSegment {
       default:
         throw new IllegalStateException("Unexpected op " + op + ", entry=" + entry);
     }
+    //日志序列化大小
     final int serialized = entry.getSerializedSize();
+    //总大小=日志序列化大小 + 日志大小占的字节数 + 4字节校验码(CRC32)
     return serialized + CodedOutputStream.computeUInt32SizeNoTag(serialized) + 4L;
   }
 
   static class LogRecord {
-    /** starting offset in the file */
+    /** 文件中的起始偏移量 */
     private final long offset;
+    /** 日志条目头（包括Term和Index） */
     private final LogEntryHeader logEntryHeader;
 
     LogRecord(long offset, LogEntryProto entry) {
@@ -165,7 +168,7 @@ public final class LogSegment {
         }
 
         if (entryConsumer != null) {
-          // TODO: use reference count to support zero buffer copying for readSegmentFile
+          // TODO: 使用引用计数以支持零缓存复制读取日志段文件
           entryConsumer.accept(ReferenceCountedObject.wrap(next));
         }
         count++;
@@ -207,12 +210,12 @@ public final class LogSegment {
     }
 
     if (entryCount == 0) {
-      // The segment does not have any entries, delete the file.
+      // 该段没有条目，删除文件。
       final Path deleted = FileUtils.deleteFile(file);
       LOG.info("Deleted RaftLog segment since entry count is zero: startEnd={}, path={}", startEnd, deleted);
       return null;
     } else if (file.length() > segment.getTotalFileSize()) {
-      // The segment has extra padding, truncate it.
+      // 该段有额外的填充，截断它。
       FileUtils.truncateFile(file, segment.getTotalFileSize());
     }
 
@@ -244,11 +247,9 @@ public final class LogSegment {
   }
 
   /**
-   * The current log entry loader simply loads the whole segment into the memory.
-   * In most of the cases this may be good enough considering the main use case
-   * for load log entries is for leader appending to followers.
-   *
-   * In the future we can make the cache loader configurable if necessary.
+   * 当前日志条目加载器简单地将整个段加载到内存中。
+   * 在大多数情况下，这已经足够好，考虑到主要使用场景是领导者向跟随者追加日志。
+   * 在将来，如果有必要，我们可以使缓存加载器可配置。
    */
   class LogEntryLoader extends CacheLoader<LogRecord, ReferenceCountedObject<LogEntryProto>> {
     private final SegmentedRaftLogMetrics raftLogMetrics;
@@ -260,8 +261,7 @@ public final class LogSegment {
     @Override
     public ReferenceCountedObject<LogEntryProto> load(LogRecord key) throws IOException {
       final File file = getFile();
-      // note the loading should not exceed the endIndex: it is possible that
-      // the on-disk log file should be truncated but has not been done yet.
+      // 注意加载不应超过 endIndex: 可能磁盘上的日志文件应该被截断但尚未完成。
       final AtomicReference<ReferenceCountedObject<LogEntryProto>> toReturn = new AtomicReference<>();
       final LogSegmentStartEnd startEnd = LogSegmentStartEnd.valueOf(startIndex, endIndex, isOpen);
       readSegmentFile(file, startEnd, maxOpSize, getLogCorruptionPolicy(), raftLogMetrics, entryRef -> {
@@ -323,7 +323,7 @@ public final class LogSegment {
       return ref == null? null: ref.get();
     }
 
-    /** After close(), the cache CANNOT be used again. */
+    /** 关闭后，缓存不能再使用。 */
     synchronized void close() {
       if (map == null) {
         return;
@@ -333,7 +333,7 @@ public final class LogSegment {
       LOG.info("Successfully closed {}", this);
     }
 
-    /** After evict(), the cache can be used again. */
+    /** 清除后，缓存可以再次使用。 */
     synchronized void evict() {
       if (map == null) {
         return;
@@ -375,22 +375,22 @@ public final class LogSegment {
 
   private volatile boolean isOpen;
   private long totalFileSize = SegmentedRaftLogFormat.getHeaderLength();
-  /** Segment start index, inclusive. */
+  /** 段起始索引，包含。 */
   private final long startIndex;
-  /** Segment end index, inclusive. */
+  /** 段结束索引，包含。 */
   private volatile long endIndex;
   private final RaftStorage storage;
   private final SizeInBytes maxOpSize;
   private final LogEntryLoader cacheLoader;
-  /** later replace it with a metric */
+  /** 后续替换为指标 */
   private final AtomicInteger loadingTimes = new AtomicInteger();
 
   /**
-   * the list of records is more like the index of a segment
+   * 记录列表更像是段的索引
    */
   private final Records records = new Records();
   /**
-   * the entryCache caches the content of log entries.
+   * entryCache 缓存日志条目的内容。
    */
   private final EntryCache entryCache = new EntryCache();
 
@@ -470,7 +470,7 @@ public final class LogSegment {
   }
 
   /**
-   * Acquire LogSegment's monitor so that there is no concurrent loading.
+   * 获取 LogSegment 的监视器，以确保没有并发加载。
    */
   synchronized ReferenceCountedObject<LogEntryProto> loadCache(LogRecord record) throws RaftLogIOException {
     ReferenceCountedObject<LogEntryProto> entry = entryCache.get(record.getTermIndex());
@@ -479,8 +479,8 @@ public final class LogSegment {
         entry.retain();
         return entry;
       } catch (IllegalStateException ignored) {
-        // The entry could be removed from the cache and released.
-        // The exception can be safely ignored since it is the same as cache miss.
+        // 条目可能已被从缓存中移除并释放。
+        // 可以安全地忽略该异常，因为它与缓存未命中的情况相同。
       }
     }
     try {
@@ -511,7 +511,7 @@ public final class LogSegment {
   }
 
   /**
-   * Remove records from the given index (inclusive)
+   * 从给定索引（包含）开始移除记录
    */
   synchronized void truncate(long fromIndex) {
     Preconditions.assertTrue(fromIndex >= startIndex && fromIndex <= endIndex);
@@ -536,7 +536,7 @@ public final class LogSegment {
         "log-" + startIndex + "_" + endIndex;
   }
 
-  /** Comparator to find <code>index</code> in list of <code>LogSegment</code>s. */
+  /** 比较器用于在 <code>LogSegment</code> 列表中查找 <code>index</code>。 */
   static final Comparator<Object> SEGMENT_TO_INDEX_COMPARATOR = (o1, o2) -> {
     if (o1 instanceof LogSegment && o2 instanceof Long) {
       return ((LogSegment) o1).compareTo((Long) o2);
@@ -574,7 +574,7 @@ public final class LogSegment {
   }
 
   boolean hasCache() {
-    return isOpen || entryCache.size() > 0; // open segment always has cache.
+    return isOpen || entryCache.size() > 0; // 打开的段总是有缓存。
   }
 
   boolean containsIndex(long index) {

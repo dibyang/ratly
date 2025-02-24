@@ -1,4 +1,5 @@
-
+import org.apache.tools.ant.filters.ReplaceTokens
+apply plugin: 'com.netflix.nebula.ospackage'
 
 dependencies {
     api project(':ratly-server')
@@ -10,4 +11,55 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+ospackage {
+    packageName = "${app_name}"
+    epoch= 1
+    release = '1'
+    os = LINUX
+    user = 'root'
+    conflicts("${app_name}")
+    into "/${app_name}"
+
+    from("bin"){
+        into "bin"
+        fileMode = 0555
+        filter(ReplaceTokens, tokens: [app_name:app_name])
+    }
+
+
+    from("conf"){
+        fileType CONFIG | NOREPLACE
+        into "conf"
+    }
+
+    from(configurations.runtimeClasspath){
+        into "lib"
+        exclude '*-sources.jar','*-javadoc.jar','spring-boot-devtools*.jar'
+    }
+
+}
+
+
+buildRpm {
+    group 'build'
+    link("/usr/bin/ratly-cli", "/${app_name}/bin/ratly-cli")
+    //bad SHA256 digests, won't install on RHEL8
+    doFirst {
+        File rpmFile = archiveFile.get().getAsFile()
+        if (rpmFile.exists()) {
+            rpmFile.delete()
+        }
+    }
+}
+
+buildDeb {
+    group 'build'
+    link("/usr/bin/ratly-cli", "/${app_name}/bin/ratly-cli")
+}
+
+tasks.register('buildOSPacks') {
+    dependsOn(buildRpm, buildDeb)
+    group 'build'
 }

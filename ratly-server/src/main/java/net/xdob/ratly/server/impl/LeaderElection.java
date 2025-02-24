@@ -494,18 +494,19 @@ class LeaderElection implements Runnable {
           TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
           //存在历史数据
           if (lastLeaderTerm != null && lastEntry!=null) {
-            LOG.info("lastLeaderTerm={} lastIndex={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
-                lastLeaderTerm.getIndex(),  lastEntry.getIndex(), phase, electionTerm);
+            LOG.info("lastLeaderTerm={} lastIndex={} localTerm={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
+                lastLeaderTerm.getIndex(),  lastEntry.getTerm(), lastEntry.getIndex(), phase, electionTerm);
             long offset = lastEntry.getIndex() - lastLeaderTerm.getIndex();
             //数据和观察者任期一致
             if(lastEntry.getTerm() == lastLeaderTerm.getTerm()){
-              if(lastLeaderTerm.getLeaderId().equals(server.getId())) {
+              LOG.info("lastLeader={} server id={} phase={}, electionTerm={}", lastLeaderTerm.getLeaderId(), server.getId().toString(),  phase, electionTerm);
+              if(lastLeaderTerm.getLeaderId().equals(server.getId().toString())) {
                 LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm,  phase, electionTerm);
                 //辅助主节点选主
                 return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
-              }else {
-                if(offset >=0  && offset <=1) {
-                  //辅助从节点选主
+              } else {
+                if(offset >=-1) {
+                  //根据索引辅助从节点选主
                   return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
                 }
               }

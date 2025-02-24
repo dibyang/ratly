@@ -261,7 +261,9 @@ public final class RaftConfigurationImpl implements RaftConfiguration {
     return conf.size() == 2;
   }
 
-  /** @return true if the self id together with the others are in the majority. */
+  /**
+   * @return 如果自身 ID 与其他人一起构成多数派，则返回 true。
+   */
   @Override
   public boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId) {
     Preconditions.assertTrue(!others.contains(selfId));
@@ -269,7 +271,9 @@ public final class RaftConfigurationImpl implements RaftConfiguration {
         (oldConf == null || oldConf.hasMajority(others, selfId));
   }
 
-  /** @return true if the self id together with the acknowledged followers reach majority. */
+  /**
+   * @return 如果自身 ID 与已确认的跟随者一起构成多数派，则返回 true。
+   */
   @Override
   public boolean hasMajority(Predicate<RaftPeerId> followers, RaftPeerId selfId) {
     final boolean includeInCurrent = containsInConf(selfId);

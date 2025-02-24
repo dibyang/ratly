@@ -14,4 +14,6 @@ include 'ratly-netty'
 include 'ratly-jdbc'
 include 'ratly-fasts'
 include 'ratly-rmap'
+include 'ratly-so4onlooker'
+include 'ratly-so4fs'
 

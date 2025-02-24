@@ -1,4 +1,4 @@
-package net.xdob.ratly.server.impl;
+package net.xdob.ratly.so;
 
 import net.xdob.onlooker.DefaultOnlookerClient;
 import net.xdob.onlooker.MessageToken;
@@ -7,35 +7,38 @@ import net.xdob.ratly.security.SignHelper;
 import net.xdob.ratly.server.StateObserver;
 import net.xdob.ratly.server.TermLeader;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class StateObserver4Onlooker implements StateObserver {
   private final SignHelper signHelper = new SignHelper();
   private final OnlookerClient onlookerClient = new DefaultOnlookerClient();
+  private final AtomicBoolean started = new AtomicBoolean(false);
 
   @Override
-  public void start() {
-    onlookerClient.start();
+  public String getName() {
+    return "so4onlooker";
+  }
+
+  @Override
+  public void start(ScheduledExecutorService scheduled) {
+    if(started.compareAndSet(false,true)) {
+      onlookerClient.start();
+    }
   }
 
   @Override
   public void notifyTeamIndex(String groupId, TermLeader termLeader) {
     MessageToken token = new MessageToken();
     token.setSigner(signHelper.getSigner());
-    String leaderId = termLeader.getLeaderId();
-    token.setMessage(leaderId);
+    token.setMessage(termLeader.toString());
+    token.setSign(signHelper.sign(token.getMessage()));
     token.setTeam(termLeader.getTerm());
     token.setIndex(termLeader.getIndex());
-    String key = termLeader.getLeaderId() +
-        "$" +
-        termLeader.getTerm() +
-        "_" +
-        termLeader.getIndex();
-    token.setSign(signHelper.sign(key));
     onlookerClient.setMessage(groupId, token);
   }
 
@@ -48,11 +51,7 @@ public class StateObserver4Onlooker implements StateObserver {
             future.completeExceptionally(ex);
           }else{
             List<TermLeader> termLeaders = r.stream()
-                .filter(e -> signHelper.verifySign(e.getMessage() +
-                    "$" +
-                    e.getTerm() +
-                    "_" +
-                    e.getIndex(), e.getSign()))
+                .filter(e -> signHelper.verifySign(e.getMessage(), e.getSign()))
                 .map(m -> {
                   TermLeader leader = TermLeader.parse(m.getMessage());
                   leader.setIndex(m.getIndex());
@@ -69,7 +68,15 @@ public class StateObserver4Onlooker implements StateObserver {
   }
 
   @Override
-  public void close() throws IOException {
-    onlookerClient.stop();
+  public void stop() {
+    if(started.compareAndSet(true,false)) {
+      onlookerClient.stop();
+    }
   }
+
+  @Override
+  public boolean isStarted() {
+    return started.get();
+  }
+
 }

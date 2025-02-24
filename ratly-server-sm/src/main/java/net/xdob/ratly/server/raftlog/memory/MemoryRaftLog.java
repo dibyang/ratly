@@ -27,9 +27,18 @@ import java.util.function.LongSupplier;
  * A simple RaftLog implementation in memory. Used only for testing.
  */
 public class MemoryRaftLog extends RaftLogBase {
+  /**
+   * 内存中的Raft日志条目列表。
+   */
   static class EntryList {
     private final List<LogEntryProto> entries = new ArrayList<>();
 
+    /**
+     * 获取指定索引的日志条目。
+     *
+     * @param i 日志条目的索引
+     * @return 指定索引的日志条目，如果索引无效则返回null
+     */
     LogEntryProto get(int i) {
       return i >= 0 && i < entries.size() ? entries.get(i) : null;
     }
@@ -46,6 +55,11 @@ public class MemoryRaftLog extends RaftLogBase {
       return entries.size();
     }
 
+    /**
+     * 截断日志条目列表到指定索引。
+     *
+     * @param index 截断的索引
+     */
     void truncate(int index) {
       if (entries.size() > index) {
         clear(index, entries.size());
@@ -62,6 +76,11 @@ public class MemoryRaftLog extends RaftLogBase {
       entries.subList(from, to).clear();
     }
 
+    /**
+     * 添加一个新的日志条目到列表中。
+     *
+     * @param entryRef 要添加的日志条目
+     */
     void add(LogEntryProto entryRef) {
       entries.add(entryRef);
     }
@@ -89,6 +108,13 @@ public class MemoryRaftLog extends RaftLogBase {
     return metrics;
   }
 
+  /**
+   * 获取指定索引的日志条目。
+   *
+   * @param index 日志条目的索引
+   * @return 指定索引的日志条目
+   * @throws RaftLogIOException 如果获取日志条目时发生IO异常
+   */
   @Override
   public LogEntryProto get(long index) throws RaftLogIOException {
     final ReferenceCountedObject<LogEntryProto> ref = retainLog(index);
@@ -121,6 +147,12 @@ public class MemoryRaftLog extends RaftLogBase {
     return newEntryWithData(ref);
   }
 
+  /**
+   * 获取指定索引的日志条目的TermIndex。
+   *
+   * @param index 日志条目的索引
+   * @return 指定索引的日志条目的TermIndex
+   */
   @Override
   public TermIndex getTermIndex(long index) {
     checkLogState();
@@ -146,6 +178,12 @@ public class MemoryRaftLog extends RaftLogBase {
     }
   }
 
+  /**
+   * 截断日志到指定索引。
+   *
+   * @param index 截断的索引
+   * @return 完成后的Future，包含截断的索引
+   */
   @Override
   protected CompletableFuture<Long> truncateImpl(long index) {
     checkLogState();
@@ -174,6 +212,13 @@ public class MemoryRaftLog extends RaftLogBase {
     }
   }
 
+  /**
+   * 追加一个新的日志条目。
+   *
+   * @param entryRef 要追加的日志条目
+   * @param context 事务上下文
+   * @return 完成后的Future，包含追加的日志条目的索引
+   */
   @Override
   protected CompletableFuture<Long> appendEntryImpl(ReferenceCountedObject<LogEntryProto> entryRef,
       TransactionContext context) {
@@ -202,13 +247,11 @@ public class MemoryRaftLog extends RaftLogBase {
       return Collections.emptyList();
     }
     try (AutoCloseableLock writeLock = writeLock()) {
-      // Before truncating the entries, we first need to check if some
-      // entries are duplicated. If the leader sends entry 6, entry 7, then
-      // entry 6 again, without this check the follower may truncate entry 7
-      // when receiving entry 6 again. Then before the leader detects this
-      // truncation in the next appendEntries RPC, leader may think entry 7 has
-      // been committed but in the system the entry has not been committed to
-      // the quorum of peers' disks.
+      // 在截断条目之前，我们需要先检查是否有重复的条目。
+      // 如果领导者发送了条目6，然后发送了条目7，接着再次发送了条目6，
+      // 没有这个检查，跟随者可能会在接收到条目6时截断条目7。
+      // 在领导者检测到这个截断之前，领导者可能会认为条目7已经被提交，
+      // 但实际上该条目尚未被提交到大多数对等体的磁盘上。
       boolean toTruncate = false;
       int truncateIndex = (int) logEntryProtos.get(0).getIndex();
       int index = 0;
@@ -260,6 +303,6 @@ public class MemoryRaftLog extends RaftLogBase {
   @Override
   public CompletableFuture<Long> onSnapshotInstalled(long lastSnapshotIndex) {
     return CompletableFuture.completedFuture(lastSnapshotIndex);
-    // do nothing
+    // 不执行任何操作
   }
 }

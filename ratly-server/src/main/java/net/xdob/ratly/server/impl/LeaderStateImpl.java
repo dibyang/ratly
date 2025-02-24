@@ -21,6 +21,7 @@ import net.xdob.ratly.protocol.exceptions.NotLeaderException;
 import net.xdob.ratly.protocol.exceptions.NotReplicatedException;
 import net.xdob.ratly.protocol.exceptions.ReadIndexException;
 import net.xdob.ratly.protocol.exceptions.ReconfigurationTimeoutException;
+import net.xdob.ratly.server.CommitInfoCache;
 import net.xdob.ratly.server.PeerConfiguration;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.RaftConfigurationImpl;
@@ -898,6 +899,7 @@ class LeaderStateImpl implements LeaderState {
     getMajorityMin(FollowerInfo::getMatchIndex, raftLog::getFlushIndex,
         followerMaxGapThreshold)
     .ifPresent(m -> updateCommit(m.majority, m.min));
+    server.getState().notifyTeamIndex();
   }
 
   private Optional<MinMajorityMax> getMajorityMin(ToLongFunction<FollowerInfo> followerIndex, LongSupplier logIndex) {
@@ -1212,7 +1214,6 @@ class LeaderStateImpl implements LeaderState {
 
   void replyPendingRequest(TermIndex termIndex, RaftClientReply reply) {
     pendingRequests.replyPendingRequest(termIndex, reply);
-    server.getState().notifyTeamIndex(termIndex);
   }
 
   TransactionContext getTransactionContext(TermIndex termIndex) {

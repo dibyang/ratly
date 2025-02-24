@@ -2,6 +2,8 @@ package net.xdob.ratly.server;
 
 import net.xdob.ratly.util.Finder;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class TermLeader {
@@ -26,9 +28,11 @@ public class TermLeader {
     return index;
   }
 
-  public void setIndex(long index) {
+  public TermLeader setIndex(long index) {
     this.index = index;
+    return this;
   }
+
 
   @Override
   public boolean equals(Object o) {
@@ -44,16 +48,28 @@ public class TermLeader {
 
   @Override
   public String toString() {
-    return term + "," + leaderId;
+    return toToken();
+  }
+
+  public String toToken() {
+    return term + "," + index + "$" + leaderId;
   }
 
   public static TermLeader of(long term, String leaderId){
     return new TermLeader(leaderId, term);
   }
 
-
   public static TermLeader parse(String token){
     Finder finder = Finder.c(token);
-    return of(finder.head(",").getValue(Long.class), finder.tail(",").getValue());
+    //兼容老的数据格式 term,leaderId
+    if(!token.contains("$")&&token.contains(",")){
+      return of(finder.head(",").getValue(Long.class), finder.tail(",").getValue());
+    }
+    String leaderId = finder.tail("$").getValue();
+    Finder head = finder.head("$");
+    TermLeader termLeader = of(head.head(",").getValue(Long.class), leaderId);
+    termLeader.setIndex(head.tail(",").getValue(Long.class));
+    return termLeader;
   }
+
 }

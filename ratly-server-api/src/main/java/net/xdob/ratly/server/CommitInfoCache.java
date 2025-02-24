@@ -1,4 +1,4 @@
-package net.xdob.ratly.server.impl;
+package net.xdob.ratly.server;
 
 import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
@@ -11,21 +11,24 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/** Caching the commit information. */
-class CommitInfoCache {
+/**
+ * 缓存各个节点的最新提交索引。
+ * 本对象线程安全。
+ **/
+public class CommitInfoCache {
   private final ConcurrentMap<RaftPeerId, Long> map = new ConcurrentHashMap<>();
 
-  Optional<Long> get(RaftPeerId id) {
+  public Optional<Long> get(RaftPeerId id) {
     return Optional.ofNullable(map.get(id));
   }
 
-  CommitInfoProto update(RaftPeer peer, long newCommitIndex) {
+  public CommitInfoProto update(RaftPeer peer, long newCommitIndex) {
     Objects.requireNonNull(peer, "peer == null");
     final long updated = update(peer.getId(), newCommitIndex);
     return ProtoUtils.toCommitInfoProto(peer, updated);
   }
 
-  long update(RaftPeerId peerId, long newCommitIndex) {
+  public long update(RaftPeerId peerId, long newCommitIndex) {
     Objects.requireNonNull(peerId, "peerId == null");
     return map.compute(peerId, (id, oldCommitIndex) -> {
       if (oldCommitIndex != null) {
@@ -39,7 +42,7 @@ class CommitInfoCache {
     });
   }
 
-  void update(CommitInfoProto newInfo) {
+  public void update(CommitInfoProto newInfo) {
     final RaftPeerId id = RaftPeerId.valueOf(newInfo.getServer().getId());
     update(id, newInfo.getCommitIndex());
   }

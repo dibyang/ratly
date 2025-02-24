@@ -80,6 +80,9 @@ subprojects {
             maven { url 'https://maven.aliyun.com/repository/public/' }
             mavenLocal()
         }
+        dependencies {
+            classpath 'com.netflix.nebula:gradle-ospackage-plugin:11.0.0'
+        }
     }
 
     apply plugin: 'java'

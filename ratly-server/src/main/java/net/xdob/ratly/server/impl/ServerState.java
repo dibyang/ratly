@@ -1,9 +1,8 @@
 package net.xdob.ratly.server.impl;
 
+import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
-import net.xdob.ratly.server.RaftConfigurationImpl;
-import net.xdob.ratly.server.StateObserver;
-import net.xdob.ratly.server.TermLeader;
+import net.xdob.ratly.server.*;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.raftlog.RaftLogIOException;
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -12,7 +11,6 @@ import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.proto.raft.RaftPeerRole;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
-import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.impl.LeaderElection.Phase;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
@@ -31,6 +29,8 @@ import net.xdob.ratly.util.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -82,7 +82,8 @@ class ServerState implements RaftLogQuery {
    */
   private final AtomicReference<TermIndex> latestInstalledSnapshot = new AtomicReference<>();
 
-  private final StateObserver stateObserver = new StateObserver4Onlooker();
+  private final AtomicReference<ScheduledExecutorService> scheduledRef = new AtomicReference<>();
+
 
   ServerState(RaftPeerId id, RaftGroup group, StateMachine stateMachine, RaftServerImpl server,
               StartupOption option, RaftProperties prop) {
@@ -146,7 +147,13 @@ class ServerState implements RaftLogQuery {
   }
 
   void start() {
-    stateObserver.start();
+    ScheduledExecutorService scheduled = scheduledRef.updateAndGet(s -> {
+      if (s == null) {
+        s = Executors.newScheduledThreadPool(2);
+      }
+      return s;
+    });
+    StateObserverMgr.INSTANCE.start(scheduled);
     // initialize stateMachineUpdater
     stateMachineUpdater.get().start();
 
@@ -244,7 +251,7 @@ class ServerState implements RaftLogQuery {
     setLeader(null, "grantVote");
   }
 
-  private final AtomicReference<TermLeader> termLeaderRef = new AtomicReference<>(null);
+
 
   void setLeader(RaftPeerId newLeaderId, Object op) {
     final RaftPeerId oldLeaderId = leaderId.getAndSet(newLeaderId);
@@ -264,20 +271,28 @@ class ServerState implements RaftLogQuery {
           getMemberId(), oldLeaderId, newLeaderId, getCurrentTerm(), op, suffix);
       if (newLeaderId != null) {
         server.onGroupLeaderElected();
-        TermLeader termLeader = TermLeader.of(getCurrentTerm(), newLeaderId.toString());
-        termLeaderRef.set(termLeader);
       }
     }
   }
 
-  void notifyTeamIndex(TermIndex termIndex){
-    TermLeader termLeader = termLeaderRef.get();
-    termLeader.setIndex(termIndex.getIndex());
-    stateObserver.notifyTeamIndex(memberId.getGroupId().toString(), termLeader);
+  void notifyTeamIndex(){
+    TermIndex termIndex = getLastCommittedTermIndex();
+    if(termIndex!=null) {
+      TermLeader termLeader = TermLeader.of(termIndex.getTerm(), leaderId.get().toString());
+      termLeader.setIndex(termIndex.getIndex());
+      StateObserverMgr.INSTANCE
+          .notifyTeamIndex(memberId.getGroupId().toString(), termLeader);
+    }
   }
 
+  private TermIndex getLastCommittedTermIndex() {
+    return getTermIndex(getLog().getLastCommittedIndex());
+  }
+
+
   CompletableFuture<TermLeader> getLastLeaderTerm(int waitMS){
-    return stateObserver.getLastLeaderTerm(memberId.getGroupId().toString(), waitMS);
+    return StateObserverMgr.INSTANCE
+        .getLastLeaderTerm(memberId.getGroupId().toString(), waitMS);
   }
 
   boolean shouldNotifyExtendedNoLeader() {
@@ -448,9 +463,15 @@ class ServerState implements RaftLogQuery {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);
     }
     try {
-      stateObserver.close();
+      StateObserverMgr.INSTANCE.stop();
+      scheduledRef.updateAndGet(s->{
+        if(s!=null){
+          s.shutdown();
+        }
+        return null;
+      });
     }catch (Throwable e) {
-      LOG.warn(getMemberId() + ": Failed to stop onlooker client", e);
+      LOG.warn("{}: Failed to stop onlooker client", getMemberId(), e);
     }
   }
 

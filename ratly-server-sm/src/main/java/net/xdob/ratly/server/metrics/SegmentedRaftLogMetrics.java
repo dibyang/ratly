@@ -13,54 +13,55 @@ import java.util.function.Supplier;
 public class SegmentedRaftLogMetrics extends RaftLogMetricsBase {
   //////////////////////////////
   // Raft Log Write Path Metrics
+  // Raft日志写路径指标
   /////////////////////////////
-  /** Time taken to flush log. */
+  /** 刷新日志所花费的时间。 */
   public static final String RAFT_LOG_FLUSH_TIME = "flushTime";
-  /** Number of times of log flushed. */
+  /** 日志刷新次数。 */
   public static final String RAFT_LOG_FLUSH_COUNT = "flushCount";
-  /** Time taken to log sync. */
+  /** 日志同步所花费的时间。 */
   public static final String RAFT_LOG_SYNC_TIME = "syncTime";
-  /** Raft log data queue size which at any time gives the number of log related operations in the queue. */
+  /** Raft日志数据队列大小，表示队列中日志相关操作的数量。 */
   public static final String RAFT_LOG_DATA_QUEUE_SIZE = "dataQueueSize";
-  /** Raft log worker queue size which at any time gives number of committed entries that are to be synced. */
+  /** Raft日志工作队列大小，表示待同步的已提交条目数量。 */
   public static final String RAFT_LOG_WORKER_QUEUE_SIZE = "workerQueueSize";
-  /** Number of raft log entries synced in each flush call. */
+  /** 每次刷新调用中同步的日志条目数量。 */
   public static final String RAFT_LOG_SYNC_BATCH_SIZE = "syncBatchSize";
-  /** Count of RaftLogCache Misses */
+  /** RaftLogCache未命中次数 */
   public static final String RAFT_LOG_CACHE_MISS_COUNT = "cacheMissCount";
-  /** Count of RaftLogCache Hits */
+  /** RaftLogCache命中次数 */
   public static final String RAFT_LOG_CACHE_HIT_COUNT = "cacheHitCount";
-  /** Number of SegmentedRaftLogCache::closedSegments */
+  /** SegmentedRaftLogCache::closedSegments的数量 */
   public static final String RAFT_LOG_CACHE_CLOSED_SEGMENTS_NUM = "closedSegmentsNum";
-  /** Size of SegmentedRaftLogCache::closedSegments in bytes */
+  /** SegmentedRaftLogCache::closedSegments的大小（字节） */
   public static final String RAFT_LOG_CACHE_CLOSED_SEGMENTS_SIZE_IN_BYTES = "closedSegmentsSizeInBytes";
-  /** Size of SegmentedRaftLogCache::openSegment in bytes */
+  /** SegmentedRaftLogCache::openSegment的大小（字节） */
   public static final String RAFT_LOG_CACHE_OPEN_SEGMENT_SIZE_IN_BYTES = "openSegmentSizeInBytes";
-  /** Total time taken to append a raft log entry */
+  /** 追加Raft日志条目所花费的总时间 */
   public static final String RAFT_LOG_APPEND_ENTRY_LATENCY = "appendEntryLatency";
-  /** Time spent by a Raft log operation in the queue. */
+  /** Raft日志操作在队列中花费的时间。 */
   public static final String RAFT_LOG_TASK_QUEUE_TIME = "enqueuedTime";
   /**
-   * Time taken for a Raft log operation to get into the queue after being requested.
-   * This is the time that it has to wait for the queue to be non-full.
+   * Raft日志操作在请求后进入队列所花费的时间。
+   * 这是它必须等待队列非满的时间。
    */
   public static final String RAFT_LOG_TASK_ENQUEUE_DELAY = "queueingDelay";
-  /** Time taken for a Raft log operation to complete execution. */
+  /** Raft日志操作完成执行所花费的时间。 */
   public static final String RAFT_LOG_TASK_EXECUTION_TIME = "%sExecutionTime";
-  /** Number of entries appended to the raft log */
+  /** 追加到Raft日志中的条目数量 */
   public static final String RAFT_LOG_APPEND_ENTRY_COUNT = "appendEntryCount";
   public static final String RAFT_LOG_PURGE_METRIC = "purgeLog";
-  /** Number of statemachine dataApi write timeouts */
+  /** 状态机dataApi写超时次数 */
   public static final String RAFT_LOG_STATEMACHINE_DATA_WRITE_TIMEOUT_COUNT = "numStateMachineDataWriteTimeout";
-  /** Number of statemachine dataApi read timeouts */
+  /** 状态机dataApi读超时次数 */
   public static final String RAFT_LOG_STATEMACHINE_DATA_READ_TIMEOUT_COUNT = "numStateMachineDataReadTimeout";
 
   //////////////////////////////
-  // Raft Log Read Path Metrics
+  // Raft日志读路径指标
   /////////////////////////////
-  /** Time required to read a raft log entry from actual raft log file and create a raft log entry */
+  /** 从实际Raft日志文件读取Raft日志条目并创建Raft日志条目所需的时间 */
   public static final String RAFT_LOG_READ_ENTRY_LATENCY = "readEntryLatency";
-  /** Time required to load and process raft log segments during restart */
+  /** 在重启期间加载和处理Raft日志段所需的时间 */
   public static final String RAFT_LOG_LOAD_SEGMENT_LATENCY = "segmentLoadLatency";
 
   private final Timekeeper flushTimer = getRegistry().timer(RAFT_LOG_FLUSH_TIME);

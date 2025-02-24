@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 /**
  * 日志 Segment 的开始索引和结束索引。
  * <p>
- * 这是一个基于价值的类。
+ * 用于描述日志段文件的包含日志的起始和终止索引。
  */
 public final class LogSegmentStartEnd implements Comparable<LogSegmentStartEnd> {
   private static final String LOG_FILE_NAME_PREFIX = "log";
@@ -52,8 +52,9 @@ public final class LogSegmentStartEnd implements Comparable<LogSegmentStartEnd> 
   static LogSegmentStartEnd valueOf(long startIndex, long endIndex, boolean isOpen) {
     return new LogSegmentStartEnd(startIndex, isOpen? null: endIndex);
   }
-
+  // startIndex 起始索引不能为空
   private final long startIndex;
+  // endIndex 结束索引可以为空，当日志段是最新使用中的段时结束索引为空
   private final Long endIndex;
 
   private LogSegmentStartEnd(long startIndex, Long endIndex) {

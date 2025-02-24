@@ -1,12 +1,5 @@
-
-
 dependencies {
-    api project(':ratly-proto')
-    api project(':ratly-common')
-    api project(':ratly-client')
-    api project(':ratly-metrics-api')
     api project(':ratly-server-api')
-    api project(':ratly-server-sm')
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

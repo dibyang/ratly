@@ -111,20 +111,22 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
+    LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
     isLeader = groupMemberId.getPeerId().equals(newLeaderId);
     if(!isLeader) {
-      fireLeaderStateEvent(l -> l.notifyLeaderChanged(false));
+      fireLeaderStateEvent(false);
     }
     leaderChangedFuture.complete(newLeaderId);
     leaderChangedFuture = new CompletableFuture<>();
   }
 
-  private void fireLeaderStateEvent(Consumer<LeaderChangedListener> consumer) {
+  private void fireLeaderStateEvent(boolean isLeader) {
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     executorService.submit(()->{
+      LOG.info("fireLeaderStateEvent: isLeader={}", isLeader);
       for (LeaderChangedListener listener : leaderChangedListeners) {
         try {
-          consumer.accept(listener);
+          listener.notifyLeaderChanged(isLeader);
         }catch (Exception e){
           LOG.warn("", e);
         }
@@ -144,7 +146,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public void notifyLeaderReady() {
 
-    fireLeaderStateEvent(l -> l.notifyLeaderChanged(true));
+    fireLeaderStateEvent(true);
   }
 
 

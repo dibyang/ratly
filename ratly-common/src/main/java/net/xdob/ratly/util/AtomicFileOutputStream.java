@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 文件原子读写支持类
@@ -39,6 +40,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
   private final File tmpFile;
   private final AtomicBoolean isClosed = new AtomicBoolean();
 
+
   public AtomicFileOutputStream(File outFile) throws IOException {
     this(outFile, getTemporaryFile(outFile));
   }
@@ -52,6 +54,7 @@ public class AtomicFileOutputStream extends FilterOutputStream {
   public boolean isClosed() {
     return isClosed.get();
   }
+
 
   @Override
   public void close() throws IOException {

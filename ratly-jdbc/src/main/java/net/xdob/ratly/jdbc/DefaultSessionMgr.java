@@ -1,7 +1,7 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Maps;
-import net.xdob.onlooker.security.Base58;
+import net.xdob.ratly.security.Base58;
 import net.xdob.ratly.util.Finder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,7 @@ public class DefaultSessionMgr implements SessionMgr{
 
   @Override
   public Session newSession(String user, ConnSupplier connSupplier) throws SQLException {
-    Session session = new Session(user + "$" + Base58.encodeUuid(UUID.randomUUID()), user, connSupplier, this::removeSession);
+    Session session = new Session(user + "$" + Base58.encode(UUID.randomUUID()), user, connSupplier, this::removeSession);
     sessions.put(session.getId(), session);
     return session;
   }
