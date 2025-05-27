@@ -32,6 +32,14 @@ public interface RaftStorage extends Closeable {
   void initialize() throws IOException;
 
   /**
+   * 获取缓存数据目录
+   */
+  File getDirCache();
+  /**
+   * 检测是否持有有效锁
+   */
+  boolean isLocked();
+  /**
    * 返回存储目录（RaftStorageDirectory）。该目录通常用于存放 RAFT 日志和相关文件。
    * @return the storage directory.
    */

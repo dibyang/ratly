@@ -3,6 +3,8 @@ package net.xdob.ratly.server.storage;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.SizeInBytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,7 +25,7 @@ import static java.nio.file.Files.newDirectoryStream;
  * 它提供了目录管理、存储一致性检查、空间检查、锁定和解锁等功能。
  */
 class RaftStorageDirectoryImpl implements RaftStorageDirectory {
-
+  static final Logger LOG = LoggerFactory.getLogger(RaftStorageDirectoryImpl.class);
   private static final String IN_USE_LOCK_NAME = "in_use.lock";
   private static final String META_FILE_NAME = "raft-meta";
   private static final String CONF_EXTENSION = ".conf";
@@ -171,6 +173,29 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   @Override
   public boolean isHealthy() {
     return getMetaFile().exists();
+  }
+
+
+  @Override
+  public boolean isLocked() {
+    if(lock!=null){
+      if(lock.isValid()){
+        return true;
+      }else{
+        try {
+          unlock();
+        } catch (IOException e) {
+					LOG.warn("Failed to unlock {}", this.getRoot(), e);
+        }
+			}
+    }else{
+      try {
+        this.lock();
+      }  catch (IOException e) {
+				LOG.warn("Failed to lock {}", this.getRoot(), e);
+      }
+    }
+    return lock!=null;
   }
 
   /**

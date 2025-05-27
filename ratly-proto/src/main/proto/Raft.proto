@@ -34,7 +34,7 @@ message RaftPeerProto {
   string dataStreamAddress = 4; // address of the data stream server
   string clientAddress = 5; // address of the client RPC server
   string adminAddress = 6; // address of the admin RPC server
-  optional RaftPeerRole startupRole = 7; // 节点起始角色
+  optional RaftPeerRole startupRole = 9; // 节点起始角色
 }
 
 // 组信息

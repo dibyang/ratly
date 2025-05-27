@@ -76,8 +76,25 @@ public class PeerConfiguration {
     return Collections.unmodifiableList(new ArrayList<>(getPeerMap(role).values()));
   }
 
+  /**
+   * 总结点数
+   * @return 总结点数
+   */
   public int size() {
     return peers.size();
+  }
+
+  /**
+   * 有效结点数
+   * @return 有效结点数
+   */
+  public int validSize() {
+    int size = (int)peers.values().stream()
+      .filter(e->!e.isVirtual()).count();
+    if(peers.values().stream().allMatch(e->e.getId().isVirtual())){
+      size += 1;
+    }
+    return size;
   }
 
   public Stream<RaftPeerId> streamPeerIds() {
@@ -152,17 +169,22 @@ public class PeerConfiguration {
   }
 
   public int getMajorityCount() {
-    return size() / 2 + 1;
+    return validSize() / 2 + 1;
   }
 
+  /**
+   * 判断拒绝投票的节点是否构成多数
+   * @param rejected 拒绝投票的节点
+   * @return 拒绝投票的节点是否构成多数
+   */
   public boolean majorityRejectVotes(Collection<RaftPeerId> rejected) {
-    int num = size();
+    int num = validSize();
     for (RaftPeerId other : rejected) {
       if (contains(other)) {
         num --;
       }
     }
-    return num <= size() / 2;
+    return num < getMajorityCount();
   }
 
   @Override

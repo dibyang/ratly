@@ -258,7 +258,7 @@ public final class RaftConfigurationImpl implements RaftConfiguration {
    */
   @Override
   public boolean isTwoNodeMode() {
-    return conf.size() == 2;
+    return conf.validSize() == 2;
   }
 
   /**

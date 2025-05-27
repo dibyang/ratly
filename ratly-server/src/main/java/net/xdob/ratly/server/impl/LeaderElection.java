@@ -7,7 +7,6 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
 import net.xdob.ratly.server.RaftConfiguration;
-import net.xdob.ratly.server.TermLeader;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.util.ServerStringUtils;
@@ -405,7 +404,6 @@ class LeaderElection implements Runnable {
     Set<RaftPeerId> higherPriorityPeers = getHigherPriorityPeers(conf);
     final boolean singleMode = conf.isSingleMode(server.getId());
     int waitMS = 200;
-    CompletableFuture<TermLeader> leaderTermFuture = server.getState().getLastLeaderTerm(waitMS);
     while (waitForNum > 0 && shouldRun(electionTerm)) {
       final TimeDuration waitTime = timeout.elapsedTime().apply(n -> -n);
       //超过等待时间
@@ -448,7 +446,7 @@ class LeaderElection implements Runnable {
         }
 
         // 如果任何具有更高优先级的对等体投拒绝票，则候选人不能通过投票
-        if (!r.getServerReply().getSuccess() && higherPriorityPeers.contains(replierId) && !singleMode && !conf.isTwoNodeMode()) {
+        if (!r.getServerReply().getSuccess() && higherPriorityPeers.contains(replierId) && !singleMode) {
           return logAndReturn(phase, Result.REJECTED, responses, exceptions);
         }
 
@@ -487,34 +485,6 @@ class LeaderElection implements Runnable {
         LOG.warn("force election this node leader phase={}, electionTerm={}", phase, electionTerm);
         //强制以leader启动
         return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
-      }
-      //双节点模式时，观察者记录的最后一个任期是当前选举人则通过本次投票
-      if(conf.isTwoNodeMode()) {
-        try {
-          TermLeader lastLeaderTerm = leaderTermFuture.get(waitMS + 100, TimeUnit.MILLISECONDS);
-          //存在历史数据
-          if (lastLeaderTerm != null && lastEntry!=null) {
-            LOG.info("lastLeaderTerm={} lastIndex={} localTerm={} localIndex={} phase={}, electionTerm={}", lastLeaderTerm,
-                lastLeaderTerm.getIndex(),  lastEntry.getTerm(), lastEntry.getIndex(), phase, electionTerm);
-            long offset = lastEntry.getIndex() - lastLeaderTerm.getIndex();
-            //数据和观察者任期一致
-            if(lastEntry.getTerm() == lastLeaderTerm.getTerm()){
-              LOG.info("lastLeader={} server id={} phase={}, electionTerm={}", lastLeaderTerm.getLeaderId(), server.getId().toString(),  phase, electionTerm);
-              if(lastLeaderTerm.getLeaderId().equals(server.getId().toString())) {
-                LOG.info("lastLeaderTerm={} phase={}, electionTerm={}", lastLeaderTerm,  phase, electionTerm);
-                //辅助主节点选主
-                return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
-              } else {
-                if(offset >=-1) {
-                  //根据索引辅助从节点选主
-                  return logAndReturn(phase, Result.ASSIST_PASSED, responses, exceptions);
-                }
-              }
-            }
-          }
-        } catch (ExecutionException|TimeoutException e) {
-          LOG.warn("", e);
-        }
       }
       return logAndReturn(phase, Result.REJECTED, responses, exceptions);
     }

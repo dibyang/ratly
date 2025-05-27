@@ -272,7 +272,7 @@ class RaftServerProxy implements RaftServer {
       LOG.info("{}: found a subdirectory {}", getId(), sub);
       RaftGroupId groupId = null;
       try {
-        groupId = RaftGroupId.valueOf(UUID.fromString(sub.getName()));
+        groupId = RaftGroupId.valueOf(sub.getName());
       } catch (Exception e) {
         LOG.info("{}: The directory {} is not a group directory;" +
             " ignoring it. ", getId(), sub.getAbsolutePath());

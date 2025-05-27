@@ -14,7 +14,7 @@ import java.util.Optional;
  */
 public final class RaftStorageMetadata {
   private static final RaftStorageMetadata DEFAULT = valueOf(
-      TermIndexProto.getDefaultInstance().getTerm(), RaftPeerId.valueOf(""));
+      TermIndexProto.getDefaultInstance().getTerm(), RaftPeerId.valueOf("",false));
 
   public static RaftStorageMetadata getDefault() {
     return DEFAULT;

@@ -1,6 +1,5 @@
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.RaftGroupMemberId;
 import net.xdob.ratly.server.*;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
@@ -101,7 +100,7 @@ class ServerState implements RaftLogQuery {
     configurationManager = new ConfigurationManager(id, initialConf);
     LOG.info("{}: {}", getMemberId(), configurationManager);
 
-    final String storageDirName = group.getGroupId().getUuid().toString();
+    final String storageDirName = group.getGroupId().getId().toString();
     this.raftStorage = MemoizedCheckedSupplier.valueOf(
         () -> StorageImplUtils.initRaftStorage(storageDirName, option, prop));
 
@@ -153,7 +152,6 @@ class ServerState implements RaftLogQuery {
       }
       return s;
     });
-    StateObserverMgr.INSTANCE.start(scheduled);
     // initialize stateMachineUpdater
     stateMachineUpdater.get().start();
 
@@ -275,25 +273,12 @@ class ServerState implements RaftLogQuery {
     }
   }
 
-  void notifyTeamIndex(){
-    TermIndex termIndex = getLastCommittedTermIndex();
-    if(termIndex!=null) {
-      TermLeader termLeader = TermLeader.of(termIndex.getTerm(), leaderId.get().toString());
-      termLeader.setIndex(termIndex.getIndex());
-      StateObserverMgr.INSTANCE
-          .notifyTeamIndex(memberId.getGroupId().toString(), termLeader);
-    }
-  }
 
   private TermIndex getLastCommittedTermIndex() {
     return getTermIndex(getLog().getLastCommittedIndex());
   }
 
 
-  CompletableFuture<TermLeader> getLastLeaderTerm(int waitMS){
-    return StateObserverMgr.INSTANCE
-        .getLastLeaderTerm(memberId.getGroupId().toString(), waitMS);
-  }
 
   boolean shouldNotifyExtendedNoLeader() {
     return Optional.ofNullable(lastNoLeaderTime.get())
@@ -463,7 +448,6 @@ class ServerState implements RaftLogQuery {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);
     }
     try {
-      StateObserverMgr.INSTANCE.stop();
       scheduledRef.updateAndGet(s->{
         if(s!=null){
           s.shutdown();

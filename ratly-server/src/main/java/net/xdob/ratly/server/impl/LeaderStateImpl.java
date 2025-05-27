@@ -899,7 +899,6 @@ class LeaderStateImpl implements LeaderState {
     getMajorityMin(FollowerInfo::getMatchIndex, raftLog::getFlushIndex,
         followerMaxGapThreshold)
     .ifPresent(m -> updateCommit(m.majority, m.min));
-    server.getState().notifyTeamIndex();
   }
 
   private Optional<MinMajorityMax> getMajorityMin(ToLongFunction<FollowerInfo> followerIndex, LongSupplier logIndex) {

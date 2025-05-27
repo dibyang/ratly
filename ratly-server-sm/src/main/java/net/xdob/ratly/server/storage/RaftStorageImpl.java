@@ -25,13 +25,18 @@ public class RaftStorageImpl implements RaftStorage {
   private final CorruptionPolicy logCorruptionPolicy;
   private volatile StorageState state = StorageState.UNINITIALIZED;
   private final MetaFile metaFile = new MetaFile();
-
-  RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy) {
-    LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}",
+  private final File dirCache;
+  RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache) {
+		this.dirCache = dirCache;
+		LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}",
         dir, freeSpaceMin, option, logCorruptionPolicy);
     this.storageDir = new RaftStorageDirectoryImpl(dir, freeSpaceMin);
     this.logCorruptionPolicy = Optional.ofNullable(logCorruptionPolicy).orElseGet(CorruptionPolicy::getDefault);
     this.startupOption = option;
+  }
+
+  public File getDirCache() {
+    return dirCache;
   }
 
   @Override
@@ -57,6 +62,11 @@ public class RaftStorageImpl implements RaftStorage {
       unlockOnFailure(storageDir);
       throw new IOException("Failed to load " + storageDir + ": " + state);
     }
+  }
+
+  @Override
+  public boolean isLocked() {
+    return storageDir.isLocked();
   }
 
   static void unlockOnFailure(RaftStorageDirectoryImpl dir) {
@@ -110,7 +120,7 @@ public class RaftStorageImpl implements RaftStorage {
   }
 
   @Override
-  public RaftStorageDirectoryImpl getStorageDir() {
+  public RaftStorageDirectory getStorageDir() {
     return storageDir;
   }
 

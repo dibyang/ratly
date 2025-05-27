@@ -79,7 +79,7 @@ public final class CliUtils {
 
   /** Parse the given string as a {@link RaftGroupId}. */
   public static RaftGroupId parseRaftGroupId(String groupId) {
-    return groupId != null && groupId.isEmpty() ? RaftGroupId.valueOf(UUID.fromString(groupId)) : null;
+    return groupId != null && groupId.isEmpty() ? RaftGroupId.valueOf(groupId) : null;
   }
 
   /**
@@ -128,7 +128,7 @@ public final class CliUtils {
       PrintStream err) throws IOException {
     GroupInfoReply groupInfoReply = applyFunctionReturnFirstNonNull(peers,
         p -> client.getGroupManagementApi((p.getId())).info(groupId), err);
-    checkReply(groupInfoReply, () -> "Failed to get group info for " + groupId.getUuid()
+    checkReply(groupInfoReply, () -> "Failed to get group info for " + groupId.getId()
             + " from " + peers, err);
     return groupInfoReply;
   }

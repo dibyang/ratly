@@ -112,7 +112,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
-    isLeader = groupMemberId.getPeerId().equals(newLeaderId);
+    isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
     if(!isLeader) {
       fireLeaderStateEvent(false);
     }
@@ -137,10 +137,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     });
     scheduler.schedule(()->{
       if(!executorService.isShutdown()){
-        LOG.warn("fireLeaderStateEvent use time > 5s.");
+        LOG.warn("fireLeaderStateEvent use time > 15s.");
         executorService.shutdown();
       }
-    }, 5, TimeUnit.SECONDS);
+    }, 15, TimeUnit.SECONDS);
   }
 
   @Override

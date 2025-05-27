@@ -5,7 +5,6 @@ import com.google.protobuf.ByteString;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.Preconditions;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +19,8 @@ public final class RaftPeerId {
   private static final Map<ByteString, RaftPeerId> BYTE_STRING_MAP = new ConcurrentHashMap<>();
   private static final Map<String, RaftPeerId> STRING_MAP = new ConcurrentHashMap<>();
 
+  private static final String VIRTUAL_PREFIX = "vn_";
+
   public static RaftPeerId valueOf(ByteString id) {
     final RaftPeerId cached = BYTE_STRING_MAP.get(id);
     if (cached != null) {
@@ -29,36 +30,49 @@ public final class RaftPeerId {
     return BYTE_STRING_MAP.computeIfAbsent(cloned, RaftPeerId::new);
   }
 
-  public static RaftPeerId valueOf(String id) {
-    return STRING_MAP.computeIfAbsent(id, RaftPeerId::new);
+  public static RaftPeerId valueOf(String uid) {
+    return STRING_MAP.computeIfAbsent(uid, RaftPeerId::new);
   }
 
-  public static RaftPeerId getRaftPeerId(String id) {
-    return id == null || id.isEmpty() ? null : RaftPeerId.valueOf(id);
+  public static RaftPeerId valueOf(String id, boolean virtual) {
+    return valueOf(RaftPeerId.buildUid(id, virtual));
   }
 
-  /** UTF-8 string as id */
-  private final String idString;
-  /** The corresponding bytes of {@link #idString}. */
-  private final ByteString id;
+
+  public static RaftPeerId getRaftPeerId(String uid) {
+    return uid == null || uid.isEmpty() ? null : RaftPeerId.valueOf(uid);
+  }
+
+  /** UTF-8 string as uid */
+  private final String uid;
+  /** The corresponding bytes of {@link #uid}. */
+  private final ByteString idBytes;
 
   private final Supplier<RaftPeerIdProto> raftPeerIdProto;
 
-  private RaftPeerId(String id) {
-    this.idString = Objects.requireNonNull(id, "id == null");
-    this.id = ByteString.copyFrom(idString, StandardCharsets.UTF_8);
+  private RaftPeerId(String uid) {
+    this.uid = Objects.requireNonNull(uid, "uid == null");
+    this.idBytes = ByteString.copyFromUtf8(uid);
     this.raftPeerIdProto = JavaUtils.memoize(this::buildRaftPeerIdProto);
   }
 
-  private RaftPeerId(ByteString id) {
-    this.id = Objects.requireNonNull(id, "id == null");
-    Preconditions.assertTrue(!id.isEmpty(), "id is empty.");
-    this.idString = id.toString(StandardCharsets.UTF_8);
+  private RaftPeerId(String id, boolean virtual) {
+    this(buildUid(id, virtual));
+  }
+
+  public static String buildUid(String id, boolean virtual) {
+    return virtual? VIRTUAL_PREFIX +id:id;
+  }
+
+  private RaftPeerId(ByteString idBytes) {
+    this.idBytes = Objects.requireNonNull(idBytes, "id == null");
+    Preconditions.assertTrue(!idBytes.isEmpty(), "id is empty.");
+    this.uid = idBytes.toStringUtf8();
     this.raftPeerIdProto = JavaUtils.memoize(this::buildRaftPeerIdProto);
   }
 
   private RaftPeerIdProto buildRaftPeerIdProto() {
-    return RaftPeerIdProto.newBuilder().setId(id).build();
+    return RaftPeerIdProto.newBuilder().setId(idBytes).build();
   }
 
   public RaftPeerIdProto getRaftPeerIdProto() {
@@ -69,22 +83,45 @@ public final class RaftPeerId {
    * @return id in {@link ByteString}.
    */
   public ByteString toByteString() {
-    return id;
+    return idBytes;
+  }
+
+  public String getOwnerId() {
+    return isVirtual()?uid.substring(VIRTUAL_PREFIX.length()):"";
+  }
+
+  public String getId() {
+    return uid;
+  }
+
+  /**
+   * 是否虚拟节点
+   */
+  public boolean isVirtual() {
+    return uid.startsWith(VIRTUAL_PREFIX);
   }
 
   @Override
   public String toString() {
-    return idString;
+    return uid;
   }
 
   @Override
   public boolean equals(Object other) {
     return other == this ||
-        (other instanceof RaftPeerId && idString.equals(((RaftPeerId)other).idString));
+        (other instanceof RaftPeerId && uid.equals(((RaftPeerId)other).uid));
   }
 
   @Override
   public int hashCode() {
-    return idString.hashCode();
+    return uid.hashCode();
+  }
+
+  public String getHostId(){
+    return isVirtual() ? getOwnerId() : getId();
+  }
+
+  public boolean isOwner(RaftPeerId peerId){
+    return getHostId().equals(peerId.getHostId());
   }
 }

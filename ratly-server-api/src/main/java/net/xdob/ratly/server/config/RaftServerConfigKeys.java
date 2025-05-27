@@ -45,6 +45,15 @@ RaftServerConfigKeys {
     setSizeInBytes(properties::set, STORAGE_FREE_SPACE_MIN_KEY, storageFreeSpaceMin);
   }
 
+  String CACHE_DIR_KEY = PREFIX + ".cache.dir";
+  File CACHE_DIR_DEFAULT = new File("/tmp/raft-cache/");
+  static File cacheDir(RaftProperties properties) {
+    return getFile(properties::getFile, CACHE_DIR_KEY, CACHE_DIR_DEFAULT, getDefaultLog());
+  }
+  static void setCacheDir(RaftProperties properties, File cacheDir) {
+    setFile(properties::setFile, CACHE_DIR_KEY, cacheDir);
+  }
+
   String REMOVED_GROUPS_DIR_KEY = PREFIX + ".removed.groups.dir";
   File REMOVED_GROUPS_DIR_DEFAULT = new File("/tmp/raft-server/removed-groups/");
   static File removedGroupsDir(RaftProperties properties) {

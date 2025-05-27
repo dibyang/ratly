@@ -35,8 +35,8 @@ public final class StorageImplUtils {
   /** Create a {@link RaftStorageImpl}. */
   @SuppressWarnings("java:S2095") // return Closable
   public static RaftStorageImpl newRaftStorage(File dir, SizeInBytes freeSpaceMin,
-                                               StartupOption option, CorruptionPolicy logCorruptionPolicy) {
-    return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy);
+                                               StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache) {
+    return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy, dirCache);
   }
 
   /** @return a list of existing subdirectories matching the given storage directory name from the given volumes. */
@@ -91,7 +91,7 @@ public final class StorageImplUtils {
 
     private final List<File> existingSubs;
     private final Map<File, Integer> dirsPerVol = new HashMap<>();
-
+    private final File dirCache;
     Op(String storageDirName, StartupOption option, RaftProperties properties) {
       this.storageDirName = storageDirName;
       this.option = option;
@@ -99,7 +99,7 @@ public final class StorageImplUtils {
       this.freeSpaceMin = RaftServerConfigKeys.storageFreeSpaceMin(properties);
       this.logCorruptionPolicy = RaftServerConfigKeys.Log.corruptionPolicy(properties);
       this.dirsInConf = RaftServerConfigKeys.storageDir(properties);
-
+      dirCache = RaftServerConfigKeys.cacheDir(properties);
       this.existingSubs = getExistingStorageSubs(dirsInConf, this.storageDirName, dirsPerVol);
     }
 
@@ -125,7 +125,7 @@ public final class StorageImplUtils {
         final File vol = chooseMin(dirsPerVol);
         final File dir = new File(vol, storageDirName);
         try {
-          final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.FORMAT, logCorruptionPolicy);
+          final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.FORMAT, logCorruptionPolicy, dirCache);
           storage.initialize();
           return storage;
         } catch (Throwable e) {
@@ -153,7 +153,7 @@ public final class StorageImplUtils {
 
       final File dir = existingSubs.get(0);
       try {
-        final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.RECOVER, logCorruptionPolicy);
+        final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.RECOVER, logCorruptionPolicy, dirCache);
         storage.initialize();
         return storage;
       } catch (IOException e) {

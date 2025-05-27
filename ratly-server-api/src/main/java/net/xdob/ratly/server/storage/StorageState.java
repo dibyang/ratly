@@ -3,11 +3,15 @@ package net.xdob.ratly.server.storage;
 /**
  * 存储状态
  */
-enum StorageState {
+public enum StorageState {
   /**
    * 未初始化。
    */
   UNINITIALIZED,
+  /**
+   * 存储正常。
+   */
+  NORMAL,
   /**
    * 目录不存在。
    */
@@ -19,9 +23,5 @@ enum StorageState {
   /**
    * 目录没有足够的空间。
    */
-  NO_SPACE,
-  /**
-   * 存储正常。
-   */
-  NORMAL
+  NO_SPACE
 }

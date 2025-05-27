@@ -29,7 +29,7 @@ public class GroupInfoCommand extends AbstractRatlyCommand {
   @Override
   public int run(CommandLine cl) throws IOException {
     super.run(cl);
-    println("group id: " + getRaftGroup().getGroupId().getUuid());
+    println("group id: " + getRaftGroup().getGroupId().getId());
     final GroupInfoReply reply = getGroupInfoReply();
     RaftPeerProto leader = getLeader(reply.getRoleInfoProto());
     if (leader == null) {
