@@ -66,12 +66,19 @@ public class LifeCycle {
       return States.PAUSING_OR_PAUSED.contains(this);
     }
 
+    /**
+     *
+     * @param key 目标状态
+     * @param map 状态关系存储
+     * @param values 可以到达目标状态的原始状态
+     */
     static void put(State key, Map<State, List<State>> map, State... values) {
       map.put(key, Collections.unmodifiableList(Arrays.asList(values)));
     }
 
     static {
       final Map<State, List<State>> predecessors = new EnumMap<>(State.class);
+
       put(NEW,       predecessors, STARTING);
       put(STARTING,  predecessors, NEW, PAUSED);
       put(RUNNING,   predecessors, STARTING);

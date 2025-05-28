@@ -27,12 +27,12 @@ public class RaftStorageImpl implements RaftStorage {
   private final MetaFile metaFile = new MetaFile();
   private final File dirCache;
   RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache) {
-		this.dirCache = dirCache;
 		LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}",
         dir, freeSpaceMin, option, logCorruptionPolicy);
     this.storageDir = new RaftStorageDirectoryImpl(dir, freeSpaceMin);
     this.logCorruptionPolicy = Optional.ofNullable(logCorruptionPolicy).orElseGet(CorruptionPolicy::getDefault);
     this.startupOption = option;
+    this.dirCache = dirCache;
   }
 
   public File getDirCache() {

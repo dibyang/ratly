@@ -233,11 +233,11 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
    */
   @SuppressWarnings({"squid:S2095"}) // Suppress closeable  warning
   private FileLock tryLock(File lockF) throws IOException {
-    boolean deletionHookAdded = false;
-    if (!lockF.exists()) {
-      lockF.deleteOnExit();
-      deletionHookAdded = true;
-    }
+//    boolean deletionHookAdded = false;
+//    if (!lockF.exists()) {
+//      lockF.deleteOnExit();
+//      deletionHookAdded = true;
+//    }
     RandomAccessFile file = new RandomAccessFile(lockF, "rws");
     FileLock res;
     try {
@@ -261,12 +261,12 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
       file.close();
       throw e;
     }
-    if (!deletionHookAdded) {
-      // If the file existed prior to our startup, we didn't
-      // call deleteOnExit above. But since we successfully locked
-      // the dir, we can take care of cleaning it up.
-      lockF.deleteOnExit();
-    }
+//    if (!deletionHookAdded) {
+//      // If the file existed prior to our startup, we didn't
+//      // call deleteOnExit above. But since we successfully locked
+//      // the dir, we can take care of cleaning it up.
+//      lockF.deleteOnExit();
+//    }
     return res;
   }
 

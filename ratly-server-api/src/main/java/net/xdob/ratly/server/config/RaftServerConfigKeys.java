@@ -3,6 +3,7 @@ package net.xdob.ratly.server.config;
 
 import net.xdob.ratly.conf.ConfUtils;
 import net.xdob.ratly.conf.RaftProperties;
+import net.xdob.ratly.server.storage.StorageChecker;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.SizeInBytes;
 import net.xdob.ratly.util.TimeDuration;
@@ -33,6 +34,15 @@ RaftServerConfigKeys {
   }
   static void setStorageDir(RaftProperties properties, List<File> storageDir) {
     setFiles(properties::setFiles, STORAGE_DIR_KEY, storageDir);
+  }
+
+  String STORAGE_CHECKER_KEY = PREFIX + ".storage.checker";
+  static Class<? extends StorageChecker> STORAGE_CHECKER_DEFAULT =  StorageChecker.NOOP.class;
+  static Class<? extends StorageChecker> storageChecker(RaftProperties properties) {
+    return properties.getClass(STORAGE_CHECKER_KEY, STORAGE_CHECKER_DEFAULT, StorageChecker.class);
+  }
+  static void setStorageChecker(RaftProperties properties, Class<? extends StorageChecker> storageChecker) {
+    properties.setClass(STORAGE_CHECKER_KEY, storageChecker, StorageChecker.class);
   }
 
   String STORAGE_FREE_SPACE_MIN_KEY = PREFIX + ".storage.free-space.min";

@@ -22,8 +22,10 @@ enum RaftPeerRole {
   CANDIDATE = 1;
   // 追随者
   FOLLOWER = 2;
-  // 监听者/观察者
+  // 监听者
   LISTENER = 3;
+  // 备用者(虚拟节点专用，表示虚拟节点处于备用状态)
+  STANDBY = 4;
 }
 
 // 节点信息

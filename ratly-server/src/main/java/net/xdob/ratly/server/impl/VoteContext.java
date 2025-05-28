@@ -111,11 +111,10 @@ class VoteContext {
   }
 
   /**
-   * A server should vote for candidate if:
-   * 1. log lags behind candidate, or
-   * 2. log equals candidate's, and priority less or equal candidate's
-   *
-   * See Section 5.4.1 Election restriction
+   * 服务器在以下情况下应为候选人投票：
+   *   1.本地日志落后于候选人的日志。
+   *   2.本地日志与候选人日志相同，候选节点是虚拟节点，本地节点不是虚拟节点时拒绝投票；
+   *   3.本地日志与候选人日志相同，候选节点不是虚拟或候选节点和本地节点都是虚拟节点，且优先级不高于候选人
    */
   boolean decideVote(RaftPeer candidate, TermIndex candidateLastEntry) {
     if (impl.getRole().getCurrentRole() == RaftPeerRole.LISTENER) {
@@ -138,6 +137,11 @@ class VoteContext {
     if (peer == null) {
       return reject("our server " + impl.getId() + " is not in the conf " + conf);
     }
+    //候选节点是虚拟节点，本地节点不是虚拟节点时拒绝投票
+    if(candidate.isVirtual()&&!peer.isVirtual()){
+      return reject("candidate's virtual node but our node is not virtual node");
+    }
+    //获取本地优先级
     final int priority = peer.getPriority();
     if (priority <= candidate.getPriority()) {
       return log(true, "our priority " + priority + " <= candidate's priority " + candidate.getPriority());

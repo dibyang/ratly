@@ -167,7 +167,7 @@ public interface RaftServer extends Closeable, RpcType.Get,
           threadGroup,
           Objects.requireNonNull(properties, "The 'properties' field is not initialized."),
           parameters);
-      beanFinders.forEach(e->raftServer.addBeanFinder(e));
+      beanFinders.forEach(raftServer::addBeanFinder);
       return raftServer;
     }
 
