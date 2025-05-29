@@ -121,10 +121,6 @@ public interface RaftConfiguration {
    */
   boolean isSingleton();
 
-  /**
-   * 是否2节点模式
-   */
-  boolean isTwoNodeMode();
 
   /** @return true if the self id together with the others are in the majority. */
   boolean hasMajority(Collection<RaftPeerId> others, RaftPeerId selfId);

@@ -17,6 +17,13 @@ public interface EventApi {
   };
 
   /**
+   * 通知状态机已经成为候选者。
+   * @param groupMemberId 成员的 ID。
+   */
+  default void changeToCandidate(RaftGroupMemberId groupMemberId) {
+  }
+
+  /**
    * 通知状态机有新的领导者选举产生。新的领导者可能是当前服务器本身。
    * @param groupMemberId 当前服务器的 ID。
    * @param newLeaderId 新选举出的领导者 ID。
@@ -77,16 +84,6 @@ public interface EventApi {
   default void notifySnapshotInstalled(InstallSnapshotResult result, long snapshotIndex, RaftPeer peer) {
   }
 
-  /**
-   * 通知状态机服务器已经关闭。
-   * Notify the {@link StateMachine} that the server for this division has been shut down.
-   *
-   * @Deprecated please use/override {@link #notifyServerShutdown(RoleInfoProto, boolean)} instead
-   */
-  @Deprecated
-  default void notifyServerShutdown(RoleInfoProto roleInfo) {
-    notifyServerShutdown(roleInfo, false);
-  }
 
   /**
    * 通知状态机服务器已经关闭。

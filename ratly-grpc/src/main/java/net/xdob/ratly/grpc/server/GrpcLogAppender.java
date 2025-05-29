@@ -203,6 +203,9 @@ public class GrpcLogAppender extends LogAppenderBase {
           .map(TermIndex::getIndex)
           .orElseGet(f::getMatchIndex);
       if (event.isError() && request == null) {
+        if(f.getId().isVirtual()){
+          return;
+        }
         final long followerNextIndex = f.getNextIndex();
         BatchLogger.warn(BatchLogKey.RESET_CLIENT, f.getId() + "-" + followerNextIndex, suffix ->
             LOG.warn("{}: Follower failed (request=null, errorCount={}); keep nextIndex ({}) unchanged and retry.{}",

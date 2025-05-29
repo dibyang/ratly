@@ -46,19 +46,11 @@ import net.xdob.ratly.util.Preconditions;
 import net.xdob.ratly.util.ReferenceCountedObject;
 import net.xdob.ratly.util.TimeDuration;
 import net.xdob.ratly.util.Timestamp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -87,7 +79,7 @@ import static net.xdob.ratly.server.config.RaftServerConfigKeys.Write.FOLLOWER_G
  */
 class LeaderStateImpl implements LeaderState {
   public static final String APPEND_PLACEHOLDER = JavaUtils.getClassSimpleName(LeaderState.class) + ".placeholder";
-
+  static final Logger LOG = LoggerFactory.getLogger(LeaderStateImpl.class);
   private enum BootStrapProgress {
     NOPROGRESS, PROGRESSING, CAUGHTUP
   }
@@ -406,16 +398,9 @@ class LeaderStateImpl implements LeaderState {
   }
 
   boolean isReady() {
-    //处理双节点模式
-    if (isTwoNodeMode() && startupLogEntry.isInitialized()) {
-      return true; // 双节点模式下简化 Ready 条件
-    }
-    return startupLogEntry.isInitialized() && startupLogEntry.get().isApplied();
+    return startupLogEntry.isInitialized()&& startupLogEntry.get().isApplied();
   }
 
-  private boolean isTwoNodeMode() {
-    return server.getRaftConf().isTwoNodeMode(); // 判断当前集群是否为双节点模式
-  }
 
   void checkReady(LogEntryProto entry) {
     if (entry.getTerm() == server.getState().getCurrentTerm() && startupLogEntry.get().checkStartIndex(entry)) {
@@ -896,6 +881,7 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private void updateCommit() {
+    //获取已写入有效份数的最小索引，修改该索引为已提交
     getMajorityMin(FollowerInfo::getMatchIndex, raftLog::getFlushIndex,
         followerMaxGapThreshold)
     .ifPresent(m -> updateCommit(m.majority, m.min));
@@ -916,8 +902,9 @@ class LeaderStateImpl implements LeaderState {
     if (followers.isEmpty() && !includeSelf) {
       return Optional.empty();
     }
-
+    //获取有效索引的排序数组
     final long[] indicesInNewConf = getSorted(followers, includeSelf, followerIndex, logIndex);
+
     final MinMajorityMax newConf = MinMajorityMax.valueOf(indicesInNewConf, gapThreshold);
 
     if (!conf.isTransitional()) {
@@ -936,10 +923,6 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private boolean hasMajority(Predicate<RaftPeerId> isAcked) {
-    // 双节点模式下仅检查 Leader 自身
-    if (isTwoNodeMode()) {
-      return isAcked.test(server.getId());
-    }
     final RaftPeerId selfId = server.getId();
     return server.getRaftConf().hasMajority(isAcked, selfId);
   }
@@ -970,16 +953,11 @@ class LeaderStateImpl implements LeaderState {
 
   private void updateCommit(long majority, long min) {
     final long oldLastCommitted = raftLog.getLastCommittedIndex();
-    long commitIndex = majority;
-    //处理双节点模式
-    if (isTwoNodeMode()) {
-      commitIndex = Math.max(commitIndex, raftLog.getFlushIndex()); // 使用 Leader 自身的日志索引
-    }
-    if (commitIndex > oldLastCommitted) {
+		if (majority > oldLastCommitted) {
       // Get the headers before updating commit index since the log can be purged after a snapshot
-      final LogEntryHeader[] entriesToCommit = raftLog.getEntries(oldLastCommitted + 1, commitIndex + 1);
+      final LogEntryHeader[] entriesToCommit = raftLog.getEntries(oldLastCommitted + 1, majority + 1);
 
-      if (server.getState().updateCommitIndex(commitIndex, currentTerm, true)) {
+      if (server.getState().updateCommitIndex(majority, currentTerm, true)) {
         updateCommit(entriesToCommit);
       }
     }
@@ -1036,14 +1014,15 @@ class LeaderStateImpl implements LeaderState {
 
   private long[] getSorted(List<FollowerInfo> followerInfos, boolean includeSelf,
       ToLongFunction<FollowerInfo> getFollowerIndex, LongSupplier getLogIndex) {
-    final int length = includeSelf ? followerInfos.size() + 1 : followerInfos.size();
+    List<FollowerInfo> validFollowerInfos = getValidFollowerInfos(followerInfos);
+    final int length = includeSelf ? validFollowerInfos.size() + 1 : validFollowerInfos.size();
     if (length == 0) {
       throw new IllegalArgumentException("followerInfos is empty and includeSelf == " + includeSelf);
     }
 
     final long[] indices = new long[length];
-    for (int i = 0; i < followerInfos.size(); i++) {
-      indices[i] = getFollowerIndex.applyAsLong(followerInfos.get(i));
+    for (int i = 0; i < validFollowerInfos.size(); i++) {
+      indices[i] = getFollowerIndex.applyAsLong(validFollowerInfos.get(i));
     }
 
     if (includeSelf) {
@@ -1053,6 +1032,19 @@ class LeaderStateImpl implements LeaderState {
 
     Arrays.sort(indices);
     return indices;
+  }
+
+  /**
+   * 获取有效追随者，虚拟节点只有有一个
+   */
+  private  List<FollowerInfo> getValidFollowerInfos(List<FollowerInfo> followerInfos) {
+    List<FollowerInfo> validFollowerInfos = new ArrayList<>();
+    followerInfos.stream().filter(e->!e.getId().isVirtual())
+      .forEach(validFollowerInfos::add);
+    followerInfos.stream().filter(e->e.getId().isVirtual())
+      .max(Comparator.comparingLong(FollowerInfo::getMatchIndex))
+      .ifPresent(validFollowerInfos::add);
+    return validFollowerInfos;
   }
 
   private void checkPeersForYieldingLeader() {
@@ -1104,10 +1096,6 @@ class LeaderStateImpl implements LeaderState {
     // votes from majority before becoming leader, without seeing higher term,
     // ideally, A leader is legal for election timeout if become leader soon.
     if (server.getRole().getRoleElapsedTimeMs() < server.getMaxTimeoutMs()) {
-      return true;
-    }
-    // 双节点模式下不检查多数派
-    if (isTwoNodeMode()) {
       return true;
     }
 
@@ -1307,7 +1295,6 @@ class LeaderStateImpl implements LeaderState {
     final TimeDuration elapsedTime = follower.getLastRpcResponseTime().elapsedTime();
     if (elapsedTime.compareTo(server.properties().rpcSlownessTimeout()) > 0) {
       final RoleInfoProto leaderInfo = server.getInfo().getRoleInfoProto();
-      server.getStateMachine().leaderEvent().notifyFollowerSlowness(leaderInfo);
       server.getStateMachine().leaderEvent().notifyFollowerSlowness(leaderInfo, follower.getPeer());
     }
     final RaftPeerId followerId = follower.getId();

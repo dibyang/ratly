@@ -5,15 +5,7 @@ import net.xdob.ratly.protocol.RaftPeer;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -91,7 +83,7 @@ public class PeerConfiguration {
   public int validSize() {
     int size = (int)peers.values().stream()
       .filter(e->!e.isVirtual()).count();
-    if(peers.values().stream().allMatch(e->e.getId().isVirtual())){
+    if(peers.values().stream().anyMatch(e->e.getId().isVirtual())){
       size += 1;
     }
     return size;

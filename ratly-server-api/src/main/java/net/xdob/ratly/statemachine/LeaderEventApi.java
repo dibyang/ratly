@@ -29,13 +29,6 @@ public interface LeaderEventApi {
   default void notifyFollowerSlowness(RoleInfoProto leaderInfo, RaftPeer slowFollower) {
   }
 
-  /**
-   * 这是已被废弃的方法版本，仅接受 RoleInfoProto 参数。推荐使用新的重载方法。
-   * @deprecated Use {@link #notifyFollowerSlowness(RoleInfoProto, RaftPeer)}.
-   */
-  @Deprecated
-  default void notifyFollowerSlowness(RoleInfoProto leaderInfo) {
-  }
 
   /**
    * 通知状态机{@link StateMachine}当前服务器不再是领导者。

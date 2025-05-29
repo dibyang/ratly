@@ -35,8 +35,8 @@ public final class StorageImplUtils {
   /** Create a {@link RaftStorageImpl}. */
   @SuppressWarnings("java:S2095") // return Closable
   public static RaftStorageImpl newRaftStorage(File dir, SizeInBytes freeSpaceMin,
-                                               StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache) {
-    return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy, dirCache);
+                                               StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache, RaftPeerId id) {
+    return new RaftStorageImpl(dir, freeSpaceMin, option, logCorruptionPolicy, dirCache, id);
   }
 
   /** @return a list of existing subdirectories matching the given storage directory name from the given volumes. */
@@ -76,9 +76,9 @@ public final class StorageImplUtils {
    * @param properties 配置属性
    * @return 成功初始化的存储对象。
    */
-  public static RaftStorageImpl initRaftStorage(String storageDirName, StartupOption option,
+  public static RaftStorageImpl initRaftStorage(RaftPeerId id, String storageDirName, StartupOption option,
       RaftProperties properties) throws IOException {
-    return new Op(storageDirName, option, properties).run();
+    return new Op(storageDirName, option, properties, id).run();
   }
 
   private static class Op {
@@ -92,15 +92,16 @@ public final class StorageImplUtils {
     private final List<File> existingSubs;
     private final Map<File, Integer> dirsPerVol = new HashMap<>();
     private final File dirCache;
-    Op(String storageDirName, StartupOption option, RaftProperties properties) {
+    private final RaftPeerId peerId;
+    Op(String storageDirName, StartupOption option, RaftProperties properties, RaftPeerId peerId) {
       this.storageDirName = storageDirName;
       this.option = option;
-
       this.freeSpaceMin = RaftServerConfigKeys.storageFreeSpaceMin(properties);
       this.logCorruptionPolicy = RaftServerConfigKeys.Log.corruptionPolicy(properties);
       this.dirsInConf = RaftServerConfigKeys.storageDir(properties);
-      dirCache = RaftServerConfigKeys.cacheDir(properties);
-      this.existingSubs = getExistingStorageSubs(dirsInConf, this.storageDirName, dirsPerVol);
+      this.dirCache = RaftServerConfigKeys.cacheDir(properties);
+			this.peerId = peerId;
+			this.existingSubs = getExistingStorageSubs(dirsInConf, this.storageDirName, dirsPerVol);
     }
 
     RaftStorageImpl run() throws IOException {
@@ -125,7 +126,7 @@ public final class StorageImplUtils {
         final File vol = chooseMin(dirsPerVol);
         final File dir = new File(vol, storageDirName);
         try {
-          final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.FORMAT, logCorruptionPolicy, dirCache);
+          final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.FORMAT, logCorruptionPolicy, dirCache, peerId);
           storage.initialize();
           return storage;
         } catch (Throwable e) {
@@ -153,7 +154,7 @@ public final class StorageImplUtils {
 
       final File dir = existingSubs.get(0);
       try {
-        final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.RECOVER, logCorruptionPolicy, dirCache);
+        final RaftStorageImpl storage = newRaftStorage(dir, freeSpaceMin, StartupOption.RECOVER, logCorruptionPolicy, dirCache, peerId);
         storage.initialize();
         return storage;
       } catch (IOException e) {

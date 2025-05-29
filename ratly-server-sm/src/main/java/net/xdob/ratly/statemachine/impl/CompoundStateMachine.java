@@ -110,6 +110,30 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   }
 
   @Override
+  public void changeToCandidate(RaftGroupMemberId groupMemberId) {
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
+    executorService.submit(()->{
+      LOG.info("changeToCandidate: groupMemberId={}", groupMemberId);
+      for (LeaderChangedListener listener : leaderChangedListeners) {
+        try {
+          listener.changeToCandidate(groupMemberId);
+        }catch (Exception e){
+          LOG.warn("{} listener.changeToCandidate error", listener, e);
+        }
+      }
+      if(!executorService.isShutdown()){
+        executorService.shutdown();
+      }
+    });
+    scheduler.schedule(()->{
+      if(!executorService.isShutdown()){
+        LOG.warn("changeToCandidate use time > 15s.");
+        executorService.shutdown();
+      }
+    }, 15, TimeUnit.SECONDS);
+  }
+
+  @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
     isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
@@ -128,7 +152,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         try {
           listener.notifyLeaderChanged(isLeader);
         }catch (Exception e){
-          LOG.warn("", e);
+          LOG.warn("{} listener.notifyLeaderChanged error", listener, e);
         }
       }
       if(!executorService.isShutdown()){

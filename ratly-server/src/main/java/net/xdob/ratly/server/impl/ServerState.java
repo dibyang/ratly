@@ -102,7 +102,7 @@ class ServerState implements RaftLogQuery {
 
     final String storageDirName = group.getGroupId().getId().toString();
     this.raftStorage = MemoizedCheckedSupplier.valueOf(
-        () -> StorageImplUtils.initRaftStorage(storageDirName, option, prop));
+        () -> StorageImplUtils.initRaftStorage(id, storageDirName, option, prop));
 
     this.snapshotManager = StorageImplUtils.newSnapshotManager(id, () -> getStorage().getStorageDir(),
         stateMachine.getStateMachineStorage());

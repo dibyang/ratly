@@ -253,13 +253,13 @@ public final class RaftConfigurationImpl implements RaftConfiguration {
     }
   }
 
-  /**
-   * 是否2节点模式
-   */
-  @Override
-  public boolean isTwoNodeMode() {
-    return conf.validSize() == 2;
-  }
+//  /**
+//   * 是否2节点模式
+//   */
+//  @Override
+//  public boolean isTwoNodeMode() {
+//    return conf.validSize() == 2;
+//  }
 
   /**
    * @return 如果自身 ID 与其他人一起构成多数派，则返回 true。

@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicReference;
 import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.RaftConfiguration;
 import net.xdob.ratly.server.config.CorruptionPolicy;
@@ -26,13 +27,15 @@ public class RaftStorageImpl implements RaftStorage {
   private volatile StorageState state = StorageState.UNINITIALIZED;
   private final MetaFile metaFile = new MetaFile();
   private final File dirCache;
-  RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache) {
-		LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}",
-        dir, freeSpaceMin, option, logCorruptionPolicy);
+  private final RaftPeerId peerId;
+  RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache, RaftPeerId peerId) {
+		LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}, peerId={}",
+        dir, freeSpaceMin, option, logCorruptionPolicy, peerId);
     this.storageDir = new RaftStorageDirectoryImpl(dir, freeSpaceMin);
     this.logCorruptionPolicy = Optional.ofNullable(logCorruptionPolicy).orElseGet(CorruptionPolicy::getDefault);
     this.startupOption = option;
     this.dirCache = dirCache;
+    this.peerId = peerId;
   }
 
   public File getDirCache() {

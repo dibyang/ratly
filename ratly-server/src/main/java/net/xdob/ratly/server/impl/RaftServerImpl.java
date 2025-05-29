@@ -658,6 +658,8 @@ class RaftServerImpl implements Division,
     Preconditions.assertTrue(getInfo().isFollower());
     role.shutdownFollowerState();
     setRole(RaftPeerRole.CANDIDATE, "changeToCandidate");
+    //引发变为候选人事件
+    stateMachine.event().changeToCandidate(getMemberId());
     if (state.shouldNotifyExtendedNoLeader()) {
       stateMachine.followerEvent().notifyExtendedNoLeader(getRoleInfoProto());
     }

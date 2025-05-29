@@ -1,5 +1,6 @@
 package net.xdob.ratly.server.impl;
 
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
 import net.xdob.ratly.server.leader.LeaderState;
 import net.xdob.ratly.util.Daemon;
@@ -100,6 +101,7 @@ class FollowerState extends Daemon {
 
   private boolean shouldRun() {
     final DivisionInfo info = server.getInfo();
+
     final boolean run = isRunning && (info.isFollower() || info.isListener());
     if (!run) {
       LOG.info("{}: Stopping now (isRunning? {}, role = {})", this, isRunning, info.getCurrentRole());
