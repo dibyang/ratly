@@ -2,6 +2,7 @@ package net.xdob.ratly.server.storage;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.RaftPeerId;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 /** The storage of a {@link RaftServer}. */
 public class RaftStorageImpl implements RaftStorage {
+
   private final RaftStorageDirectoryImpl storageDir;
   private final StartupOption startupOption;
   private final CorruptionPolicy logCorruptionPolicy;
@@ -28,6 +30,7 @@ public class RaftStorageImpl implements RaftStorage {
   private final MetaFile metaFile = new MetaFile();
   private final File dirCache;
   private final RaftPeerId peerId;
+  private ExecutorService executor;
   RaftStorageImpl(File dir, SizeInBytes freeSpaceMin, StartupOption option, CorruptionPolicy logCorruptionPolicy, File dirCache, RaftPeerId peerId) {
 		LOG.debug("newRaftStorage: {}, freeSpaceMin={}, option={}, logCorruptionPolicy={}, peerId={}",
         dir, freeSpaceMin, option, logCorruptionPolicy, peerId);
@@ -36,6 +39,7 @@ public class RaftStorageImpl implements RaftStorage {
     this.startupOption = option;
     this.dirCache = dirCache;
     this.peerId = peerId;
+
   }
 
   public File getDirCache() {
@@ -45,6 +49,9 @@ public class RaftStorageImpl implements RaftStorage {
   @Override
   public void initialize() throws IOException {
     try {
+      if(executor==null) {
+        executor = Executors.newSingleThreadExecutor();
+      }
       if (startupOption == StartupOption.FORMAT) {
         if (storageDir.analyzeStorage(false) == StorageState.NON_EXISTENT) {
           throw new IOException("Cannot format " + storageDir);
@@ -68,8 +75,19 @@ public class RaftStorageImpl implements RaftStorage {
   }
 
   @Override
-  public boolean isLocked() {
-    return storageDir.isLocked();
+  public boolean checkHealth() {
+    if(executor==null) {
+      return storageDir.checkHealth();
+    }else{
+      Future<Boolean> future = executor.submit(storageDir::checkHealth);
+      boolean health = false;
+			try {
+        health = future.get(2, TimeUnit.SECONDS);
+			} catch (Exception ignore) {
+        future.cancel(true);
+			}
+      return health;
+		}
   }
 
   static void unlockOnFailure(RaftStorageDirectoryImpl dir) {
@@ -129,6 +147,10 @@ public class RaftStorageImpl implements RaftStorage {
 
   @Override
   public void close() throws IOException {
+    if(executor!=null) {
+      this.executor.shutdown();
+      this.executor = null;
+    }
     storageDir.unlock();
   }
 

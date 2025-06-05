@@ -3,7 +3,6 @@ package net.xdob.ratly.server.config;
 
 import net.xdob.ratly.conf.ConfUtils;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.server.storage.StorageChecker;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.SizeInBytes;
 import net.xdob.ratly.util.TimeDuration;
@@ -22,7 +21,7 @@ public interface
 RaftServerConfigKeys {
   Logger LOG = LoggerFactory.getLogger(RaftServerConfigKeys.class);
   static Consumer<String> getDefaultLog() {
-    return LOG::info;
+    return LOG::debug;
   }
 
   String PREFIX = "raft.server";
@@ -36,13 +35,13 @@ RaftServerConfigKeys {
     setFiles(properties::setFiles, STORAGE_DIR_KEY, storageDir);
   }
 
-  String STORAGE_CHECKER_KEY = PREFIX + ".storage.checker";
-  static Class<? extends StorageChecker> STORAGE_CHECKER_DEFAULT =  StorageChecker.NOOP.class;
-  static Class<? extends StorageChecker> storageChecker(RaftProperties properties) {
-    return properties.getClass(STORAGE_CHECKER_KEY, STORAGE_CHECKER_DEFAULT, StorageChecker.class);
+  String STORAGE_MOUNT_KEY = PREFIX + ".storage.mount";
+  String STORAGE_MOUNT_DEFAULT =  "";
+  static String storageMount(RaftProperties properties) {
+    return properties.get(STORAGE_MOUNT_KEY, STORAGE_MOUNT_DEFAULT);
   }
-  static void setStorageChecker(RaftProperties properties, Class<? extends StorageChecker> storageChecker) {
-    properties.setClass(STORAGE_CHECKER_KEY, storageChecker, StorageChecker.class);
+  static void setStorageMount(RaftProperties properties, String storageMount) {
+    properties.set(STORAGE_MOUNT_KEY, storageMount);
   }
 
   String STORAGE_FREE_SPACE_MIN_KEY = PREFIX + ".storage.free-space.min";

@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 本地日志追加器
  * The default implementation of {@link LogAppender}
  * using {@link RaftServerProtocol}.
  */

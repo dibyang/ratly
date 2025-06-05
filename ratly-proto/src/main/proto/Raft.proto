@@ -24,8 +24,6 @@ enum RaftPeerRole {
   FOLLOWER = 2;
   // 监听者
   LISTENER = 3;
-  // 备用者(虚拟节点专用，表示虚拟节点处于备用状态)
-  STANDBY = 4;
 }
 
 // 节点信息
@@ -217,6 +215,8 @@ message AppendEntriesRequestProto {
   uint64 leaderCommit = 5;
   // 标志该请求是否为初始化请求。在特定场景（如新加入节点）下使用，用于处理集群配置变更等初始化操作。
   bool initializing = 6;
+  // 当前使用的虚拟节点id
+  string vnPeerId = 7;
   // 包含其他节点的提交信息，类型为 CommitInfoProto。提供整个集群中其他节点的提交状态信息。
   repeated CommitInfoProto commitInfos = 15;
 }
@@ -236,6 +236,7 @@ message AppendEntriesReplyProto {
     //    追随者正在安装快照（可能导致日志不一致）。
     //    本地快照与领导者请求的日志条目重叠，导致不一致。
     INCONSISTENCY = 2;
+    UNAVAILABLE = 3;//虚节点处于不可用状态
   }
   // 封装了 RPC 响应的基本信息，类似于 RaftRpcRequestProto，包括回复的来源、目标等。
   RaftRpcReplyProto serverReply = 1;
@@ -253,6 +254,8 @@ message AppendEntriesReplyProto {
   uint64 matchIndex = 6;
   // 标识此次响应是否为心跳响应。
   bool isHearbeat = 7;
+  // 节点是否启动完成
+  bool started = 8;
 }
 
 // 安装快照请求的结果
@@ -805,6 +808,9 @@ message GroupInfoReplyProto {
   RaftConfigurationProto conf = 6;
   // 该组的日志信息。
   LogInfoProto logInfo = 7;
+  bool stateStarted = 8;
+  string vnPeerId = 9;
+
 }
 
 // 用于表示服务器的日志信息，包括已提交的日志、已应用的日志、快照等。

@@ -3,6 +3,7 @@ package net.xdob.ratly.util;
 import net.xdob.ratly.util.function.CheckedSupplier;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A memoized supplier is a {@link CheckedSupplier}
@@ -66,6 +67,12 @@ public final class MemoizedCheckedSupplier<RETURN, THROW extends Throwable>
   /** @return is the object initialized? */
   public boolean isInitialized() {
     return value != null;
+  }
+
+  public Optional<RETURN> release() {
+    RETURN v = value;
+    value = null;
+    return Optional.ofNullable(v);
   }
 
   @Override

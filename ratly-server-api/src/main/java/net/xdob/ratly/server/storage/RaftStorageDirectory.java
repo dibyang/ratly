@@ -19,6 +19,8 @@ public interface RaftStorageDirectory {
   /** @return the root directory of this storage */
   File getRoot();
 
+  File getLockFile();
+
   /** @return the current directory. */
   default File getCurrentDir() {
     return new File(getRoot(), CURRENT_DIR_NAME);
@@ -38,7 +40,7 @@ public interface RaftStorageDirectory {
   boolean isHealthy();
 
   /**
-   * 检测是否持有有效锁
+   * 通过读写检测存储是否可用健康
    */
-  boolean isLocked();
+  boolean checkHealth();
 }

@@ -117,7 +117,7 @@ final class ServerProtoUtils {
   static AppendEntriesReplyProto toAppendEntriesReplyProto(
       RaftPeerId requestorId, RaftGroupMemberId replyId, long term,
       long followerCommit, long nextIndex, AppendResult result, long callId,
-      long matchIndex, boolean isHeartbeat) {
+      long matchIndex, boolean isHeartbeat, boolean started) {
     RaftRpcReplyProto.Builder rpcReply = toRaftRpcReplyProtoBuilder(
         requestorId, replyId, result == AppendResult.SUCCESS)
         .setCallId(callId);
@@ -129,6 +129,7 @@ final class ServerProtoUtils {
         .setFollowerCommit(followerCommit)
         .setResult(result)
         .setIsHearbeat(isHeartbeat)
+        .setStarted(started)
         .build();
   }
 
@@ -136,6 +137,7 @@ final class ServerProtoUtils {
   static AppendEntriesRequestProto toAppendEntriesRequestProto(
       RaftGroupMemberId requestorId, RaftPeerId replyId, long leaderTerm,
       List<LogEntryProto> entries, long leaderCommit, boolean initializing,
+      String vnPeerId,
       TermIndex previous, Collection<CommitInfoProto> commitInfos, long callId) {
     final RaftRpcRequestProto.Builder rpcRequest = ClientProtoUtils.toRaftRpcRequestProtoBuilder(requestorId, replyId)
         .setCallId(callId);
@@ -144,7 +146,8 @@ final class ServerProtoUtils {
         .setServerRequest(rpcRequest)
         .setLeaderTerm(leaderTerm)
         .setLeaderCommit(leaderCommit)
-        .setInitializing(initializing);
+        .setInitializing(initializing)
+        .setVnPeerId(vnPeerId);
     if (entries != null && !entries.isEmpty()) {
       b.addAllEntries(entries);
     }

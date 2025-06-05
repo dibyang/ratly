@@ -36,8 +36,10 @@ import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,10 +48,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 远程日志追加器
  * A new log appender implementation using grpc bi-directional stream API.
  */
 public class GrpcLogAppender extends LogAppenderBase {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcLogAppender.class);
+
 
   private enum BatchLogKey implements BatchLogger.Key {
     RESET_CLIENT,
@@ -145,6 +149,7 @@ public class GrpcLogAppender extends LogAppenderBase {
   private final TimeoutExecutor scheduler = TimeoutExecutor.getInstance();
   @SuppressWarnings({"squid:S3077"}) // Suppress volatile for generic type
   private volatile StreamObservers appendLogRequestObserver;
+  //是否使用单独的心跳通道
   private final boolean useSeparateHBChannel;
 
   private final GrpcServerMetrics grpcServerMetrics;
@@ -153,6 +158,8 @@ public class GrpcLogAppender extends LogAppenderBase {
   private final StackTraceElement caller;
   private final RetryPolicy errorRetryWaitPolicy;
   private final ReplyState replyState = new ReplyState();
+
+  private final File ignoreFile;
 
   public GrpcLogAppender(Division server, LeaderState leaderState, FollowerInfo f) {
     super(server, leaderState, f);
@@ -176,6 +183,8 @@ public class GrpcLogAppender extends LogAppenderBase {
     caller = LOG.isTraceEnabled()? JavaUtils.getCallerStackTraceElement(): null;
     errorRetryWaitPolicy = MultipleLinearRandomRetry.parseCommaSeparated(
         RaftServerConfigKeys.Log.Appender.retryPolicy(properties));
+    ignoreFile = Paths.get("/etc/ratly/ignore/", getFollower().getId().getHostId())
+            .toFile();
   }
 
   @Override
@@ -185,6 +194,10 @@ public class GrpcLogAppender extends LogAppenderBase {
 
   private GrpcServerProtocolClient getClient() throws IOException {
     return getServerRpc().getProxies().getProxy(getFollowerId());
+  }
+
+  private boolean isLog() {
+    return !ignoreFile.exists();
   }
 
   private void resetClient(AppendEntriesRequest request, Event event) {
@@ -203,13 +216,12 @@ public class GrpcLogAppender extends LogAppenderBase {
           .map(TermIndex::getIndex)
           .orElseGet(f::getMatchIndex);
       if (event.isError() && request == null) {
-        if(f.getId().isVirtual()){
-          return;
-        }
         final long followerNextIndex = f.getNextIndex();
-        BatchLogger.warn(BatchLogKey.RESET_CLIENT, f.getId() + "-" + followerNextIndex, suffix ->
-            LOG.warn("{}: Follower failed (request=null, errorCount={}); keep nextIndex ({}) unchanged and retry.{}",
-                this, errorCount, followerNextIndex, suffix), logMessageBatchDuration);
+        if(isLog()) {
+          BatchLogger.warn(BatchLogKey.RESET_CLIENT, f.getId() + "-" + followerNextIndex, suffix ->
+                  LOG.warn("{}: Follower failed (request=null, errorCount={}); keep nextIndex ({}) unchanged and retry.{}",
+                          this, errorCount, followerNextIndex, suffix), logMessageBatchDuration);
+        }
         return;
       }
       if (request != null && request.isHeartbeat()) {
@@ -243,13 +255,27 @@ public class GrpcLogAppender extends LogAppenderBase {
     return false;
   }
 
+  private boolean isEnabledSand(){
+    FollowerInfo follower = getFollower();
+    RaftPeerId peerId = follower.getId();
+    if(peerId.isVirtual()){
+      String vnPeerId = getLeaderState().getVnPeerId();
+			return vnPeerId == null || vnPeerId.isEmpty() || vnPeerId.equals(peerId.getId());
+    }
+    return true;
+  }
+
   @Override
   public void run() throws IOException {
     for(; isRunning(); mayWait()) {
-      //HB period is expired OR we have messages OR follower is behind with commit index
-      if (shouldSendAppendEntries() || isFollowerCommitBehindLastCommitIndex()) {
-        final boolean installingSnapshot = installSnapshot();
-        appendLog(installingSnapshot || haveTooManyPendingRequests());
+      if(isEnabledSand()) {
+        //HB period is expired OR we have messages OR follower is behind with commit index
+        if (shouldSendAppendEntries() || isFollowerCommitBehindLastCommitIndex()) {
+          final boolean installingSnapshot = installSnapshot();
+          appendLog(installingSnapshot || haveTooManyPendingRequests());
+        }
+      }else {
+        appendLog(true);
       }
       getLeaderState().checkHealth(getFollower());
     }
@@ -439,6 +465,7 @@ public class GrpcLogAppender extends LogAppenderBase {
       final int errorCount = replyState.process(Event.TIMEOUT);
       LOG.warn("{}: Timed out {}appendEntries, errorCount={}, request={}",
           this, heartbeat ? "HEARTBEAT " : "", errorCount, pending);
+      getLeaderState().compareAndSetVnPeerId(getFollowerId().getId(), null);
       grpcServerMetrics.onRequestTimeout(getFollowerId().toString(), heartbeat);
       pending.stopRequestTimer();
     }
@@ -496,7 +523,7 @@ public class GrpcLogAppender extends LogAppenderBase {
 
     private void onNextImpl(AppendEntriesRequest request, AppendEntriesReplyProto reply) {
       final int errorCount = replyState.process(reply.getResult());
-
+      RaftPeerId peerId = getFollower().getId();
       switch (reply.getResult()) {
         case SUCCESS:
           grpcServerMetrics.onRequestSuccess(getFollowerId().toString(), reply.getIsHearbeat());
@@ -505,6 +532,13 @@ public class GrpcLogAppender extends LogAppenderBase {
             getFollower().updateNextIndex(reply.getMatchIndex() + 1);
             getLeaderState().onFollowerSuccessAppendEntries(getFollower());
           }
+          if(peerId.isVirtual()){
+            if(reply.getStarted()) {
+              getLeaderState().compareAndSetVnPeerId(null, peerId.getId());
+            }else{
+              getLeaderState().compareAndSetVnPeerId(peerId.getId(), null);
+            }
+          }
           break;
         case NOT_LEADER:
           grpcServerMetrics.onRequestNotLeader(getFollowerId().toString());
@@ -512,6 +546,14 @@ public class GrpcLogAppender extends LogAppenderBase {
           if (onFollowerTerm(reply.getTerm())) {
             return;
           }
+          break;
+        case UNAVAILABLE:
+          if(!reply.getIsHearbeat()) {
+            LOG.warn("{}: received {} reply with term {}", this, reply.getResult(), reply.getTerm());
+
+          }
+          //todo 统计带增加
+          getLeaderState().compareAndSetVnPeerId(peerId.getId(), null);
           break;
         case INCONSISTENCY:
           grpcServerMetrics.onRequestInconsistency(getFollowerId().toString());
@@ -536,10 +578,14 @@ public class GrpcLogAppender extends LogAppenderBase {
         LOG.info("{} is already stopped", GrpcLogAppender.this);
         return;
       }
-      BatchLogger.warn(BatchLogKey.APPEND_LOG_RESPONSE_HANDLER_ON_ERROR, AppendLogResponseHandler.this.name,
-          suffix -> GrpcUtil.warn(LOG, () -> this + ": Failed appendEntries" + suffix, t),
-          logMessageBatchDuration, t instanceof StatusRuntimeException);
+      getLeaderState().compareAndSetVnPeerId(getFollowerId().getId(), null);
+      if(isLog()) {
+        BatchLogger.warn(BatchLogKey.APPEND_LOG_RESPONSE_HANDLER_ON_ERROR, AppendLogResponseHandler.this.name,
+                suffix -> GrpcUtil.warn(LOG, () -> this + ": Failed appendEntries" + suffix, t),
+                logMessageBatchDuration, t instanceof StatusRuntimeException);
+      }
       grpcServerMetrics.onRequestRetry(); // Update try counter
+
       AppendEntriesRequest request = pendingRequests.remove(GrpcUtil.getCallId(t), GrpcUtil.isHeartbeat(t));
       resetClient(request, Event.ERROR);
     }

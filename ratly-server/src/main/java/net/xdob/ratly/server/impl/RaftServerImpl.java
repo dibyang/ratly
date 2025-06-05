@@ -1,6 +1,10 @@
 package net.xdob.ratly.server.impl;
 
-import java.util.concurrent.CountDownLatch;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.*;
+
 import net.xdob.ratly.client.impl.ClientProtoUtils;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.metrics.Timekeeper;
@@ -90,12 +94,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -125,6 +123,8 @@ class RaftServerImpl implements Division,
   static final String LOG_SYNC = APPEND_ENTRIES + ".logComplete";
   static final String START_LEADER_ELECTION = CLASS_NAME + ".startLeaderElection";
   static final String START_COMPLETE = CLASS_NAME + ".startComplete";
+  private final ScheduledExecutorService scheduled;
+
 
   class Info implements DivisionInfo {
     @Override
@@ -181,7 +181,7 @@ class RaftServerImpl implements Division,
   private final TimeDuration sleepDeviationThreshold;
 
   private final LifeCycle lifeCycle;
-  private final ServerState state;
+  private ServerState state;
   private final RoleInfo role;
 
   private final DataStreamMap dataStreamMap;
@@ -214,6 +214,10 @@ class RaftServerImpl implements Division,
   private final AtomicBoolean firstElectionSinceStartup = new AtomicBoolean(true);
   private final ThreadGroup threadGroup;
 
+  private final AtomicBoolean stateStartOrStop = new AtomicBoolean(false);
+  private final VNodeLease vnodeLease;
+  private final String storageMount;
+
   RaftServerImpl(RaftGroup group, StateMachine stateMachine, RaftServerProxy proxy, StartupOption option)
       throws IOException {
     final RaftPeerId id = proxy.getId();
@@ -228,7 +232,6 @@ class RaftServerImpl implements Division,
     this.memberMajorityAddEnabled = RaftServerConfigKeys.LeaderElection.memberMajorityAdd(properties);
     this.sleepDeviationThreshold = RaftServerConfigKeys.sleepDeviationThreshold(properties);
     this.proxy = proxy;
-
     this.state = new ServerState(id, group, stateMachine, this, option, properties);
     this.retryCache = new RetryCacheImpl(properties);
     this.dataStreamMap = new DataStreamMapImpl(id);
@@ -256,6 +259,11 @@ class RaftServerImpl implements Division,
         RaftServerConfigKeys.ThreadPool.clientCached(properties),
         RaftServerConfigKeys.ThreadPool.clientSize(properties),
         id + "-client");
+
+    this.storageMount = RaftServerConfigKeys.storageMount(properties);
+
+    this.vnodeLease = new VNodeLease(properties);
+    this.scheduled = Executors.newScheduledThreadPool(1);
   }
 
   private long getCommitIndex(RaftPeerId id) {
@@ -349,9 +357,8 @@ class RaftServerImpl implements Division,
     if (!lifeCycle.compareAndTransition(State.NEW, State.STARTING)) {
       return false;
     }
-    state.initialize(stateMachine);
-
     final RaftConfiguration conf = getRaftConf();
+
     if (conf != null && conf.containsInBothConfs(getId())) {
       LOG.info("{}: start as a follower, conf={}", getMemberId(), conf);
       startAsPeer(RaftPeerRole.FOLLOWER);
@@ -362,14 +369,90 @@ class RaftServerImpl implements Division,
       LOG.info("{}: start with initializing state, conf={}", getMemberId(), conf);
       setRole(RaftPeerRole.FOLLOWER, "start");
     }
-
+    //尝试启动ServerState
+    startSeverState();
+    this.scheduled.scheduleWithFixedDelay(this::checkServerState, 2,2, TimeUnit.SECONDS);
     jmxAdapter.registerMBean();
-    state.start();
-    CodeInjectionForTesting.execute(START_COMPLETE, getId(), null, role);
-    if (startComplete.compareAndSet(false, true)) {
-      LOG.info("{}: Successfully started.", getMemberId());
-    }
     return true;
+  }
+
+  private void checkServerState(){
+    if(getId().isVirtual()){
+      if(!startComplete.get()) {
+        if (!vnodeLease.isValid()) {
+          startSeverState();
+        }
+      }else{
+        //存储健康检查
+        boolean checkHealth = this.state.getStorage().checkHealth();
+        LOG.info("{}: checking server state, checkHealth={}", getMemberId(), checkHealth);
+        if(!checkHealth){
+          LOG.warn("Storage health check failed, will stop SeverState");
+          stopSeverState();
+        }
+      }
+    }
+  }
+
+  protected void checkStorageMount() throws IOException {
+    if(storageMount!=null&&!storageMount.isEmpty()){
+      boolean find = false;
+      Path path = Paths.get("/proc/mounts");
+      if (path.toFile().exists()) {
+        for(String line : Files.readAllLines(path)) {
+          if (line.contains(" "+storageMount+" ")) {
+            find = true;
+            break;
+          }
+        }
+        if(!find){
+          throw new IOException("StorageMount not find.");
+        }
+      }
+    }
+
+  }
+
+  /**
+   * 尝试启动ServerState
+   */
+  public void startSeverState() {
+    if(!startComplete.get()){
+      if(stateStartOrStop.compareAndSet(false,true)){
+        try {
+          LOG.info("try start SeverState");
+          checkStorageMount();
+          state.initialize(stateMachine);
+          state.start();
+          CodeInjectionForTesting.execute(START_COMPLETE, getId(), null, role);
+          if (startComplete.compareAndSet(false, true)) {
+            LOG.info("{}: Successfully started.", getMemberId());
+          }
+        } catch (Exception e) {
+          LOG.warn("startSeverState failed", e);
+        }finally {
+          stateStartOrStop.set(false);
+        }
+      }
+    }
+  }
+
+  /**
+   * 停止ServerState
+   */
+  public void stopSeverState() {
+    if(stateStartOrStop.compareAndSet(false,true)) {
+      try{
+        if (startComplete.compareAndSet(true, false)) {
+          LOG.info("stop SeverState");
+          this.state.close();
+          vnodeLease.extend();
+          LOG.info("{}: Successfully stopped.", getMemberId());
+        }
+      }finally {
+        stateStartOrStop.set(false);
+      }
+    }
   }
 
   /**
@@ -518,6 +601,11 @@ class RaftServerImpl implements Division,
       } catch (Exception e) {
         LOG.warn(getMemberId() + ": Failed to shutdown serverExecutor", e);
       }
+      try {
+        Concurrents3.shutdownAndWait(scheduled);
+      } catch (Exception e) {
+        LOG.warn(getMemberId() + ": Failed to shutdown scheduled", e);
+      }
       closeFinishedLatch.countDown();
     });
   }
@@ -624,28 +712,35 @@ class RaftServerImpl implements Division,
     final RaftConfigurationProto conf =
         LogProtoUtils.toRaftConfigurationProtoBuilder(getRaftConf()).build();
     return new GroupInfoReply(request, getCommitInfos(), getGroup(), getRoleInfoProto(),
-        dir.isHealthy(), conf, getLogInfo());
+        dir.isHealthy(), conf, getLogInfo(), getVnPeerId(), startComplete.get());
   }
 
+  private String getVnPeerId() {
+    return role.getLeaderState()
+      .map(LeaderState::getVnPeerId)
+      .orElse("");
+  }
 
   LogInfoProto getLogInfo(){
-    final RaftLog log = getRaftLog();
     LogInfoProto.Builder logInfoBuilder = LogInfoProto.newBuilder();
-    final TermIndex applied = getStateMachine().getLastAppliedTermIndex();
-    if (applied != null) {
-      logInfoBuilder.setApplied(applied.toProto());
-    }
-    final TermIndex committed = log.getTermIndex(log.getLastCommittedIndex());
-    if (committed != null) {
-      logInfoBuilder.setCommitted(committed.toProto());
-    }
-    final TermIndex entry = log.getLastEntryTermIndex();
-    if (entry != null) {
-      logInfoBuilder.setLastEntry(entry.toProto());
-    }
-    final SnapshotInfo snapshot = getStateMachine().getLatestSnapshot();
-    if (snapshot != null) {
-      logInfoBuilder.setLastSnapshot(snapshot.getTermIndex().toProto());
+    if(startComplete.get()) {
+      final RaftLog log = getRaftLog();
+      final TermIndex applied = getStateMachine().getLastAppliedTermIndex();
+      if (applied != null) {
+        logInfoBuilder.setApplied(applied.toProto());
+      }
+      final TermIndex committed = log.getTermIndex(log.getLastCommittedIndex());
+      if (committed != null) {
+        logInfoBuilder.setCommitted(committed.toProto());
+      }
+      final TermIndex entry = log.getLastEntryTermIndex();
+      if (entry != null) {
+        logInfoBuilder.setLastEntry(entry.toProto());
+      }
+      final SnapshotInfo snapshot = getStateMachine().getLatestSnapshot();
+      if (snapshot != null) {
+        logInfoBuilder.setLastSnapshot(snapshot.getTermIndex().toProto());
+      }
     }
     return logInfoBuilder.build();
   }
@@ -1483,9 +1578,9 @@ class RaftServerImpl implements Division,
       CodeInjectionForTesting.execute(APPEND_ENTRIES, getId(), leaderId, previous, r);
 
       assertLifeCycleState(LifeCycle.States.STARTING_OR_RUNNING);
-      if (!startComplete.get()) {
-        throw new ServerNotReadyException(getMemberId() + ": The server role is not yet initialized.");
-      }
+//      if (!startComplete.get()) {
+//        throw new ServerNotReadyException(getMemberId() + ": The server role is not yet initialized.");
+//      }
       assertGroup(getMemberId(), leaderId, leaderGroupId);
       assertEntries(r, previous, state);
 
@@ -1552,22 +1647,45 @@ class RaftServerImpl implements Division,
     final boolean isHeartbeat = entries.isEmpty();
     logAppendEntries(isHeartbeat, () -> getMemberId() + ": appendEntries* "
         + toAppendEntriesRequestString(proto, stateMachine::toStateMachineLogEntryString));
+    RaftPeerId peerId = getId();
+    if(peerId.isVirtual()) {
+      String vnPeerId = proto.getVnPeerId();
+      if (startComplete.get()) {
+        if(!vnPeerId.isEmpty()&&!vnPeerId.equals(peerId.getId())){
+          stopSeverState();
+        }
+      }else{
+        if(!vnPeerId.isEmpty()&&!peerId.getId().equals(vnPeerId)){
+          vnodeLease.extend();
+        }
+      }
+    }
+
+    final Optional<FollowerState> followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
+
+    //不可用状态终止日志追加。
+    if(!startComplete.get()){
+      return CompletableFuture.completedFuture(toAppendEntriesReplyProto(
+        leaderId, getMemberId(), -1, RaftLog.INVALID_LOG_INDEX, RaftLog.INVALID_LOG_INDEX,
+        AppendResult.UNAVAILABLE, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat, startComplete.get()));
+    }
 
     final long leaderTerm = proto.getLeaderTerm();
     final long currentTerm;
     final long followerCommit = state.getLog().getLastCommittedIndex();
-    final Optional<FollowerState> followerState;
+
     final Timekeeper.Context timer = raftServerMetrics.getFollowerAppendEntryTimer(isHeartbeat).time();
     final CompletableFuture<Void> future;
     synchronized (this) {
       // Check life cycle state again to avoid the PAUSING/PAUSED state.
       assertLifeCycleState(LifeCycle.States.STARTING_OR_RUNNING);
       currentTerm = state.getCurrentTerm();
+
       final boolean recognized = state.recognizeLeader(Op.APPEND_ENTRIES, leaderId, leaderTerm);
       if (!recognized) {
         return CompletableFuture.completedFuture(toAppendEntriesReplyProto(
             leaderId, getMemberId(), currentTerm, followerCommit, state.getNextIndex(),
-            AppendResult.NOT_LEADER, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat));
+            AppendResult.NOT_LEADER, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat, startComplete.get()));
       }
       try {
         future = changeToFollowerAndPersistMetadata(leaderTerm, true, "appendEntries");
@@ -1579,7 +1697,8 @@ class RaftServerImpl implements Division,
       if (!proto.getInitializing() && lifeCycle.compareAndTransition(State.STARTING, State.RUNNING)) {
         role.startFollowerState(this, Op.APPEND_ENTRIES);
       }
-      followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
+      //followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
+      followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_START));
 
       // Check that the append entries are not inconsistent. There are 3
       // scenarios which can result in inconsistency:
@@ -1592,7 +1711,7 @@ class RaftServerImpl implements Division,
       if (inconsistencyReplyNextIndex > RaftLog.INVALID_LOG_INDEX) {
         final AppendEntriesReplyProto reply = toAppendEntriesReplyProto(
             leaderId, getMemberId(), currentTerm, followerCommit, inconsistencyReplyNextIndex,
-            AppendResult.INCONSISTENCY, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat);
+            AppendResult.INCONSISTENCY, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat, startComplete.get());
         LOG.info("{}: appendEntries* reply {}", getMemberId(), toAppendEntriesReplyString(reply));
         followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_COMPLETE));
         return future.thenApply(dummy -> reply);
@@ -1628,12 +1747,13 @@ class RaftServerImpl implements Division,
       final long nextIndex = isHeartbeat? state.getNextIndex(): matchIndex + 1;
       final AppendEntriesReplyProto reply = toAppendEntriesReplyProto(leaderId, getMemberId(),
           currentTerm, updated? commitIndex : state.getLog().getLastCommittedIndex(),
-          nextIndex, AppendResult.SUCCESS, callId, matchIndex, isHeartbeat);
+          nextIndex, AppendResult.SUCCESS, callId, matchIndex, isHeartbeat, startComplete.get());
       logAppendEntries(isHeartbeat, () -> getMemberId()
           + ": appendEntries* reply " + toAppendEntriesReplyString(reply));
       return reply;
     });
   }
+
 
   private long checkInconsistentAppendEntries(TermIndex previous, List<LogEntryProto> entries) {
     // Check if a snapshot installation through state machine is in progress.
@@ -1670,6 +1790,9 @@ class RaftServerImpl implements Division,
 
   @Override
   public InstallSnapshotReplyProto installSnapshot(InstallSnapshotRequestProto request) throws IOException {
+    if (!startComplete.get()) {
+        throw new ServerNotReadyException(getMemberId() + ": The server role is not yet initialized.");
+    }
     return snapshotInstallationHandler.installSnapshot(request);
   }
 
@@ -1900,6 +2023,7 @@ class RaftServerImpl implements Division,
   }
 
   boolean isRunning() {
-    return startComplete.get() && lifeCycle.getCurrentState() == State.RUNNING;
+    return startComplete.get()
+      && lifeCycle.getCurrentState() == State.RUNNING;
   }
 }

@@ -4,10 +4,12 @@ package net.xdob.ratly.server.leader;
 import net.xdob.ratly.proto.raft.AppendEntriesReplyProto;
 import net.xdob.ratly.proto.raft.AppendEntriesRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.util.JavaUtils;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * States for leader only.
@@ -72,6 +74,13 @@ public interface LeaderState {
    */
   AppendEntriesRequestProto newAppendEntriesRequestProto(FollowerInfo follower,
       List<LogEntryProto> entries, TermIndex previous, long callId);
+
+  /**
+   * @return 当前有效虚节点id
+   */
+  String getVnPeerId();
+
+  boolean compareAndSetVnPeerId(String expect, String update);
 
   /**
    * Check if the follower is healthy.

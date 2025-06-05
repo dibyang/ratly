@@ -8,6 +8,7 @@ import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.util.Timestamp;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.LongUnaryOperator;
@@ -25,8 +26,12 @@ class FollowerInfoImpl implements FollowerInfo {
   private final RaftLogIndex matchIndex = new RaftLogIndex("matchIndex", RaftLog.INVALID_LOG_INDEX);
   private final RaftLogIndex commitIndex = new RaftLogIndex("commitIndex", RaftLog.INVALID_LOG_INDEX);
   private final RaftLogIndex snapshotIndex = new RaftLogIndex("snapshotIndex", 0L);
+  /**
+   * 是否追赶上
+   */
   private volatile boolean caughtUp;
   private volatile boolean ackInstallSnapshotAttempt = false;
+
 
   FollowerInfoImpl(RaftGroupMemberId id, RaftPeer peer, Function<RaftPeerId, RaftPeer> getPeer,
       Timestamp lastRpcTime, long nextIndex, boolean caughtUp) {
@@ -156,12 +161,23 @@ class FollowerInfoImpl implements FollowerInfo {
         ", lastRpcResponseTime=" + lastRpcResponseTime.get().elapsedTimeMs() + ")";
   }
 
-  void catchUp() {
-    caughtUp = true;
+  @Override
+  public void catchUp() {
+    this.setCatchUp(true);
   }
 
-  boolean isCaughtUp() {
+  /**
+   * 是否追赶上
+   * @return 是否追赶上
+   */
+  @Override
+  public boolean isCaughtUp() {
     return caughtUp;
+  }
+
+  @Override
+  public void setCatchUp(boolean catchUp) {
+    this.caughtUp = catchUp;
   }
 
   @Override

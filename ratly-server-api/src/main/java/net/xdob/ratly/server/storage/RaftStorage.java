@@ -36,9 +36,9 @@ public interface RaftStorage extends Closeable {
    */
   File getDirCache();
   /**
-   * 检测是否持有有效锁
+   * 通过读写检测存储是否可用健康
    */
-  boolean isLocked();
+  boolean checkHealth();
   /**
    * 返回存储目录（RaftStorageDirectory）。该目录通常用于存放 RAFT 日志和相关文件。
    * @return the storage directory.

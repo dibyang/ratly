@@ -187,7 +187,8 @@ class StateMachineUpdater implements Runnable {
         } else {
           state = State.EXCEPTION;
           LOG.error(this + " caught a Throwable.", t);
-          server.close();
+          server.stopSeverState();
+          //server.close();
         }
       }
     }

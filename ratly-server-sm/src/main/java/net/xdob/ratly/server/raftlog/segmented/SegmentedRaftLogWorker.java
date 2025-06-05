@@ -519,6 +519,7 @@ class SegmentedRaftLogWorker {
       stateMachine.event().notifyLogFailed(e, entry);
       super.failed(e);
       discard();
+      LOG.warn("{}: failed to write log entry ", name, e);
     }
 
     @Override

@@ -1,6 +1,5 @@
 package net.xdob.ratly.server.impl;
 
-import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.DivisionInfo;
 import net.xdob.ratly.server.leader.LeaderState;
 import net.xdob.ratly.util.Daemon;

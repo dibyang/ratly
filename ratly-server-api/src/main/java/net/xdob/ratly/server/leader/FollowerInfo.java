@@ -147,4 +147,13 @@ public interface FollowerInfo {
    * 更新 lastRpcResponseTime 和 LastRespondedAppendEntriesSendTime。
    */
   void updateLastRespondedAppendEntriesSendTime(Timestamp sendTime);
+
+  void catchUp();
+  void setCatchUp(boolean catchUp);
+  /**
+   * 是否追赶上
+   * @return 是否追赶上
+   */
+  boolean isCaughtUp();
+
 }

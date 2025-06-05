@@ -1,8 +1,6 @@
 package net.xdob.ratly.server.storage;
 
-import net.xdob.ratly.util.AtomicFileOutputStream;
-import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.SizeInBytes;
+import net.xdob.ratly.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +15,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.file.Files.newDirectoryStream;
 
@@ -27,6 +26,7 @@ import static java.nio.file.Files.newDirectoryStream;
 class RaftStorageDirectoryImpl implements RaftStorageDirectory {
   static final Logger LOG = LoggerFactory.getLogger(RaftStorageDirectoryImpl.class);
   private static final String IN_USE_LOCK_NAME = "in_use.lock";
+  private static final String CHECK_NAME = ".check";
   private static final String META_FILE_NAME = "raft-meta";
   private static final String CONF_EXTENSION = ".conf";
   private static final String JVM_NAME = ManagementFactory.getRuntimeMXBean().getName();
@@ -104,6 +104,10 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
     return new File(getCurrentDir(), META_FILE_NAME + CONF_EXTENSION);
   }
 
+  File getCheckFile() {
+    return new File(root, CHECK_NAME);
+  }
+
   /**
    * 检查 current/ 目录是否为空。如果目录不存在，认为可以进行格式化。
    */
@@ -149,8 +153,8 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
       LOG.warn("Cannot access storage directory " + rootPath, ex);
       return StorageState.NON_EXISTENT;
     }
-
-    if (toLock) {
+    //有锁的就不再获取文件锁
+    if (toLock&&lock==null) {
       this.lock(); // lock storage if it exists
     }
 
@@ -177,25 +181,23 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
 
 
   @Override
-  public boolean isLocked() {
-    if(lock!=null){
-      if(lock.isValid()){
+  public boolean checkHealth() {
+    File checkFile = getCheckFile();
+    try(RandomAccessFile file = new RandomAccessFile(checkFile, "rws")) {
+      FileLock fileLock = file.getChannel().tryLock();
+      if(fileLock!=null) {
+        file.write(JVM_NAME.getBytes(StandardCharsets.UTF_8));
+        fileLock.close();
         return true;
-      }else{
-        try {
-          unlock();
-        } catch (IOException e) {
-					LOG.warn("Failed to unlock {}", this.getRoot(), e);
-        }
-			}
-    }else{
-      try {
-        this.lock();
-      }  catch (IOException e) {
-				LOG.warn("Failed to lock {}", this.getRoot(), e);
       }
+    }  catch (Exception e) {
+      LOG.warn("checkHealth {} failed.", this.getRoot(), e);
     }
-    return lock!=null;
+    return false;
+  }
+
+  public File getLockFile() {
+		return new File(root, IN_USE_LOCK_NAME);
   }
 
   /**
@@ -210,7 +212,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
    * @throws IOException if locking fails
    */
   void lock() throws IOException {
-    final File lockF = new File(root, IN_USE_LOCK_NAME);
+    final File lockF = getLockFile();
     final FileLock newLock = FileUtils.attempt(() -> tryLock(lockF), () -> "tryLock " + lockF);
     if (newLock == null) {
       String msg = "Cannot lock storage " + this.root

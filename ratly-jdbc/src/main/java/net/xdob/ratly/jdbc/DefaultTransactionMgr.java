@@ -54,10 +54,10 @@ public class DefaultTransactionMgr implements TransactionMgr {
           .collect(Collectors.toList());
       for (TxInfo txInfo : timeoutTxInfos) {
         try {
-          LOG.info("tx={} release because timeout.", txInfo.getTx());
+          LOG.debug("tx={} release because timeout.", txInfo.getTx());
           releaseTx(txInfo.getTx());
         } catch (SQLException e) {
-          LOG.warn("", e);
+          LOG.warn("releaseTx error.", e);
         }
       }
     }

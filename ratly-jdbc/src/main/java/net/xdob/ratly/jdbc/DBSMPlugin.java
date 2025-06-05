@@ -46,6 +46,7 @@ public class DBSMPlugin implements SMPlugin {
   private final RsaHelper rsaHelper = new RsaHelper();
 
   private Path dbStore;
+  private Path dbCache;
   private SMPluginContext context;
 
   private final Map<String,InnerDb> dbMap = Maps.newConcurrentMap();
@@ -114,6 +115,12 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbStore.toFile().exists()){
       dbStore.toFile().mkdirs();
     }
+
+    this.dbCache = Paths.get(raftStorage.getDirCache().getPath(), "db", server.getId().getId());
+    if(!dbCache.toFile().exists()){
+      dbCache.toFile().mkdirs();
+    }
+
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
     loadDbs(dbsFile, false);
 
@@ -122,7 +129,7 @@ public class DBSMPlugin implements SMPlugin {
         DbInfo dbInfo = new DbInfo().setName(dbDef.getDb());
         String encode = context.getPasswordEncoder().encode(dbDef.getPassword());
         dbInfo.getUsers().add(new DbUser(dbDef.getUser()).setPassword(encode));
-        InnerDb innerDb = new InnerDb(dbStore, dbInfo, dbsContext);
+        InnerDb innerDb = new InnerDb(dbCache, dbInfo, dbsContext);
         innerDb.initialize();
         return innerDb;
       });
@@ -143,7 +150,7 @@ public class DBSMPlugin implements SMPlugin {
       }
       synchronized (dbMap) {
         for (DbState dbState : dbs) {
-          InnerDb innerDb = dbMap.computeIfAbsent(dbState.getName(), n -> new InnerDb(dbStore, dbState.toDbInfo(), dbsContext));
+          InnerDb innerDb = dbMap.computeIfAbsent(dbState.getName(), n -> new InnerDb(dbCache, dbState.toDbInfo(), dbsContext));
           innerDb.initialize();
           if (loadAppliedIndex) {
             innerDb.updateAppliedIndexToMax(dbState.getAppliedIndex());

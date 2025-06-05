@@ -18,7 +18,7 @@ public enum CorruptionPolicy {
   WARN_AND_RETURN;
 
   public static CorruptionPolicy getDefault() {
-    return EXCEPTION;
+    return WARN_AND_RETURN;
   }
 
   public static <T> CorruptionPolicy get(T supplier, Function<T, CorruptionPolicy> getMethod) {

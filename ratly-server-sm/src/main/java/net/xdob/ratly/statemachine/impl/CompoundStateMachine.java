@@ -77,8 +77,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
                          RaftStorage raftStorage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
     super.initialize(server, groupId, raftStorage, logQuery);
     this.logQuery = logQuery;
+    if(this.scheduler==null){
+      this.scheduler = Executors.newSingleThreadScheduledExecutor();
+    }
     storage.init(raftStorage);
-    this.scheduler = Executors.newSingleThreadScheduledExecutor();
     for (SMPlugin plugin : pluginMap.values()) {
       plugin.initialize(server, groupId, raftStorage);
     }
@@ -111,26 +113,14 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public void changeToCandidate(RaftGroupMemberId groupMemberId) {
-    ExecutorService executorService = Executors.newSingleThreadExecutor();
-    executorService.submit(()->{
-      LOG.info("changeToCandidate: groupMemberId={}", groupMemberId);
-      for (LeaderChangedListener listener : leaderChangedListeners) {
-        try {
-          listener.changeToCandidate(groupMemberId);
-        }catch (Exception e){
-          LOG.warn("{} listener.changeToCandidate error", listener, e);
-        }
+    LOG.info("changeToCandidate: groupMemberId={}", groupMemberId);
+    for (LeaderChangedListener listener : leaderChangedListeners) {
+      try {
+        listener.changeToCandidate(groupMemberId);
+      }catch (Exception e){
+        LOG.warn("{} listener.changeToCandidate error", listener, e);
       }
-      if(!executorService.isShutdown()){
-        executorService.shutdown();
-      }
-    });
-    scheduler.schedule(()->{
-      if(!executorService.isShutdown()){
-        LOG.warn("changeToCandidate use time > 15s.");
-        executorService.shutdown();
-      }
-    }, 15, TimeUnit.SECONDS);
+    }
   }
 
   @Override
@@ -141,30 +131,17 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       fireLeaderStateEvent(false);
     }
     leaderChangedFuture.complete(newLeaderId);
-    leaderChangedFuture = new CompletableFuture<>();
   }
 
   private void fireLeaderStateEvent(boolean isLeader) {
-    ExecutorService executorService = Executors.newSingleThreadExecutor();
-    executorService.submit(()->{
-      LOG.info("fireLeaderStateEvent: isLeader={}", isLeader);
-      for (LeaderChangedListener listener : leaderChangedListeners) {
-        try {
-          listener.notifyLeaderChanged(isLeader);
-        }catch (Exception e){
-          LOG.warn("{} listener.notifyLeaderChanged error", listener, e);
-        }
+    LOG.info("fireLeaderStateEvent: isLeader={}", isLeader);
+    for (LeaderChangedListener listener : leaderChangedListeners) {
+      try {
+        listener.notifyLeaderChanged(isLeader);
+      }catch (Exception e){
+        LOG.warn("{} listener.notifyLeaderChanged error", listener, e);
       }
-      if(!executorService.isShutdown()){
-        executorService.shutdown();
-      }
-    });
-    scheduler.schedule(()->{
-      if(!executorService.isShutdown()){
-        LOG.warn("fireLeaderStateEvent use time > 15s.");
-        executorService.shutdown();
-      }
-    }, 15, TimeUnit.SECONDS);
+    }
   }
 
   @Override
@@ -289,6 +266,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public void close() throws IOException {
     super.close();
+    if(scheduler!=null){
+      this.scheduler.shutdown();
+      this.scheduler = null;
+    }
     for (SMPlugin plugin : pluginMap.values()) {
       try {
         plugin.close();

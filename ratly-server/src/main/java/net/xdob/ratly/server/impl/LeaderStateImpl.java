@@ -59,6 +59,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
@@ -66,7 +67,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static net.xdob.ratly.server.Division.LOG;
 import static net.xdob.ratly.server.config.RaftServerConfigKeys.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
 
 /**
@@ -175,14 +175,13 @@ class LeaderStateImpl implements LeaderState {
    */
   static class SenderList implements Iterable<LogAppender> {
     private final List<LogAppender> senders;
-
     SenderList() {
       this.senders = new CopyOnWriteArrayList<>();
     }
 
     @Override
     public Iterator<LogAppender> iterator() {
-      return senders.iterator();
+      return senders.stream().iterator();
     }
 
     void addAll(Collection<LogAppender> newSenders) {
@@ -337,6 +336,7 @@ class LeaderStateImpl implements LeaderState {
 
   private final ReadIndexHeartbeats readIndexHeartbeats;
   private final LeaderLease lease;
+  private final AtomicReference<String> vnPeerId = new AtomicReference<>();
 
   LeaderStateImpl(RaftServerImpl server) {
     this.name = server.getMemberId() + "-" + JavaUtils.getClassSimpleName(getClass());
@@ -394,8 +394,10 @@ class LeaderStateImpl implements LeaderState {
     // Initialize startup log entry and append it to the RaftLog
     startupLogEntry.get();
     processor.start();
-    senders.forEach(LogAppender::start);
+    senders.forEach(LogAppender::start);;
   }
+
+
 
   boolean isReady() {
     return startupLogEntry.isInitialized()&& startupLogEntry.get().isApplied();
@@ -599,9 +601,10 @@ class LeaderStateImpl implements LeaderState {
       List<LogEntryProto> entries, TermIndex previous, long callId) {
     final boolean initializing = !isCaughtUp(follower);
     final RaftPeerId targetId = follower.getId();
+    String vnPeerId = getVnPeerId();
     return ServerProtoUtils.toAppendEntriesRequestProto(server.getMemberId(), targetId, getCurrentTerm(), entries,
         ServerImplUtils.effectiveCommitIndex(raftLog.getLastCommittedIndex(), previous, entries.size()),
-        initializing, previous, server.getCommitInfos(), callId);
+        initializing, vnPeerId, previous, server.getCommitInfos(), callId);
   }
 
   /**
@@ -627,16 +630,24 @@ class LeaderStateImpl implements LeaderState {
 
   private Collection<LogAppender> addSenders(Collection<RaftPeer> newPeers, long nextIndex, boolean caughtUp) {
     final Timestamp t = Timestamp.currentTime().addTimeMs(-server.getMaxTimeoutMs());
-    final List<LogAppender> newAppenders = newPeers.stream().map(peer -> {
+    final List<LogAppender> newAppenders = new ArrayList<>();
+    //添加物理节点跟随者
+    final List<LogAppender> appenders = newPeers.stream()
+      //.filter(e->!e.isVirtual())
+      .map(peer -> {
       final FollowerInfo f = new FollowerInfoImpl(server.getMemberId(), peer, this::getPeer, t, nextIndex, caughtUp);
       followerInfoMap.put(peer.getId(), f);
       raftServerMetrics.addFollower(peer.getId());
       logAppenderMetrics.addFollowerGauges(peer.getId(), f::getNextIndex, f::getMatchIndex, f::getLastRpcTime);
       return newLogAppender(f);
     }).collect(Collectors.toList());
+    newAppenders.addAll(appenders);
     senders.addAll(newAppenders);
+
     return newAppenders;
   }
+
+
 
   private void stopAndRemoveSenders(Predicate<LogAppender> predicate) {
     stopAndRemoveSenders(getLogAppenders().filter(predicate).collect(Collectors.toList()));
@@ -809,10 +820,10 @@ class LeaderStateImpl implements LeaderState {
     } else {
       final long commitIndex = server.getState().getLog().getLastCommittedIndex();
       // check progress for the new followers
-      final List<FollowerInfoImpl> laggingFollowers = getLogAppenders()
+      final List<FollowerInfo> laggingFollowers = getLogAppenders()
           .map(LogAppender::getFollower)
           .filter(follower -> !isCaughtUp(follower))
-          .map(FollowerInfoImpl.class::cast)
+          //.map(FollowerInfoImpl.class::cast)
           .collect(Collectors.toList());
       final EnumSet<BootStrapProgress> reports = laggingFollowers.stream()
           .map(follower -> checkProgress(follower, commitIndex))
@@ -825,7 +836,7 @@ class LeaderStateImpl implements LeaderState {
         this.stagingState = null;
         laggingFollowers.stream()
             .filter(f -> server.getRaftConf().containsInConf(f.getId()))
-            .forEach(FollowerInfoImpl::catchUp);
+            .forEach(FollowerInfo::catchUp);
       }
     }
   }
@@ -1107,16 +1118,13 @@ class LeaderStateImpl implements LeaderState {
         .collect(Collectors.toList());
 
     final RaftConfiguration conf = server.getRaftConf();
-
     if (conf.hasMajority(activePeers, server.getId())) {
       // leadership check passed
       return true;
     }
 
-    LOG.warn(this + ": Lost leadership on term: " + currentTerm
-        + ". Election timeout: " + server.getMaxTimeoutMs() + "ms"
-        + ". In charge for: " + server.getRole().getRoleElapsedTimeMs() + "ms"
-        + ". Conf: " + conf);
+		LOG.warn("{}: Lost leadership on term: {}. Election timeout: {}ms. In charge for: {}ms. Conf: {}",
+      this, currentTerm, server.getMaxTimeoutMs(), server.getRole().getRoleElapsedTimeMs(), conf);
     getLogAppenders().map(LogAppender::getFollower).forEach(f -> LOG.warn("Follower {}", f));
 
     // step down as follower
@@ -1287,18 +1295,33 @@ class LeaderStateImpl implements LeaderState {
   }
 
   private static boolean isCaughtUp(FollowerInfo follower) {
-    return ((FollowerInfoImpl)follower).isCaughtUp();
+    return follower.isCaughtUp();
   }
 
   @Override
   public void checkHealth(FollowerInfo follower) {
     final TimeDuration elapsedTime = follower.getLastRpcResponseTime().elapsedTime();
     if (elapsedTime.compareTo(server.properties().rpcSlownessTimeout()) > 0) {
+      compareAndSetVnPeerId(follower.getPeer().getId().getId(), null);
       final RoleInfoProto leaderInfo = server.getInfo().getRoleInfoProto();
       server.getStateMachine().leaderEvent().notifyFollowerSlowness(leaderInfo, follower.getPeer());
     }
     final RaftPeerId followerId = follower.getId();
     raftServerMetrics.recordFollowerHeartbeatElapsedTime(followerId, elapsedTime.toLong(TimeUnit.NANOSECONDS));
+  }
+
+  @Override
+  public String getVnPeerId(){
+    return Optional.ofNullable(vnPeerId.get()).orElse("");
+  }
+
+  @Override
+  public boolean compareAndSetVnPeerId(String expect, String update) {
+    boolean b = vnPeerId.compareAndSet(expect, update);
+    if(b){
+      LOG.info("compareAndSetVnPeerId: expect={}, update={}", expect, update);
+    }
+    return b;
   }
 
   @Override

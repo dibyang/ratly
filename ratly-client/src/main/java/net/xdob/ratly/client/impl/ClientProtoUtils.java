@@ -311,6 +311,8 @@ public interface ClientProtoUtils {
         b.setRole(reply.getRoleInfoProto());
         b.addAllCommitInfos(reply.getCommitInfos());
         b.setLogInfo(reply.getLogInfoProto());
+        b.setVnPeerId(reply.getVnPeerId());
+        b.setStateStarted(reply.isStateStarted());
       }
     }
     return b.build();
@@ -455,7 +457,9 @@ public interface ClientProtoUtils {
         replyProto.getRole(),
         replyProto.getIsRaftStorageHealthy(),
         replyProto.hasConf()? replyProto.getConf(): null,
-        replyProto.getLogInfo());
+        replyProto.getLogInfo(),
+        replyProto.getVnPeerId(),
+        replyProto.getStateStarted());
   }
 
   static <R> DRpcReply<R> toDRpcReply(DRpcReplyProto replyProto, SerialSupport serialSupport) {

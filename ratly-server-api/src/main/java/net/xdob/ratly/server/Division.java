@@ -129,4 +129,7 @@ public interface Division extends Closeable {
 
   @Override
   void close();
+
+  void startSeverState();
+  void stopSeverState();
 }

@@ -1,6 +1,7 @@
 package net.xdob.ratly.util;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -54,6 +55,12 @@ public final class MemoizedSupplier<T> implements Supplier<T> {
   /** @return is the object initialized? */
   public boolean isInitialized() {
     return value != null;
+  }
+
+  public Optional<T> release() {
+    T v = value;
+    value = null;
+    return Optional.ofNullable(v);
   }
 
   @Override

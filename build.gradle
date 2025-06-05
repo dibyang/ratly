@@ -122,7 +122,7 @@ subprojects {
         //implementation("com.google.guava:guava:31.0-jre")
         //implementation("com.google.code.gson:gson:2.8.6")
         //implementation("org.apache.commons:commons-lang3:3.9")
-        compileOnly("org.slf4j:slf4j-api:${slf4j_version}")
+        implementation("org.slf4j:slf4j-api:${slf4j_version}")
         testImplementation("junit:junit:4.12")
     }
 

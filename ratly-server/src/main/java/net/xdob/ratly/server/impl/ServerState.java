@@ -152,6 +152,7 @@ class ServerState implements RaftLogQuery {
       }
       return s;
     });
+
     // initialize stateMachineUpdater
     stateMachineUpdater.get().start();
 
@@ -424,6 +425,7 @@ class ServerState implements RaftLogQuery {
     try {
       if (stateMachineUpdater.isInitialized()) {
         getStateMachineUpdater().stopAndJoin();
+        stateMachineUpdater.release();
       }
     } catch (Throwable e) {
       if (e instanceof InterruptedException) {
@@ -435,6 +437,7 @@ class ServerState implements RaftLogQuery {
     try {
       if (log.isInitialized()) {
         getLog().close();
+        log.release();
       }
     } catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to close raft log " + getLog(), e);
@@ -443,6 +446,7 @@ class ServerState implements RaftLogQuery {
     try {
       if (raftStorage.isInitialized()) {
         getStorage().close();
+        raftStorage.release();
       }
     } catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);

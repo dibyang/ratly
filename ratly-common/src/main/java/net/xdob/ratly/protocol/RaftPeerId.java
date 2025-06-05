@@ -18,7 +18,9 @@ import java.util.function.Supplier;
 public final class RaftPeerId {
   private static final Map<ByteString, RaftPeerId> BYTE_STRING_MAP = new ConcurrentHashMap<>();
   private static final Map<String, RaftPeerId> STRING_MAP = new ConcurrentHashMap<>();
-
+  /**
+   * 虚拟节点物理ID前缀
+   */
   private static final String VIRTUAL_PREFIX = "vn_";
 
   public static RaftPeerId valueOf(ByteString id) {

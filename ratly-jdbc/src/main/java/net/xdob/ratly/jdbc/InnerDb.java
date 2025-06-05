@@ -123,11 +123,12 @@ public class InnerDb {
           sessionMgr.checkTimeout();
         },30, 30, TimeUnit.SECONDS);
 
-        boolean exists = dbStore.resolve(getName() + ".mv.db").toFile().exists();
-        if(!exists||hasDBError(url)){
-          restoreFromSnapshot(context.getLatestSnapshot());
+        File dbFile = dbStore.resolve(getName() + ".mv.db").toFile();
+        if(dbFile.exists()){
+          dbFile.delete();
         }
-      } catch (IOException|SQLException e) {
+        restoreFromSnapshot(context.getLatestSnapshot());
+      } catch (IOException e) {
         initialized.set(false);
         LOG.warn("initialize failed "+ dbInfo.getName(), e);
       }
