@@ -385,7 +385,6 @@ class RaftServerImpl implements Division,
       }else{
         //存储健康检查
         boolean checkHealth = this.state.getStorage().checkHealth();
-        LOG.info("{}: checking server state, checkHealth={}", getMemberId(), checkHealth);
         if(!checkHealth){
           LOG.warn("Storage health check failed, will stop SeverState");
           stopSeverState();
