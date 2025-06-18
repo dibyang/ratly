@@ -1660,10 +1660,11 @@ class RaftServerImpl implements Division,
       }
     }
 
-    final Optional<FollowerState> followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
 
     //不可用状态终止日志追加。
     if(!startComplete.get()){
+      updateLastRpcTime(FollowerState.UpdateType.NULL);
+
       return CompletableFuture.completedFuture(toAppendEntriesReplyProto(
         leaderId, getMemberId(), -1, RaftLog.INVALID_LOG_INDEX, RaftLog.INVALID_LOG_INDEX,
         AppendResult.UNAVAILABLE, callId, RaftLog.INVALID_LOG_INDEX, isHeartbeat, startComplete.get()));
@@ -1672,7 +1673,7 @@ class RaftServerImpl implements Division,
     final long leaderTerm = proto.getLeaderTerm();
     final long currentTerm;
     final long followerCommit = state.getLog().getLastCommittedIndex();
-
+    final Optional<FollowerState> followerState;
     final Timekeeper.Context timer = raftServerMetrics.getFollowerAppendEntryTimer(isHeartbeat).time();
     final CompletableFuture<Void> future;
     synchronized (this) {
@@ -1696,8 +1697,7 @@ class RaftServerImpl implements Division,
       if (!proto.getInitializing() && lifeCycle.compareAndTransition(State.STARTING, State.RUNNING)) {
         role.startFollowerState(this, Op.APPEND_ENTRIES);
       }
-      //followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
-      followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_START));
+      followerState = updateLastRpcTime(FollowerState.UpdateType.APPEND_START);
 
       // Check that the append entries are not inconsistent. There are 3
       // scenarios which can result in inconsistency:

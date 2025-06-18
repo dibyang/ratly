@@ -24,7 +24,8 @@ class FollowerState extends Daemon {
     INSTALL_SNAPSHOT_START(AtomicInteger::incrementAndGet),
     INSTALL_SNAPSHOT_COMPLETE(AtomicInteger::decrementAndGet),
     INSTALL_SNAPSHOT_NOTIFICATION(AtomicInteger::get),
-    REQUEST_VOTE(AtomicInteger::get);
+    REQUEST_VOTE(AtomicInteger::get),
+    NULL(AtomicInteger::get);
 
     private final ToIntFunction<AtomicInteger> updateFunction;
 
