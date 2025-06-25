@@ -40,6 +40,8 @@ public class BaseStateMachine implements StateMachine, DataApi,
    * Raft 集群的 ID，表示当前状态机所在的 Raft 集群。
    */
   private volatile RaftGroupId groupId;
+
+  private volatile RaftPeerId peerId;
   /**
    * 状态机的生命周期管理器，跟踪状态机的生命周期状态。
    */
@@ -82,8 +84,9 @@ public class BaseStateMachine implements StateMachine, DataApi,
   }
 
   @Override
-  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
+  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftPeerId peerId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
     this.groupId = raftGroupId;
+    this.peerId = peerId;
     this.server.complete(raftServer);
     lifeCycle.setName("" + this);
   }

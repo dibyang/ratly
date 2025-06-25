@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -21,7 +22,7 @@ import java.util.List;
 public interface SMPlugin extends Closeable {
   Logger LOG = LoggerFactory.getLogger(SMPlugin.class);
   String getId();
-  void initialize(RaftServer server, RaftGroupId groupId, RaftStorage raftStorage) throws IOException;
+  void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException;
 
   void setSMPluginContext(SMPluginContext context);
 

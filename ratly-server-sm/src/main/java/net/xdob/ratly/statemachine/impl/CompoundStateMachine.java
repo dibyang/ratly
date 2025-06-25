@@ -73,16 +73,16 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   }
 
   @Override
-  public void initialize(RaftServer server, RaftGroupId groupId,
+  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId,
                          RaftStorage raftStorage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
-    super.initialize(server, groupId, raftStorage, logQuery);
+    super.initialize(server, groupId, peerId, raftStorage, logQuery);
     this.logQuery = logQuery;
     if(this.scheduler==null){
       this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
     storage.init(raftStorage);
     for (SMPlugin plugin : pluginMap.values()) {
-      plugin.initialize(server, groupId, raftStorage);
+      plugin.initialize(server, groupId, peerId, raftStorage);
     }
   }
 

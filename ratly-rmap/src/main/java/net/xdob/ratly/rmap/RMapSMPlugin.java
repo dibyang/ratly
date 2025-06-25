@@ -2,6 +2,7 @@ package net.xdob.ratly.rmap;
 
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rmap.exception.NotFindCacheException;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
@@ -44,7 +45,7 @@ public class RMapSMPlugin implements SMPlugin {
 
 
   @Override
-  public void initialize(RaftServer server, RaftGroupId groupId, RaftStorage raftStorage) throws IOException {
+  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId,  RaftStorage raftStorage) throws IOException {
     restoreFromSnapshot(context.getLatestSnapshot());
   }
 

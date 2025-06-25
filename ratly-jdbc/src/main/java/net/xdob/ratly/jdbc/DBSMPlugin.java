@@ -9,6 +9,7 @@ import net.xdob.ratly.jdbc.exception.NoDatabaseException;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
+import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.protocol.SerialSupport;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.RaftServer;
@@ -106,7 +107,7 @@ public class DBSMPlugin implements SMPlugin {
   }
 
   @Override
-  public void initialize(RaftServer server, RaftGroupId groupId, RaftStorage raftStorage) throws IOException {
+  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
 
     /**
      * 初始化数据库
@@ -115,8 +116,8 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbStore.toFile().exists()){
       dbStore.toFile().mkdirs();
     }
-
-    this.dbCache = Paths.get(raftStorage.getDirCache().getPath(),  groupId.getId(), server.getId().getId(), "db");
+    LOG.info("build db cache dir groupId={}, peerId={}", groupId, peerId);
+    this.dbCache = Paths.get(raftStorage.getDirCache().getPath(),  groupId.getId(), "db", peerId.getId());
     if(!dbCache.toFile().exists()){
       dbCache.toFile().mkdirs();
     }

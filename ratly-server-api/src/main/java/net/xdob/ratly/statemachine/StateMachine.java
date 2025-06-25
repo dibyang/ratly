@@ -1,10 +1,7 @@
 package net.xdob.ratly.statemachine;
 
 import net.xdob.ratly.proto.raft.*;
-import net.xdob.ratly.protocol.ClientInvocationId;
-import net.xdob.ratly.protocol.Message;
-import net.xdob.ratly.protocol.RaftClientRequest;
-import net.xdob.ratly.protocol.RaftGroupId;
+import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -105,7 +102,7 @@ public interface StateMachine extends Closeable {
    * 功能：初始化状态机，加载最新的快照并进行必要的设置。
    * 说明：该方法必须读取存储中的最新快照（如果存在）并进行状态机的初始化。
    */
-  void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException;
+  void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftPeerId peerId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException;
 
   /**
    * 功能：返回状态机的生命周期状态。

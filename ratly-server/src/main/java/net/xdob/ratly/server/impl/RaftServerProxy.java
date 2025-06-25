@@ -255,15 +255,15 @@ class RaftServerProxy implements RaftServer {
   /** Check the storage dir and add groups*/
   void initGroups(RaftGroup group, StartupOption option) {
     final Optional<RaftGroup> raftGroup = Optional.ofNullable(group);
-    final RaftGroupId raftGroupId = raftGroup.map(RaftGroup::getGroupId).orElse(null);
+    //暂时不再加载其他group的数据
+    /*final RaftGroupId raftGroupId = raftGroup.map(RaftGroup::getGroupId).orElse(null);
     final Predicate<RaftGroupId> shouldAdd = gid -> gid != null && !gid.equals(raftGroupId);
-
     Concurrents3.parallelForEachAsync(RaftServerConfigKeys.storageDir(properties),
         dir -> Optional.ofNullable(dir.listFiles())
             .map(Arrays::stream).orElse(Stream.empty())
             .filter(File::isDirectory)
             .forEach(sub -> initGroupDir(sub, shouldAdd)),
-        executor.get()).join();
+        executor.get()).join();*/
     raftGroup.ifPresent(g -> addGroup(g, option));
   }
 

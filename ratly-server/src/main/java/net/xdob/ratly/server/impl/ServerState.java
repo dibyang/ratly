@@ -128,8 +128,8 @@ class ServerState implements RaftLogQuery {
     // read configuration from the storage
     Optional.ofNullable(storage.readRaftConfiguration()).ifPresent(this::setRaftConf);
 
-    stateMachine.initialize(server.getRaftServer(), getMemberId().getGroupId(), storage,
-        JavaUtils.memoize(()->this));
+    stateMachine.initialize(server.getRaftServer(), getMemberId().getGroupId(), getMemberId().getPeerId(),
+        storage, JavaUtils.memoize(()->this));
 
     // 在此步骤中，我们无法将日志条目应用于状态机，因为我们不知道本地日志是否已经提交。
     final RaftStorageMetadata metadata = log.get().loadMetadata();
