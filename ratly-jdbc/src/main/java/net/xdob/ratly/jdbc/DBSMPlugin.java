@@ -116,7 +116,7 @@ public class DBSMPlugin implements SMPlugin {
       dbStore.toFile().mkdirs();
     }
 
-    this.dbCache = Paths.get(raftStorage.getDirCache().getPath(), "db", server.getId().getId());
+    this.dbCache = Paths.get(raftStorage.getDirCache().getPath(),  groupId.getId(), server.getId().getId(), "db");
     if(!dbCache.toFile().exists()){
       dbCache.toFile().mkdirs();
     }

@@ -9,6 +9,8 @@ import java.util.concurrent.CompletableFuture;
 /** Asynchronous version of {@link RaftClientProtocol}. */
 public interface RaftClientAsynchronousProtocol {
   /**
+   * 提交一个客户端发送过来的请求给处理服务器。
+   *
    * It is recommended to override {@link #submitClientRequestAsync(ReferenceCountedObject)} instead.
    * Then, it does not have to override this method.
    */
@@ -18,6 +20,7 @@ public interface RaftClientAsynchronousProtocol {
   }
 
   /**
+   * 提交一个客户端发送过来的请求给处理服务器。
    * A referenced counted request is submitted from a client for processing.
    * Implementations of this method should retain the request, process it and then release it.
    * The request may be retained even after the future returned by this method has completed.

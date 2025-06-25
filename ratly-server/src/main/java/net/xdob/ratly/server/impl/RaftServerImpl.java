@@ -979,6 +979,9 @@ class RaftServerImpl implements Division,
     return CompletableFuture.supplyAsync(() -> submitClientRequestAsync(request), clientExecutor).join();
   }
 
+  /**
+   * 提交一个客户端发送过来的请求给处理服务器。
+   */
   @Override
   public CompletableFuture<RaftClientReply> submitClientRequestAsync(
       ReferenceCountedObject<RaftClientRequest> requestRef) {

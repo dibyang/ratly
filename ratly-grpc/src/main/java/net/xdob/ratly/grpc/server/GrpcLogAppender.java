@@ -48,7 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 远程日志追加器
+ * 远程日志追加器。
+ * Leader 为每个 Follower 维护的推送线程，调用 GrpcServerProtocolClient::appendEntries 发送日志
  * A new log appender implementation using grpc bi-directional stream API.
  */
 public class GrpcLogAppender extends LogAppenderBase {
