@@ -30,6 +30,9 @@ import java.util.function.Supplier;
 import static net.xdob.ratly.grpc.GrpcUtil.addMethodWithCustomMarshaller;
 import static net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.getAppendEntriesMethod;
 
+/**
+ * Followers 通过 GrpcServerProtocolService 接收日志，校验后写入本地日志
+ */
 class GrpcServerProtocolService extends RaftServerProtocolServiceImplBase {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcServerProtocolService.class);
 

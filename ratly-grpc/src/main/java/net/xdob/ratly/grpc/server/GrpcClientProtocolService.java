@@ -40,6 +40,10 @@ import static net.xdob.ratly.grpc.GrpcUtil.addMethodWithCustomMarshaller;
 import static net.xdob.ratly.proto.grpc.RaftClientProtocolServiceGrpc.getOrderedMethod;
 import static net.xdob.ratly.proto.grpc.RaftClientProtocolServiceGrpc.getUnorderedMethod;
 
+/**
+ * Leader 的 GrpcClientProtocolService 接收请求并提交到日志队列
+ * 非 Leader 节点会返回 suggestLeader 提示客户端重定向
+ */
 class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcClientProtocolService.class);
 

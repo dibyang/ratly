@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 
 /**
- * This is a RaftClient implementation that supports streaming data to the raft
- * ring. The stream implementation utilizes gRPC.
+ * 这是一个支持向 raft 环流式传输数据的 RaftClient 实现。
+ * 流式传输的实现使用了 gRPC。
  */
 public class GrpcServerProtocolClient implements Closeable {
   // Common channel

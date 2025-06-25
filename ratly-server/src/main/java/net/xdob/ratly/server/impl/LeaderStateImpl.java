@@ -70,12 +70,10 @@ import java.util.stream.StreamSupport;
 import static net.xdob.ratly.server.config.RaftServerConfigKeys.Write.FOLLOWER_GAP_RATIO_MAX_KEY;
 
 /**
- * States for leader only. It contains three different types of processors:
- * 1. RPC senders: each thread is appending log to a follower
- * 2. EventProcessor: a single thread updating the raft server's state based on
- *                    status of log appending response
- * 3. PendingRequestHandler: a handler sending back responses to clients when
- *                           corresponding log entries are committed
+ * 仅为领导者的状态。它包含三种不同类型的处理器：
+ * 1. RPC 发送器：每个线程都在向一个跟随者追加日志
+ * 2. 事件处理器（EventProcessor）：一个单独的线程，根据日志追加响应的状态更新 Raft 服务器的状态
+ * 3. 待处理请求处理器（PendingRequestHandler）：当对应的日志条目被提交时，将响应返回给客户端的处理器
  */
 class LeaderStateImpl implements LeaderState {
   public static final String APPEND_PLACEHOLDER = JavaUtils.getClassSimpleName(LeaderState.class) + ".placeholder";
@@ -168,10 +166,11 @@ class LeaderStateImpl implements LeaderState {
     }
   }
 
+
   /**
-   * Use {@link CopyOnWriteArrayList} to implement a thread-safe list.
-   * Since each mutation induces a copy of the list, only bulk operations
-   * (addAll and removeAll) are supported.
+   * 使用 {@link CopyOnWriteArrayList} 实现一个线程安全的列表。
+   * 由于每次修改都会导致列表的复制，因此只支持批量操作
+   * （addAll 和 removeAll）。
    */
   static class SenderList implements Iterable<LogAppender> {
     private final List<LogAppender> senders;
@@ -313,9 +312,10 @@ class LeaderStateImpl implements LeaderState {
 
   private final FollowerInfoMap followerInfoMap = new FollowerInfoMap();
 
+
   /**
-   * The list of threads appending entries to followers.
-   * The list is protected by the RaftServer's lock.
+   * 一组用于向跟随者追加日志条目的线程列表。
+   * 该列表由 RaftServer 的锁保护。
    */
   private final SenderList senders;
   private final EventQueue eventQueue;
@@ -386,15 +386,15 @@ class LeaderStateImpl implements LeaderState {
   }
 
   void start() {
-    // In the beginning of the new term, replicate a conf entry in order
-    // to finally commit entries in the previous term.
-    // Also this message can help identify the last committed index and the conf.
+    // 在新任期开始时，复制一个配置条目，
+    // 以便最终提交上一个任期的日志条目。
+    // 此外，该消息还可以帮助识别最后提交的索引和配置。
     CodeInjectionForTesting.execute(APPEND_PLACEHOLDER,
         server.getId().toString(), null);
     // Initialize startup log entry and append it to the RaftLog
     startupLogEntry.get();
     processor.start();
-    senders.forEach(LogAppender::start);;
+    senders.forEach(LogAppender::start);
   }
 
 

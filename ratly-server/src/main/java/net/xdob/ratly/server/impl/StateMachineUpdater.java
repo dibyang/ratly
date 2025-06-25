@@ -32,13 +32,12 @@ import java.util.function.Consumer;
 import java.util.stream.LongStream;
 
 /**
- * This class tracks the log entries that have been committed in a quorum and
- * applies them to the state machine. We let a separate thread do this work
- * asynchronously so that this will not block normal raft protocol.
+ * 监控提交索引，将日志提交到状态机执行，并定期生成快照以减少日志量。
  * <p>
- * If the auto log compaction is enabled, the state machine updater thread will
- * trigger a snapshot of the state machine by calling
- * {@link StateMachine#takeSnapshot} when the log size exceeds a limit.
+ * 该类用于跟踪在仲裁中已提交的日志条目，并将它们应用到状态机中。
+ * 我们让一个单独的线程异步地完成这项工作，以确保这不会阻塞正常的Raft协议操作。
+ * 如果启用了自动日志压缩功能，当日志大小超过预设的限制时，
+ * 状态机更新线程会通过调用 {@link StateMachine#takeSnapshot} 方法来触发状态机的快照操作。
  */
 class StateMachineUpdater implements Runnable {
   static final Logger LOG = LoggerFactory.getLogger(StateMachineUpdater.class);
