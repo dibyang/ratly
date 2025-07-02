@@ -66,15 +66,19 @@ public class DefaultDFactory implements DFactory, DContext{
         .setMsg(fasts.asByteString(putRequest))
         .build();
     RaftClientReply reply = client.io().send(Message.valueOf(msgProto));
-    WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-    if(!replyProto.getEx().isEmpty()){
-      throw (IOException) fasts.as(replyProto.getEx());
+    if(reply.getException()==null) {
+      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+      if (!replyProto.getEx().isEmpty()) {
+        throw (IOException) fasts.as(replyProto.getEx());
+      }
+      PutReply putReply = fasts.as(reply.getMessage().getContent());
+      if (putReply.hasEx()) {
+        throw IOUtils.asIOException(putReply.getEx());
+      }
+      return putReply;
+    }else {
+      throw reply.getException();
     }
-    PutReply putReply = fasts.as(reply.getMessage().getContent());
-    if(putReply.hasEx()){
-      throw IOUtils.asIOException(putReply.getEx());
-    }
-    return putReply;
   }
 
   public GetReply sendGetRequest(GetRequest getRequest) throws IOException {

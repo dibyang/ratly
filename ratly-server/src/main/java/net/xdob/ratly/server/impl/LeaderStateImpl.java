@@ -289,6 +289,8 @@ class LeaderStateImpl implements LeaderState {
       final boolean completed = logEntry.getIndex() == startIndex && appliedIndexFuture.complete(startIndex);
       if (completed) {
         LOG.info("Leader {} is ready since appliedIndex == startIndex == {}", LeaderStateImpl.this, startIndex);
+      }else{
+        LOG.info("Leader {} is not ready for startIndex = {}, log Index = {}", LeaderStateImpl.this, startIndex, logEntry.getIndex());
       }
       return completed;
     }
@@ -336,12 +338,13 @@ class LeaderStateImpl implements LeaderState {
 
   private final ReadIndexHeartbeats readIndexHeartbeats;
   private final LeaderLease lease;
+  private final RaftPeerId leaderId;
   private final AtomicReference<String> vnPeerId = new AtomicReference<>();
 
   LeaderStateImpl(RaftServerImpl server) {
     this.name = server.getMemberId() + "-" + JavaUtils.getClassSimpleName(getClass());
     this.server = server;
-
+    this.leaderId = server.getId();
     final RaftProperties properties = server.getRaftServer().getProperties();
     stagingCatchupGap = RaftServerConfigKeys.stagingCatchupGap(properties);
 
@@ -1046,15 +1049,19 @@ class LeaderStateImpl implements LeaderState {
   }
 
   /**
-   * 获取有效追随者，虚拟节点只有有一个
+   * 获取有效追随者，虚拟节点只有有一个。
+   * Leader不是虚拟节点则添加一个有效的虚拟节点
    */
   private  List<FollowerInfo> getValidFollowerInfos(List<FollowerInfo> followerInfos) {
     List<FollowerInfo> validFollowerInfos = new ArrayList<>();
     followerInfos.stream().filter(e->!e.getId().isVirtual())
       .forEach(validFollowerInfos::add);
-    followerInfos.stream().filter(e->e.getId().isVirtual())
-      .max(Comparator.comparingLong(FollowerInfo::getMatchIndex))
-      .ifPresent(validFollowerInfos::add);
+    // Leader不是虚拟节点则添加一个有效的虚拟节点
+    if(!leaderId.isVirtual()) {
+      followerInfos.stream().filter(e -> e.getId().isVirtual())
+          .max(Comparator.comparingLong(FollowerInfo::getMatchIndex))
+          .ifPresent(validFollowerInfos::add);
+    }
     return validFollowerInfos;
   }
 
@@ -1312,13 +1319,19 @@ class LeaderStateImpl implements LeaderState {
 
   @Override
   public String getVnPeerId(){
+    if(leaderId.isVirtual()){
+      return leaderId.getId();
+    }
     return Optional.ofNullable(vnPeerId.get()).orElse("");
   }
 
   @Override
   public boolean compareAndSetVnPeerId(String expect, String update) {
+    if(leaderId.isVirtual()){
+      return false;
+    }
     boolean b = vnPeerId.compareAndSet(expect, update);
-    if(b){
+    if (b) {
       LOG.info("compareAndSetVnPeerId: expect={}, update={}", expect, update);
     }
     return b;

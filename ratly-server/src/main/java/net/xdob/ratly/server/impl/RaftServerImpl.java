@@ -1650,7 +1650,8 @@ class RaftServerImpl implements Division,
     logAppendEntries(isHeartbeat, () -> getMemberId() + ": appendEntries* "
         + toAppendEntriesRequestString(proto, stateMachine::toStateMachineLogEntryString));
     RaftPeerId peerId = getId();
-    if(peerId.isVirtual()) {
+    //虚拟更随着节点处理
+    if(getInfo().isFollower()&&peerId.isVirtual()) {
       String vnPeerId = proto.getVnPeerId();
       if (startComplete.get()) {
         if(!vnPeerId.isEmpty()&&!vnPeerId.equals(peerId.getId())){

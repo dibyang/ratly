@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class DefaultSessionMgr implements SessionMgr{
   static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
 
-  public static final int TIME_OUT = 5 * 60;
+  public static final int TIME_OUT = 30 * 60;
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
 
   @Override
@@ -32,6 +32,7 @@ public class DefaultSessionMgr implements SessionMgr{
       if(session==null) {
         String user = Finder.c(sessionId).head("$").getValue();
         session = new Session(sessionId, user, connSupplier, this::removeSession);
+        session.updateAccessTime();
         sessions.put(session.getId(), session);
         //LOG.info("open session={}", sessionId);
       }
@@ -41,7 +42,9 @@ public class DefaultSessionMgr implements SessionMgr{
 
   @Override
   public Optional<Session> getSession(String sessionId) {
-    return Optional.ofNullable(sessionId==null?null:sessions.get(sessionId));
+    Optional<Session> session = Optional.ofNullable(sessionId == null ? null : sessions.get(sessionId));
+    session.ifPresent(Session::updateAccessTime);
+    return session;
   }
 
   void removeSession(String sessionId) {

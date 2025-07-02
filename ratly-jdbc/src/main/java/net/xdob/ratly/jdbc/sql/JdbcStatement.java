@@ -162,16 +162,20 @@ public class JdbcStatement implements Statement {
           .build();
       RaftClientReply reply =
           sqlClient.getClient().io().send(Message.valueOf(msgProto));
-      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if(!replyProto.getEx().isEmpty()){
-        throw (SQLException) sqlClient.getFasts().as(replyProto.getEx());
-      }
-      UpdateReply updateReply = sqlClient.getFasts().as(replyProto.getRelay());
-      if(updateReply.getEx()==null) {
-        sqlClient.addAndGetUpdateCount(1);
-        return updateReply.getCount();
+      if(reply.getException()==null) {
+        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+        if (!replyProto.getEx().isEmpty()) {
+          throw (SQLException) sqlClient.getFasts().as(replyProto.getEx());
+        }
+        UpdateReply updateReply = sqlClient.getFasts().as(replyProto.getRelay());
+        if (updateReply.getEx() == null) {
+          sqlClient.addAndGetUpdateCount(1);
+          return updateReply.getCount();
+        } else {
+          throw updateReply.getEx();
+        }
       }else{
-        throw updateReply.getEx();
+        throw reply.getException();
       }
     } catch (IOException e) {
       throw new SQLException(e);
@@ -187,25 +191,29 @@ public class JdbcStatement implements Statement {
           .build();
       RaftClientReply reply =
           sqlClient.getClient().io().send(Message.valueOf(msgProto));
-      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if(!replyProto.getEx().isEmpty()){
-        throw (SQLException) sqlClient.getFasts().as(replyProto.getEx());
-      }
-      UpdateReply updateReply = sqlClient.getFasts().as(replyProto.getRelay());
-      if(updateReply.getEx()==null) {
-        if(!updateRequest.getBatchSql().isEmpty()) {
-          sqlClient.addAndGetUpdateCount(updateRequest.getBatchSql().size());
+      if(reply.getException()==null) {
+        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+        if (!replyProto.getEx().isEmpty()) {
+          throw (SQLException) sqlClient.getFasts().as(replyProto.getEx());
         }
-        if(!updateRequest.getBatchParams().isEmpty()) {
-          sqlClient.addAndGetUpdateCount(updateRequest.getBatchParams().size());
+        UpdateReply updateReply = sqlClient.getFasts().as(replyProto.getRelay());
+        if (updateReply.getEx() == null) {
+          if (!updateRequest.getBatchSql().isEmpty()) {
+            sqlClient.addAndGetUpdateCount(updateRequest.getBatchSql().size());
+          }
+          if (!updateRequest.getBatchParams().isEmpty()) {
+            sqlClient.addAndGetUpdateCount(updateRequest.getBatchParams().size());
+          }
+          long[] updateCounts = new long[updateReply.getCounts().size()];
+          for (int i = 0; i < updateReply.getCounts().size(); i++) {
+            updateCounts[i] = updateReply.getCounts().get(i);
+          }
+          return updateCounts;
+        } else {
+          throw updateReply.getEx();
         }
-        long[] updateCounts = new long[updateReply.getCounts().size()];
-        for (int i = 0; i < updateReply.getCounts().size(); i++) {
-          updateCounts[i] = updateReply.getCounts().get(i);
-        }
-        return updateCounts;
       }else{
-        throw updateReply.getEx();
+        throw reply.getException();
       }
     } catch (IOException e) {
       throw new SQLException(e);

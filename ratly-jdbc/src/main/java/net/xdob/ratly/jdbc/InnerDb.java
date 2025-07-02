@@ -81,10 +81,14 @@ public class InnerDb {
        */
       try {
         Driver.load();
+        File dbFile = dbStore.resolve(getName() + ".mv.db").toFile();
+        if(dbFile.exists()){
+          dbFile.delete();
+        }
         String dbPath = dbStore.resolve(getName()).toString();
         // 基于存储目录初始化
         String url = "jdbc:h2:file:" + dbPath;
-
+        LOG.info("initialize db dbPath={}", dbPath);
         dataSource.setUrl(url + ";AUTO_SERVER=TRUE");
         dataSource.setDriverClassName("org.h2.Driver");
         dataSource.setUsername(INNER_USER);
@@ -121,12 +125,9 @@ public class InnerDb {
 
         context.getScheduler().scheduleAtFixedRate(()->{
           sessionMgr.checkTimeout();
-        },30, 30, TimeUnit.SECONDS);
+        },20, 20, TimeUnit.SECONDS);
 
-        File dbFile = dbStore.resolve(getName() + ".mv.db").toFile();
-        if(dbFile.exists()){
-          dbFile.delete();
-        }
+
         restoreFromSnapshot(context.getLatestSnapshot());
       } catch (IOException e) {
         initialized.set(false);
@@ -163,7 +164,7 @@ public class InnerDb {
     }else{
       String sessionId = queryRequest.getSession();
       Session session = sessionMgr.getSession(sessionId)
-          .orElseThrow(()->new NoSessionException(sessionId));
+          .orElseThrow(()->new SQLInvalidAuthorizationSpecException(new NoSessionException(sessionId)));
       try {
         query(queryRequest, session, queryReply);
       } finally {
@@ -426,18 +427,6 @@ public class InnerDb {
     final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
     infos.add(info);
     return infos;
-  }
-
-
-  private boolean hasDBError(String url) throws SQLException {
-    try (Connection conn = JdbcUtils.getConnection(null, url, INNER_USER, INNER_PASSWORD)){
-      Statement statement = conn.createStatement();
-      statement.execute("show tables");
-    } catch(SQLException e){
-      LOG.info("db {} is error, it will restore from snapshot", dbInfo.getName());
-      return true;
-    }
-    return false;
   }
 
 

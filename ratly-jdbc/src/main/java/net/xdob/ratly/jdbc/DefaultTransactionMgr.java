@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class DefaultTransactionMgr implements TransactionMgr {
-  public static final int TIME_OUT = 30;
+  public static final int TIME_OUT = 60;
   static Logger LOG = LoggerFactory.getLogger(DefaultTransactionMgr.class);
 
   private final Map<String, TxInfo> txInfoMap = Maps.newConcurrentMap();

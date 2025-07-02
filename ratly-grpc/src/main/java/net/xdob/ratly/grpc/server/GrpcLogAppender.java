@@ -160,7 +160,6 @@ public class GrpcLogAppender extends LogAppenderBase {
   private final RetryPolicy errorRetryWaitPolicy;
   private final ReplyState replyState = new ReplyState();
 
-  private final File ignoreFile;
 
   public GrpcLogAppender(Division server, LeaderState leaderState, FollowerInfo f) {
     super(server, leaderState, f);
@@ -184,8 +183,6 @@ public class GrpcLogAppender extends LogAppenderBase {
     caller = LOG.isTraceEnabled()? JavaUtils.getCallerStackTraceElement(): null;
     errorRetryWaitPolicy = MultipleLinearRandomRetry.parseCommaSeparated(
         RaftServerConfigKeys.Log.Appender.retryPolicy(properties));
-    ignoreFile = Paths.get("/etc/ratly/ignore/", getFollower().getId().getHostId())
-            .toFile();
   }
 
   @Override
@@ -195,10 +192,6 @@ public class GrpcLogAppender extends LogAppenderBase {
 
   private GrpcServerProtocolClient getClient() throws IOException {
     return getServerRpc().getProxies().getProxy(getFollowerId());
-  }
-
-  private boolean isLog() {
-    return !ignoreFile.exists();
   }
 
   private void resetClient(AppendEntriesRequest request, Event event) {
@@ -218,11 +211,9 @@ public class GrpcLogAppender extends LogAppenderBase {
           .orElseGet(f::getMatchIndex);
       if (event.isError() && request == null) {
         final long followerNextIndex = f.getNextIndex();
-        if(isLog()) {
-          BatchLogger.warn(BatchLogKey.RESET_CLIENT, f.getId() + "-" + followerNextIndex, suffix ->
-                  LOG.warn("{}: Follower failed (request=null, errorCount={}); keep nextIndex ({}) unchanged and retry.{}",
-                          this, errorCount, followerNextIndex, suffix), logMessageBatchDuration);
-        }
+        BatchLogger.warn(BatchLogKey.RESET_CLIENT, f.getId() + "-" + followerNextIndex, suffix ->
+            LOG.warn("{}: Follower failed (request=null, errorCount={}); keep nextIndex ({}) unchanged and retry.{}",
+                this, errorCount, followerNextIndex, suffix), logMessageBatchDuration);
         return;
       }
       if (request != null && request.isHeartbeat()) {
@@ -580,11 +571,9 @@ public class GrpcLogAppender extends LogAppenderBase {
         return;
       }
       getLeaderState().compareAndSetVnPeerId(getFollowerId().getId(), null);
-      if(isLog()) {
-        BatchLogger.warn(BatchLogKey.APPEND_LOG_RESPONSE_HANDLER_ON_ERROR, AppendLogResponseHandler.this.name,
-                suffix -> GrpcUtil.warn(LOG, () -> this + ": Failed appendEntries" + suffix, t),
-                logMessageBatchDuration, t instanceof StatusRuntimeException);
-      }
+      BatchLogger.warn(BatchLogKey.APPEND_LOG_RESPONSE_HANDLER_ON_ERROR, AppendLogResponseHandler.this.name,
+          suffix -> GrpcUtil.warn(LOG, () -> this + ": Failed appendEntries" + suffix, t),
+          logMessageBatchDuration, t instanceof StatusRuntimeException);
       grpcServerMetrics.onRequestRetry(); // Update try counter
 
       AppendEntriesRequest request = pendingRequests.remove(GrpcUtil.getCallId(t), GrpcUtil.isHeartbeat(t));

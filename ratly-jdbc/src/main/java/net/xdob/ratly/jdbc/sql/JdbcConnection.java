@@ -76,11 +76,15 @@ public class JdbcConnection implements Connection {
           .build();
       RaftClientReply reply =
           client.io().sendReadOnly(Message.valueOf(msgProto));
-      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if(!replyProto.getEx().isEmpty()){
-        throw (SQLException) fasts.as(replyProto.getEx());
+      if(reply.getException()==null){
+        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+        if(!replyProto.getEx().isEmpty()){
+          throw (SQLException) fasts.as(replyProto.getEx());
+        }
+        return fasts.as(replyProto.getRelay());
+      }else {
+        throw reply.getException();
       }
-      return fasts.as(replyProto.getRelay());
     } catch (IOException e) {
       throw new SQLException(e);
     }
@@ -172,15 +176,19 @@ public class JdbcConnection implements Connection {
           .build();
       RaftClientReply reply =
           client.io().send(Message.valueOf(msgProto));
-      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if(!replyProto.getEx().isEmpty()){
-        throw (SQLException) fasts.as(replyProto.getEx());
-      }
-      UpdateReply updateReply = fasts.as(replyProto.getRelay());
-      if(updateReply.getEx()!=null) {
-        throw updateReply.getEx();
+      if(reply.getException()==null) {
+        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+        if (!replyProto.getEx().isEmpty()) {
+          throw (SQLException) fasts.as(replyProto.getEx());
+        }
+        UpdateReply updateReply = fasts.as(replyProto.getRelay());
+        if (updateReply.getEx() != null) {
+          throw updateReply.getEx();
+        } else {
+          return updateReply;
+        }
       }else{
-        return updateReply;
+        throw reply.getException();
       }
     } catch (IOException e) {
       throw new SQLException(e);

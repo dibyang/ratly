@@ -52,6 +52,7 @@ public class JdbcConnectionInfo {
             "Raft peer " + address + " is not a legitimate format. "
                 + "(format: name:host:port:dataStreamPort:clientPort:adminPort)");
       }
+
       RaftPeer.Builder builder = RaftPeer.newBuilder();
       builder.setId(addressParts[0]).setAddress(addressParts[1] + ":" + addressParts[2]);
       if (addressParts.length >= 4) {
