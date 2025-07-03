@@ -205,9 +205,11 @@ subprojects {
         repositories {
             maven {
                 // 发布仓库配置，这里基于version后缀是否为SNAPSHOT来区分发布到release库还是snapshots库
-                def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
-                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                if(version.endsWith('SNAPSHOT')){
+                    it.url = project.property("snapshotsRepository")
+                }else{
+                    it.url = project.property("releasesRepository")
+                }
 
                 //认证用户和密码，在配置文件gradle.properties中配置
                 //oss-sonatype的登录用户名和密码
