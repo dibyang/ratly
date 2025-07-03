@@ -83,7 +83,6 @@ class ServerState implements RaftLogQuery {
 
   private final AtomicReference<ScheduledExecutorService> scheduledRef = new AtomicReference<>();
 
-
   ServerState(RaftPeerId id, RaftGroup group, StateMachine stateMachine, RaftServerImpl server,
               StartupOption option, RaftProperties prop) {
     this.memberId = RaftGroupMemberId.valueOf(id, group.getGroupId());
@@ -160,8 +159,8 @@ class ServerState implements RaftLogQuery {
 
   private RaftLog initRaftLog(LongSupplier getSnapshotIndexFromStateMachine, RaftProperties prop) {
     try {
-      return initRaftLog(getMemberId(), server, getStorage(), this::setRaftConf,
-          getSnapshotIndexFromStateMachine, prop);
+			return initRaftLog(getMemberId(), server, getStorage(), this::setRaftConf,
+					getSnapshotIndexFromStateMachine, prop);
     } catch (IOException e) {
       throw new IllegalStateException(getMemberId() + ": Failed to initRaftLog.", e);
     }

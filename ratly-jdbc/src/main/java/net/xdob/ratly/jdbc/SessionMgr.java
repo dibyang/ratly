@@ -16,6 +16,7 @@ public interface SessionMgr {
   Session getOrOpenSession(String sessionId, ConnSupplier connSupplier) throws SQLException;
   Optional<Session> getSession(String id);
   List<Session> getAllSessions();
-  void removeSession(String sessionId);
+  Session removeSession(String sessionId);
+  void closeSession(String sessionId);
   void checkTimeout();
 }

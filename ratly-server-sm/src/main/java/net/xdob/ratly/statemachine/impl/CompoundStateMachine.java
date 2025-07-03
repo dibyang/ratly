@@ -43,6 +43,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   private final FileListStateMachineStorage storage = new FileListStateMachineStorage();
   private MemoizedSupplier<RaftLogQuery> logQuery;
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
+  private RaftPeerId peerId;
 
   private AutoCloseableLock readLock() {
     return AutoCloseableLock.acquire(lock.readLock());
@@ -75,6 +76,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId,
                          RaftStorage raftStorage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
     super.initialize(server, groupId, peerId, raftStorage, logQuery);
+    this.peerId = peerId;
     this.logQuery = logQuery;
     if(this.scheduler==null){
       this.scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -143,12 +145,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
   }
 
+
   @Override
   public void notifyLeaderReady() {
-
     fireLeaderStateEvent(true);
   }
-
 
   @Override
   public CompletableFuture<Message> query(Message request) {
@@ -276,6 +277,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         LOG.warn("", e);
       }
     }
+  }
+
+  @Override
+  public RaftPeerId getPeerId() {
+    return peerId;
   }
 
   @Override

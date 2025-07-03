@@ -8,6 +8,7 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface DbsContext {
+  String getPeerId();
   ScheduledExecutorService getScheduler();
   SnapshotInfo getLatestSnapshot();
   SerialSupport getFasts();

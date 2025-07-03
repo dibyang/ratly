@@ -41,12 +41,12 @@ public class InnerDb {
   public static final String INNER_PASSWORD = "hhrhl2016";
   public static final String SESSIONS_KEY = "sessions";
   private final BasicDataSource dataSource = new BasicDataSource();
-  private final DefaultSessionMgr sessionMgr = new DefaultSessionMgr();
+  private final DefaultSessionMgr sessionMgr;
 
   private final Path dbStore;
   private final DbInfo dbInfo;
 
-  private final TransactionMgr transactionMgr = new DefaultTransactionMgr();
+  private final TransactionMgr transactionMgr;
 
   private final DbsContext context;
 
@@ -61,6 +61,8 @@ public class InnerDb {
     this.dbInfo = dbInfo;
     this.context = context;
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
+    sessionMgr = new DefaultSessionMgr(context);
+    transactionMgr = new DefaultTransactionMgr(context);
   }
 
   public DbInfo getDbInfo() {
@@ -275,12 +277,10 @@ public class InnerDb {
           }
         }
       }
-      Session session = sessionMgr.newSession(sessionRequest, dataSource::getConnection);
-      LOG.info("open session user={} sessionId={}", user, session.getId());
+      sessionMgr.newSession(sessionRequest, dataSource::getConnection);
     }else if(updateRequest.getType()==UpdateType.closeSession){
       String sessionId = updateRequest.getSession();
-      sessionMgr.removeSession(sessionId);
-      LOG.info("close session sessionId={}", sessionId);
+      sessionMgr.closeSession(sessionId);
     }else{
       String sessionId = updateRequest.getSession();
       Session session = sessionMgr.getSession(sessionId)

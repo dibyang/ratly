@@ -17,8 +17,13 @@ public class DefaultSessionMgr implements SessionMgr{
 
   public static final int TIME_OUT = 5 * 60;
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
+  private final DbsContext context;
 
-  @Override
+	public DefaultSessionMgr(DbsContext context) {
+		this.context = context;
+	}
+
+	@Override
   public Session newSession(SessionRequest sessionRequest, ConnSupplier connSupplier) throws SQLException {
     synchronized (sessions) {
       String sessionId = sessionRequest.toSessionId();
@@ -28,6 +33,7 @@ public class DefaultSessionMgr implements SessionMgr{
       }
       session = new Session(sessionRequest, connSupplier, this::removeSession);
       sessions.put(session.getId(), session);
+      LOG.info("node {} new session={}", context.getPeerId(), sessionId);
       return session;
     }
   }
@@ -60,26 +66,35 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
   @Override
-  public void removeSession(String sessionId) {
+  public Session removeSession(String sessionId) {
     if (sessionId != null) {
-      sessions.remove(sessionId);
-      //LOG.info("remove session={}", sessionId);
+      synchronized (sessions) {
+        LOG.info("node {} remove session={}", context.getPeerId(), sessionId);
+        return sessions.remove(sessionId);
+      }
     }
+    return null;
   }
 
   @Override
-  public void checkTimeout() {
-    synchronized (sessions){
-      List<Session> timeoutSessions = sessions.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
-          .collect(Collectors.toList());
-      for (Session session : timeoutSessions) {
-        sessions.remove(session.getId());
-        try {
-          session.close();
-        } catch (Exception e) {
-          LOG.warn("", e);
-        }
+  public void closeSession(String sessionId) {
+    Session session = removeSession(sessionId);
+    if(session!=null){
+      try {
+        session.close();
+      } catch (Exception e) {
+        LOG.warn("close session error", e);
       }
+    }
+  }
+
+
+  @Override
+  public void checkTimeout() {
+    List<Session> timeoutSessions = sessions.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
+        .collect(Collectors.toList());
+    for (Session session : timeoutSessions) {
+      closeSession(session.getId());
     }
   }
 }

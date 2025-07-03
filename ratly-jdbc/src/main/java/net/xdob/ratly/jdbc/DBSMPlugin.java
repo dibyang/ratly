@@ -69,6 +69,13 @@ public class DBSMPlugin implements SMPlugin {
     this.context = context;
     this.dbsContext = new DbsContext() {
       @Override
+      public String getPeerId() {
+        return Optional.ofNullable(context.getPeerId())
+            .map(RaftPeerId::getId)
+            .orElse("");
+      }
+
+      @Override
       public ScheduledExecutorService getScheduler() {
         return context.getScheduler();
       }

@@ -16,9 +16,10 @@ public class DefaultTransactionMgr implements TransactionMgr {
 
   private final Map<String, TxInfo> txInfoMap = Maps.newConcurrentMap();
 
+  private final DbsContext context;
 
-
-  public DefaultTransactionMgr() {
+  public DefaultTransactionMgr(DbsContext context) {
+    this.context = context;
   }
 
 
@@ -54,7 +55,7 @@ public class DefaultTransactionMgr implements TransactionMgr {
           .collect(Collectors.toList());
       for (TxInfo txInfo : timeoutTxInfos) {
         try {
-          LOG.debug("tx={} release because timeout.", txInfo.getTx());
+          LOG.debug("node {} tx={} release because timeout.", context.getPeerId(),txInfo.getTx());
           releaseTx(txInfo.getTx());
         } catch (SQLException e) {
           LOG.warn("releaseTx error.", e);

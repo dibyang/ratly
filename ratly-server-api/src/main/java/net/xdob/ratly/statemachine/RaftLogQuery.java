@@ -23,4 +23,5 @@ public interface RaftLogQuery {
    * 获取指定索引或比他小最接近的状态机日志
    */
   LogEntryProto getStateMachineLog(long index) throws RaftLogIOException;
+
 }

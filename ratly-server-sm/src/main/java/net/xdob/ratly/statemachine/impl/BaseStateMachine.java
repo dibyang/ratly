@@ -42,6 +42,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
   private volatile RaftGroupId groupId;
 
   private volatile RaftPeerId peerId;
+
   /**
    * 状态机的生命周期管理器，跟踪状态机的生命周期状态。
    */

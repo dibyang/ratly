@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class Session {
+public class Session implements AutoCloseable {
   static final Logger LOG = LoggerFactory.getLogger(Session.class);
   private final String user;
   private final String id;
