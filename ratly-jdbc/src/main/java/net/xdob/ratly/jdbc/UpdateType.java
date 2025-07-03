@@ -6,5 +6,7 @@ public enum UpdateType {
   rollback,
   savepoint,
   releaseSavepoint,
-  rollbackSavepoint
+  rollbackSavepoint,
+  openSession,
+  closeSession
 }

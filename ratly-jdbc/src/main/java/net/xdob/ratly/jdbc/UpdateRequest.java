@@ -12,6 +12,7 @@ public class UpdateRequest implements Serializable {
   private UpdateType type;
   private Sender  sender;
   private String session;
+  private String password;
   private String tx;
   private String sql;
   private final Parameters params = new Parameters();
@@ -43,6 +44,15 @@ public class UpdateRequest implements Serializable {
 
   public UpdateRequest setSender(Sender sender) {
     this.sender = sender;
+    return this;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public UpdateRequest setPassword(String password) {
+    this.password = password;
     return this;
   }
 

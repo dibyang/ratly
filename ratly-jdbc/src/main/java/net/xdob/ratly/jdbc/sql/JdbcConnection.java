@@ -10,7 +10,10 @@ import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.retry.RetryLimited;
 import net.xdob.ratly.retry.RetryPolicies;
+import net.xdob.ratly.security.Base58;
 import net.xdob.ratly.security.RsaHelper;
+import net.xdob.ratly.security.crypto.factory.PasswordEncoderFactories;
+import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
 import org.slf4j.Logger;
@@ -18,11 +21,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,19 +55,20 @@ public class JdbcConnection implements Connection {
     builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     client = builder.build();
-    QueryRequest queryRequest = new QueryRequest()
+    SessionRequest sessionRequest = SessionRequest.of(ci.getUser(), Base58.encode(UUID.randomUUID()));
+    UpdateRequest updateRequest = new UpdateRequest()
         .setDb(ci.getDb())
         .setSender(Sender.connection)
-        .setType(QueryType.check)
-        .setSql("validUser")
-        .setUser( ci.getUser())
+        .setType(UpdateType.openSession)
+        .setSession(sessionRequest.toSessionId())
         .setPassword(rsaHelper.encrypt(ci.getPassword()));
-    QueryReply queryReplyProto = sendQueryRequest(queryRequest);
-    if(queryReplyProto.getEx()!=null){
-      throw queryReplyProto.getEx();
+    UpdateReply updateReplyProto = sendUpdate(updateRequest);
+    if(updateReplyProto.getEx()!=null){
+      throw updateReplyProto.getEx();
     }
-    session = queryReplyProto.getRs().toString();
+    session = sessionRequest.toSessionId();
   }
+
 
   QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
     try {
@@ -225,6 +227,14 @@ public class JdbcConnection implements Connection {
       }
     }
     try {
+      if(session!=null&&!session.isEmpty()) {
+        UpdateRequest updateRequest = new UpdateRequest()
+            .setDb(ci.getDb())
+            .setSender(Sender.connection)
+            .setType(UpdateType.closeSession)
+            .setSession(session);
+        UpdateReply updateReplyProto = sendUpdate(updateRequest);
+      }
       client.close();
     } catch (IOException e) {
       throw new SQLException(e);

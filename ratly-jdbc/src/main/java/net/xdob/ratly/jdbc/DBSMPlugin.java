@@ -44,8 +44,6 @@ public class DBSMPlugin implements SMPlugin {
   public static final String DBS_JSON = DBS + ".json";
 
 
-  private final RsaHelper rsaHelper = new RsaHelper();
-
   private Path dbStore;
   private Path dbCache;
   private SMPluginContext context;
@@ -53,6 +51,7 @@ public class DBSMPlugin implements SMPlugin {
   private final Map<String,InnerDb> dbMap = Maps.newConcurrentMap();
 
   private final List<DbDef> dbDefs = new ArrayList<>();
+  private final RsaHelper rsaHelper = new RsaHelper();
 
   private DbsContext dbsContext;
 
@@ -99,6 +98,7 @@ public class DBSMPlugin implements SMPlugin {
         return rsaHelper;
       }
 
+
       @Override
       public void updateDbs() {
         saveDbs();
@@ -121,7 +121,12 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbCache.toFile().exists()){
       dbCache.toFile().mkdirs();
     }
-
+    File[] files = dbCache.toFile().listFiles();
+    if(files!=null) {
+      for (File file : files) {
+        file.delete();
+      }
+    }
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
     loadDbs(dbsFile, false);
 

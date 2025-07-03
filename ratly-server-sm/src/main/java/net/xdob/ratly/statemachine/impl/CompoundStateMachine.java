@@ -30,7 +30,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
 
 public class CompoundStateMachine extends BaseStateMachine implements SMPluginContext {
   static final Logger LOG = LoggerFactory.getLogger(CompoundStateMachine.class);
@@ -202,7 +201,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       LOG.warn("", e);
     } catch (SQLException e) {
       builder.setEx(fasts.asByteString(e));
-    }finally {
+    } finally {
       logEntryRef.release();
     }
     return CompletableFuture.completedFuture(Message.valueOf(builder.build()));

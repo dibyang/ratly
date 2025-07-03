@@ -1,37 +1,44 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Maps;
+import net.xdob.ratly.jdbc.exception.SessionIdAlreadyExistsException;
 import net.xdob.ratly.security.Base58;
 import net.xdob.ratly.util.Finder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionMgr{
   static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
 
-  public static final int TIME_OUT = 30 * 60;
+  public static final int TIME_OUT = 5 * 60;
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
 
   @Override
-  public Session newSession(String user, ConnSupplier connSupplier) throws SQLException {
-    Session session = new Session(user + "$" + Base58.encode(UUID.randomUUID()), user, connSupplier, this::removeSession);
-    sessions.put(session.getId(), session);
-    return session;
+  public Session newSession(SessionRequest sessionRequest, ConnSupplier connSupplier) throws SQLException {
+    synchronized (sessions) {
+      String sessionId = sessionRequest.toSessionId();
+      Session session = getSession(sessionId).orElse(null);
+      if (session != null) {
+        throw new SessionIdAlreadyExistsException(sessionId);
+      }
+      session = new Session(sessionRequest, connSupplier, this::removeSession);
+      sessions.put(session.getId(), session);
+      return session;
+    }
   }
 
+  @Override
   public Session getOrOpenSession(String sessionId, ConnSupplier connSupplier) throws SQLException {
     synchronized (sessions) {
       Session session = getSession(sessionId).orElse(null);
       if(session==null) {
-        String user = Finder.c(sessionId).head("$").getValue();
-        session = new Session(sessionId, user, connSupplier, this::removeSession);
+        SessionRequest request = SessionRequest.fromSessionId(sessionId);
+        session = new Session(request, connSupplier, this::removeSession);
         session.updateAccessTime();
         sessions.put(session.getId(), session);
         //LOG.info("open session={}", sessionId);
@@ -47,7 +54,13 @@ public class DefaultSessionMgr implements SessionMgr{
     return session;
   }
 
-  void removeSession(String sessionId) {
+  @Override
+  public List<Session> getAllSessions() {
+    return new ArrayList<>(sessions.values());
+  }
+
+  @Override
+  public void removeSession(String sessionId) {
     if (sessionId != null) {
       sessions.remove(sessionId);
       //LOG.info("remove session={}", sessionId);

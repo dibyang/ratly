@@ -4,6 +4,7 @@ import com.google.common.base.Stopwatch;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
+import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -12,10 +13,10 @@ import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
+import net.xdob.ratly.util.N3Map;
 import net.xdob.ratly.util.ZipUtils;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.h2.Driver;
-import org.h2.util.JdbcUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,18 +24,22 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class InnerDb {
   static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
   public static final String DB2ZIP = "db.zip";
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
+  public static final String SESSIONS_KEY = "sessions";
   private final BasicDataSource dataSource = new BasicDataSource();
   private final DefaultSessionMgr sessionMgr = new DefaultSessionMgr();
 
@@ -81,10 +86,7 @@ public class InnerDb {
        */
       try {
         Driver.load();
-        File dbFile = dbStore.resolve(getName() + ".mv.db").toFile();
-        if(dbFile.exists()){
-          dbFile.delete();
-        }
+
         String dbPath = dbStore.resolve(getName()).toString();
         // 基于存储目录初始化
         String url = "jdbc:h2:file:" + dbPath;
@@ -127,7 +129,6 @@ public class InnerDb {
           sessionMgr.checkTimeout();
         },20, 20, TimeUnit.SECONDS);
 
-
         restoreFromSnapshot(context.getLatestSnapshot());
       } catch (IOException e) {
         initialized.set(false);
@@ -139,38 +140,14 @@ public class InnerDb {
 
   public void query(QueryRequest queryRequest, QueryReply queryReply) throws SQLException {
 
-    Sender sender = queryRequest.getSender();
-    QueryType type = queryRequest.getType();
-    if(Sender.connection.equals(sender)&&QueryType.check.equals(type)){
-      String user = queryRequest.getUser();
-      String password = context.getRsaHelper().decrypt(queryRequest.getPassword());
-      DbUser dbUser = getDbInfo().getUser(user).orElse(null);
-      if (dbUser == null) {
-        throw new SQLInvalidAuthorizationSpecException();
-      } else {
-        PasswordEncoder passwordEncoder = context.getPasswordEncoder();
-        if (!passwordEncoder.matches(password, dbUser.getPassword())) {
-          throw new SQLInvalidAuthorizationSpecException();
-        } else {
-          if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
-            dbUser.setPassword(passwordEncoder.encode(password));
-            context.updateDbs();
-          }
-        }
-      }
-      Session session = sessionMgr.newSession(user, dataSource::getConnection);
-      queryReply.setRs(session.getId());
-
-    }else{
-      String sessionId = queryRequest.getSession();
-      Session session = sessionMgr.getSession(sessionId)
-          .orElseThrow(()->new SQLInvalidAuthorizationSpecException(new NoSessionException(sessionId)));
-      try {
-        query(queryRequest, session, queryReply);
-      } finally {
-        //没有事务则直接关闭连接
-        session.closeConnection();
-      }
+    String sessionId = queryRequest.getSession();
+    Session session = sessionMgr.getSession(sessionId)
+        .orElseThrow(()->new SQLInvalidAuthorizationSpecException(new NoSessionException(sessionId)));
+    try {
+      query(queryRequest, session, queryReply);
+    } finally {
+      //没有事务则直接关闭连接
+      session.closeConnection();
     }
 
   }
@@ -279,28 +256,55 @@ public class InnerDb {
 
   public void applyTransaction(UpdateRequest updateRequest, TermIndex termIndex, UpdateReply updateReply) throws SQLException {
 
-    String sessionId = updateRequest.getSession();
-    Session session = sessionMgr.getOrOpenSession(sessionId, dataSource::getConnection);
+    if(updateRequest.getType()==UpdateType.openSession){
+      String sessionId = updateRequest.getSession();
+      SessionRequest sessionRequest = SessionRequest.fromSessionId(sessionId);
+      String user = sessionRequest.getUser();
+      String password = context.getRsaHelper().decrypt(updateRequest.getPassword());
+      DbUser dbUser = getDbInfo().getUser(user).orElse(null);
+      if (dbUser == null) {
+        throw new SQLInvalidAuthorizationSpecException();
+      } else {
+        PasswordEncoder passwordEncoder = context.getPasswordEncoder();
+        if (!passwordEncoder.matches(password, dbUser.getPassword())) {
+          throw new SQLInvalidAuthorizationSpecException();
+        } else {
+          if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
+            dbUser.setPassword(passwordEncoder.encode(password));
+            context.updateDbs();
+          }
+        }
+      }
+      Session session = sessionMgr.newSession(sessionRequest, dataSource::getConnection);
+      LOG.info("open session user={} sessionId={}", user, session.getId());
+    }else if(updateRequest.getType()==UpdateType.closeSession){
+      String sessionId = updateRequest.getSession();
+      sessionMgr.removeSession(sessionId);
+      LOG.info("close session sessionId={}", sessionId);
+    }else{
+      String sessionId = updateRequest.getSession();
+      Session session = sessionMgr.getSession(sessionId)
+          .orElseThrow(()->new SQLInvalidAuthorizationSpecException(new NoSessionException(sessionId)));
 
-    String tx = updateRequest.getTx();
-    session.setTx(tx);
-    if(tx.isEmpty()) {
-      executeUpdate(updateRequest, session.getConnection(), updateReply);
-      updateAppliedIndexToMax(termIndex.getIndex());
-      session.closeConnection();
-    }else {
-      transactionMgr.initializeTx(tx, session);
-      applyLog(updateRequest, updateReply);
-      if (UpdateType.commit.equals(updateRequest.getType())
-          ||UpdateType.rollback.equals(updateRequest.getType()))
-      {
-        //事务完成更新插件事务阶段性索引
+      String tx = updateRequest.getTx();
+      session.setTx(tx);
+      if(tx.isEmpty()) {
+        executeUpdate(updateRequest, session.getConnection(), updateReply);
         updateAppliedIndexToMax(termIndex.getIndex());
-      }else{
-        transactionMgr.addIndex(tx, termIndex.getIndex());
+        session.closeConnection();
+      }else {
+        transactionMgr.initializeTx(tx, session);
+        applyLog(updateRequest, updateReply);
+        if (UpdateType.commit.equals(updateRequest.getType())
+            ||UpdateType.rollback.equals(updateRequest.getType()))
+        {
+          //事务完成更新插件事务阶段性索引
+          updateAppliedIndexToMax(termIndex.getIndex());
+        }else{
+          transactionMgr.addIndex(tx, termIndex.getIndex());
+        }
       }
     }
-
   }
 
 
@@ -314,9 +318,6 @@ public class InnerDb {
   }
 
   public long getLastPluginAppliedIndex() {
-    if(!transactionMgr.isTransaction()){
-      return RaftLog.INVALID_LOG_INDEX;
-    }
     return appliedIndex.get();
   }
 
@@ -419,7 +420,14 @@ public class InnerDb {
     }catch (SQLException e){
       throw new IOException(e);
     }
-    ZipUtils.compressFiles(snapshotFile, sqlFile);
+    File sessionFile = snapshotFile.toPath().resolveSibling(getName() + "_sessions.json").toFile();
+    List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
+        .collect(Collectors.toList());
+    N3Map n3Map = new N3Map();
+    n3Map.put(SESSIONS_KEY, sessionIds);
+    String json = Jsons.i.toJson(n3Map);
+    Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
+    ZipUtils.compressFiles(snapshotFile, sqlFile, sessionFile);
     sqlFile.delete();
     LOG.info("Taking a DB snapshot to file {}, use time:", snapshotFile.toString(), stopwatch);
     List<FileInfo> infos = new ArrayList<>();
@@ -455,6 +463,20 @@ public class InnerDb {
             throw new IOException(e);
           }
           sqlFile.delete();
+        }
+        File sessionFile = snapshotFile.toPath().resolveSibling(getName() + "_sessions.json").toFile();
+        if(sessionFile.exists()) {
+          byte[] bytes = Files.readAllBytes(sessionFile.toPath());
+          N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
+          List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
+          try {
+            for (String sessionId : sessionIds) {
+              sessionMgr.getOrOpenSession(sessionId, () -> dataSource.getConnection());
+            }
+          } catch (SQLException e) {
+            throw new IOException(e);
+          }
+          sessionFile.delete();
         }
         LOG.info("restore DB snapshot use time: {}", stopwatch);
       }

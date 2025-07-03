@@ -11,8 +11,6 @@ public class QueryRequest implements Serializable {
   private String session;
   private String tx;
   private String sql;
-  private String  user;
-  private String  password;
   private int  fetchDirection;
   private int  fetchSize;
   private final Parameters params = new Parameters();
@@ -77,23 +75,6 @@ public class QueryRequest implements Serializable {
     return this;
   }
 
-  public String getUser() {
-    return user;
-  }
-
-  public QueryRequest setUser(String user) {
-    this.user = user;
-    return this;
-  }
-
-  public String getPassword() {
-    return password;
-  }
-
-  public QueryRequest setPassword(String password) {
-    this.password = password;
-    return this;
-  }
 
   public int getFetchDirection() {
     return fetchDirection;

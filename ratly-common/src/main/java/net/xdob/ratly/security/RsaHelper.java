@@ -44,4 +44,10 @@ public class RsaHelper {
     }
     return null;
   }
+
+  public static void main(String[] args) {
+    RsaHelper rsaHelper = new RsaHelper();
+    String encrypted = rsaHelper.encrypt("hhrhl2016");
+    System.out.println("encrypted = " + encrypted);
+  }
 }

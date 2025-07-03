@@ -18,9 +18,9 @@ public class Session {
   private transient String tx;
   private transient volatile long accessTime = System.nanoTime();
 
-  public Session(String id, String user, ConnSupplier connSupplier, Consumer<String> closed) {
-    this.user = user;
-    this.id = id;
+  public Session(SessionRequest request, ConnSupplier connSupplier, Consumer<String> closed) {
+    this.user = request.getUser();
+    this.id = request.toSessionId();
     this.connSupplier = connSupplier;
     this.closed = closed;
   }
