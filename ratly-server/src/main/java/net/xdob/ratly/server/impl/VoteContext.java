@@ -138,9 +138,10 @@ class VoteContext {
       return reject("our server " + impl.getId() + " is not in the conf " + conf);
     }
     //索引数据一致，候选节点是虚拟节点，本地节点不是虚拟节点时拒绝投票
-    if(candidate.isVirtual()&&!peer.isVirtual()){
-      return reject("candidate's virtual node but our node is not virtual node");
-    }
+//    if(candidate.isVirtual()&&!peer.isVirtual()){
+//      return reject("candidate's virtual node but our node is not virtual node");
+//    }
+
     //获取本地优先级
     final int priority = peer.getPriority();
     if (priority <= candidate.getPriority()) {
