@@ -3,6 +3,7 @@ package net.xdob.ratly.jdbc;
 import com.google.common.base.Stopwatch;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
+import net.xdob.ratly.jdbc.exception.SessionIdAlreadyExistsException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,8 @@ public class InnerDb {
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
   public static final String SESSIONS_KEY = "sessions";
+  public static final String SQL_EXT = ".sql";
+  public static final String SESSIONS_JSON_EXT = "_sessions.json";
   private final BasicDataSource dataSource = new BasicDataSource();
   private final DefaultSessionMgr sessionMgr;
 
@@ -127,9 +130,9 @@ public class InnerDb {
           transactionMgr.checkTimeoutTx();
         },10, 10, TimeUnit.SECONDS);
 
-        context.getScheduler().scheduleAtFixedRate(()->{
-          sessionMgr.checkTimeout();
-        },20, 20, TimeUnit.SECONDS);
+//        context.getScheduler().scheduleAtFixedRate(()->{
+//          sessionMgr.checkTimeout();
+//        },20, 20, TimeUnit.SECONDS);
 
         restoreFromSnapshot(context.getLatestSnapshot());
       } catch (IOException e) {
@@ -412,7 +415,7 @@ public class InnerDb {
     String module = getName() + "." + DB2ZIP;
     File snapshotFile = storage.getSnapshotFile(module, last.getTerm(), last.getIndex());
 
-    File sqlFile = snapshotFile.toPath().resolveSibling(getName() + ".sql").toFile();
+    File sqlFile = snapshotFile.toPath().resolveSibling(getName() + SQL_EXT).toFile();
     Stopwatch stopwatch = Stopwatch.createStarted();
     try (Connection connection = dataSource.getConnection();
          Statement statement = connection.createStatement()) {
@@ -420,7 +423,7 @@ public class InnerDb {
     }catch (SQLException e){
       throw new IOException(e);
     }
-    File sessionFile = snapshotFile.toPath().resolveSibling(getName() + "_sessions.json").toFile();
+    File sessionFile = snapshotFile.toPath().resolveSibling(getName() + SESSIONS_JSON_EXT).toFile();
     List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
         .collect(Collectors.toList());
     N3Map n3Map = new N3Map();
@@ -454,7 +457,7 @@ public class InnerDb {
         Stopwatch stopwatch = Stopwatch.createStarted();
         LOG.info("restore DB snapshot from {}", snapshotFileName);
         ZipUtils.decompressFiles(snapshotFile, snapshotFile.getParentFile());
-        File sqlFile = snapshotFile.toPath().resolveSibling(getName() + ".sql").toFile();
+        File sqlFile = snapshotFile.toPath().resolveSibling(getName() + SQL_EXT).toFile();
         if(sqlFile.exists()) {
           try (Connection connection = dataSource.getConnection();
                Statement statement = connection.createStatement()) {
@@ -464,18 +467,19 @@ public class InnerDb {
           }
           sqlFile.delete();
         }
-        File sessionFile = snapshotFile.toPath().resolveSibling(getName() + "_sessions.json").toFile();
+        File sessionFile = snapshotFile.toPath().resolveSibling(getName() + SESSIONS_JSON_EXT).toFile();
         if(sessionFile.exists()) {
           byte[] bytes = Files.readAllBytes(sessionFile.toPath());
           N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
           List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
-          try {
-            for (String sessionId : sessionIds) {
-              sessionMgr.getOrOpenSession(sessionId, () -> dataSource.getConnection());
+          for (String sessionId : sessionIds) {
+            try {
+              sessionMgr.newSession(SessionRequest.fromSessionId(sessionId), dataSource::getConnection);
+            } catch (SQLException e) {
+              LOG.warn("node {} newSession error.", context.getPeerId(), e);
             }
-          } catch (SQLException e) {
-            throw new IOException(e);
           }
+
           sessionFile.delete();
         }
         LOG.info("restore DB snapshot use time: {}", stopwatch);
