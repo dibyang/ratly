@@ -432,6 +432,7 @@ public class InnerDb {
     Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
     ZipUtils.compressFiles(snapshotFile, sqlFile, sessionFile);
     sqlFile.delete();
+    sessionFile.delete();
     LOG.info("Taking a DB snapshot to file {}, use time:", snapshotFile.toString(), stopwatch);
     List<FileInfo> infos = new ArrayList<>();
     final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
@@ -479,7 +480,6 @@ public class InnerDb {
               LOG.warn("node {} newSession error.", context.getPeerId(), e);
             }
           }
-
           sessionFile.delete();
         }
         LOG.info("restore DB snapshot use time: {}", stopwatch);
