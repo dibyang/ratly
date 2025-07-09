@@ -3,8 +3,6 @@ package net.xdob.ratly.jdbc.sql;
 import com.google.common.collect.Lists;
 import net.xdob.ratly.jdbc.util.Streams4Jdbc;
 
-import javax.sql.rowset.serial.SerialBlob;
-import javax.sql.rowset.serial.SerialClob;
 import java.io.*;
 import java.sql.Blob;
 import java.sql.Clob;

@@ -16,4 +16,5 @@ public interface DbsContext {
   PasswordEncoder getPasswordEncoder();
   RsaHelper getRsaHelper();
   void updateDbs();
+  void closeSession(String sessionId);
 }

@@ -5,6 +5,7 @@ dependencies {
     api project(':ratly-common')
     api project(':ratly-client')
     api project(':ratly-server')
+    api project(':ratly-jdbc-client')
     api project(':ratly-grpc')
     api("net.xdob.h2db:h2db:${h2db_version}")
     api("org.apache.commons:commons-dbcp2:2.13.0")

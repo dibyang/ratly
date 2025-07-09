@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
-import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.Executor;
@@ -29,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class JdbcConnection implements Connection {
   static final Logger LOG = LoggerFactory.getLogger(JdbcConnection.class);
+  public static final String DB = "db";
 
   private final String url;
   private final JdbcConnectionInfo ci;
@@ -73,7 +73,7 @@ public class JdbcConnection implements Connection {
   QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(DB)
           .setMsg( fasts.asByteString(queryRequest))
           .build();
       RaftClientReply reply =
@@ -173,7 +173,7 @@ public class JdbcConnection implements Connection {
     checkClose();
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(DB)
           .setMsg(fasts.asByteString(updateRequest))
           .build();
       RaftClientReply reply =

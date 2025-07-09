@@ -1,6 +1,5 @@
 package net.xdob.ratly.jdbc.sql;
 
-import org.h2.message.DbException;
 
 import java.io.Serializable;
 import java.sql.ParameterMetaData;
@@ -37,9 +36,9 @@ public class SerialParameterMetaData implements ParameterMetaData, Serializable 
     return parameters.size();
   }
 
-  private ParamMetaData getParameter(int param) {
+  private ParamMetaData getParameter(int param) throws SQLException {
     if (param < 1 || param > parameters.size()) {
-      throw DbException.getInvalidValueException("param", param);
+      throw new SQLException("param index error:"+param);
     }
     return parameters.get(param - 1);
   }
@@ -91,7 +90,7 @@ public class SerialParameterMetaData implements ParameterMetaData, Serializable 
       if (isWrapperFor(iface)) {
         return (T) this;
       }
-      throw DbException.getInvalidValueException("iface", iface);
+      throw new SQLException("iface invalid :"+iface);
     } catch (Exception e) {
       throw new SQLException(e);
     }

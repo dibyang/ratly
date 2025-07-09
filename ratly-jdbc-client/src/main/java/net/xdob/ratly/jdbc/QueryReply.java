@@ -4,7 +4,6 @@ import net.xdob.ratly.jdbc.sql.SerialParameterMetaData;
 import net.xdob.ratly.jdbc.sql.SerialResultSetMetaData;
 
 import java.io.Serializable;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class QueryReply implements Serializable {

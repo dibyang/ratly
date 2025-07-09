@@ -133,6 +133,17 @@ class FollowerState extends Daemon {
             && server.isRunning();
   }
 
+  /**
+   * 这段代码实现了 Raft 协议中 Follower 的选举超时检测逻辑，用于触发 Leader 选举。
+   * 具体逻辑如下：
+   *   1. 获取当前的选举超时时间和睡眠偏差阈值；
+   *   2. 循环运行，直到 shouldRun() 返回 false；
+   *   3. 每次循环尝试休眠一个随机的选举超时时间；
+   *   4. 如果实际休眠时间超过阈值，记录警告并继续下一次循环；
+   *   5. 若休眠后不再应继续运行，则退出循环；
+   *   6. 检查是否满足切换为 Candidate 的条件；
+   *   7. 若满足条件，则切换角色为 Candidate 并结束循环。
+   */
   private void runImpl() {
     final TimeDuration sleepDeviationThreshold = server.getSleepDeviationThreshold();
     while (shouldRun()) {

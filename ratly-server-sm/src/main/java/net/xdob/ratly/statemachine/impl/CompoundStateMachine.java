@@ -128,9 +128,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
     isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
-    if(!isLeader) {
-      fireLeaderStateEvent(false);
-    }
+    fireLeaderStateEvent(isLeader);
     leaderChangedFuture.complete(newLeaderId);
   }
 
@@ -145,11 +143,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
   }
 
-
-  @Override
-  public void notifyLeaderReady() {
-    fireLeaderStateEvent(true);
-  }
 
   @Override
   public CompletableFuture<Message> query(Message request) {
@@ -342,5 +335,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   public PasswordEncoder getPasswordEncoder() {
     return passwordEncoder;
   }
+
 
 }

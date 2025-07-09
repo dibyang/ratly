@@ -2,8 +2,6 @@ package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Maps;
 import net.xdob.ratly.jdbc.exception.SessionIdAlreadyExistsException;
-import net.xdob.ratly.security.Base58;
-import net.xdob.ratly.util.Finder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +92,7 @@ public class DefaultSessionMgr implements SessionMgr{
     List<Session> timeoutSessions = sessions.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
         .collect(Collectors.toList());
     for (Session session : timeoutSessions) {
-      closeSession(session.getId());
+      context.closeSession(session.getId());
     }
   }
 }

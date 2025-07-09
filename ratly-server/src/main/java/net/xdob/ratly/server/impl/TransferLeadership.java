@@ -181,6 +181,15 @@ public class TransferLeadership {
     return Result.SUCCESS;
   }
 
+  /**
+   * 向指定的跟随者发送领导选举请求，以实现领导权转移。其核心逻辑如下：
+   *  1. 获取当前服务器的最后一条日志条目 lastEntry。
+   *  2. 检查目标跟随者是否已同步最新数据（通过 isFollowerUpToDate）；若未同步，则返回相应错误结果。
+   *  3. 构建 StartLeaderElectionRequestProto 请求对象，包含当前服务器ID、目标跟随者ID及最后日志条目。
+   *  4. 异步发送领导选举请求，并记录指标和日志。
+   *  5. 若异步调用已异常完成，捕获异常并返回封装后的错误结果。
+   *  6. 否则返回 Result.SUCCESS 表示请求已成功发起。
+   */
   private Result sendStartLeaderElection(FollowerInfo follower) {
     final TermIndex lastEntry = server.getState().getLastEntry();
 
@@ -236,6 +245,15 @@ public class TransferLeadership {
     }
   }
 
+  /**
+   * 尝试将领导权转移给指定的跟随者（transferee）。其逻辑如下：
+   *  1. 获取待转移节点的 ID 和日志追加器（LogAppender）。
+   *  2. 如果 LogAppender 为空，返回错误结果。
+   *  3. 获取对应的 FollowerInfo 并发送 StartLeaderElection 请求。
+   *  4. 根据发送结果：
+   *     若成功，记录日志表示目标节点已拥有最新日志。
+   *     若失败且因日志未同步，则通知 LogAppender 发送 AppendEntries 以追赶日志。
+   */
   private Result tryTransferLeadership(Context context) {
     final RaftPeerId transferee = context.getTransfereeId();
     LOG.info("{}: start transferring leadership to {}", server.getMemberId(), transferee);
@@ -271,6 +289,14 @@ public class TransferLeadership {
     return start(context);
   }
 
+  /**
+   * 主要功能如下：
+   * 获取或创建一个用于处理当前请求的 PendingRequest。
+   * 如果已有挂起的请求，则基于已有请求返回结果。
+   * 在转移前禁用租约（lease）。
+   * 尝试进行领导权转移，根据尝试结果决定是否完成请求或设置超时。
+   * 若转移失败，在最终完成后恢复之前的租约状态。
+   */
   private CompletableFuture<RaftClientReply> start(Context context) {
     final TransferLeadershipRequest request = context.getRequest();
     final MemoizedSupplier<PendingRequest> supplier = JavaUtils.memoize(() -> new PendingRequest(request));

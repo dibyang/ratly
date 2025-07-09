@@ -3,7 +3,6 @@ package net.xdob.ratly.jdbc;
 import com.google.common.base.Stopwatch;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
-import net.xdob.ratly.jdbc.exception.SessionIdAlreadyExistsException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;

@@ -1834,6 +1834,16 @@ class RaftServerImpl implements Division,
     return true;
   }
 
+  /**
+   * 该函数的功能是处理来自其他节点的发起领导选举请求，其核心逻辑如下：
+   *   1. 解析请求中的领导者ID、组ID及日志信息；
+   *   2. 若请求缺少领导者日志条目，则记录警告并返回拒绝响应；
+   *   3. 校验当前节点生命周期状态为运行中且所属组一致；
+   *   4. 再次确认生命周期状态为启动或运行，并验证领导者身份及任期是否匹配；
+   *   5. 若当前角色不是跟随者（Follower）或日志落后于领导者，则拒绝请求；
+   *   6. 否则转换角色为候选人（Candidate），触发选举流程并返回成功响应。
+   *
+   */
   @Override
   public StartLeaderElectionReplyProto startLeaderElection(StartLeaderElectionRequestProto request) throws IOException {
     final RaftRpcRequestProto r = request.getServerRequest();
@@ -1848,7 +1858,7 @@ class RaftServerImpl implements Division,
     }
 
     final TermIndex leaderLastEntry = TermIndex.valueOf(request.getLeaderLastEntry());
-    LOG.debug("{}: receive startLeaderElection from {} with lastEntry {}", getMemberId(), leaderId, leaderLastEntry);
+    LOG.info("{}: receive startLeaderElection from {} with lastEntry {}", getMemberId(), leaderId, leaderLastEntry);
 
     assertLifeCycleState(LifeCycle.States.RUNNING);
     assertGroup(getMemberId(), leaderId, leaderGroupId);

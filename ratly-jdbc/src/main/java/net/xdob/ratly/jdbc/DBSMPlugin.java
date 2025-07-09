@@ -110,6 +110,11 @@ public class DBSMPlugin implements SMPlugin {
       public void updateDbs() {
         saveDbs();
       }
+
+      @Override
+      public void closeSession(String sessionId) {
+
+      }
     };
   }
 
@@ -216,9 +221,6 @@ public class DBSMPlugin implements SMPlugin {
     }
     return queryReply;
   }
-
-
-
 
   @Override
   public Object applyTransaction(TermIndex termIndex, ByteString msg) throws SQLException {

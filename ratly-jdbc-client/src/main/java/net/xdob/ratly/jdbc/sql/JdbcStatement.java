@@ -8,7 +8,6 @@ import net.xdob.ratly.protocol.SerialSupport;
 import org.h2.message.DbException;
 
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -61,7 +60,7 @@ public class JdbcStatement implements Statement {
   protected QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(JdbcConnection.DB)
           .setMsg(sqlClient.getFasts().asByteString(queryRequest))
           .build();
       RaftClientReply reply =
@@ -157,7 +156,7 @@ public class JdbcStatement implements Statement {
     checkClose();
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(JdbcConnection.DB)
           .setMsg(sqlClient.getFasts().asByteString(updateRequest))
           .build();
       RaftClientReply reply =
@@ -186,7 +185,7 @@ public class JdbcStatement implements Statement {
     checkClose();
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(JdbcConnection.DB)
           .setMsg(sqlClient.getFasts().asByteString(updateRequest))
           .build();
       RaftClientReply reply =

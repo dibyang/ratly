@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
 
 public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
+
   static Logger LOG = LoggerFactory.getLogger(DatabaseMetaDataInvocationHandler.class);
   private final Version driverVersion = Version.CURRENT;
   private SqlClient client;
@@ -89,7 +89,7 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
   protected QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
     try {
       WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DBSMPlugin.DB)
+          .setType(JdbcConnection.DB)
           .setMsg(client.getFasts().asByteString(queryRequest))
           .build();
       RaftClientReply reply =

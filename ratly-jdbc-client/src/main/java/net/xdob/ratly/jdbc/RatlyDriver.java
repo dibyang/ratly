@@ -1,6 +1,8 @@
 package net.xdob.ratly.jdbc;
 
-import net.xdob.ratly.jdbc.sql.*;
+import net.xdob.ratly.jdbc.sql.AbstractDriver;
+import net.xdob.ratly.jdbc.sql.JdbcConnection;
+import net.xdob.ratly.jdbc.sql.JdbcConnectionInfo;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.slf4j.Logger;
