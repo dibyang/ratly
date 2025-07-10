@@ -100,6 +100,15 @@ class PendingRequests {
       raftServerMetrics.addNumPendingRequestsMegaByteSize(resource::getMegaByteSize);
     }
 
+    /**
+     * 该函数尝试为一个消息获取资源许可，用于控制请求的并发数量和内存大小限制：
+     *   1. 获取消息大小并转换为MB单位；
+     *   2. 调用 `resource.tryAcquire` 尝试申请资源；
+     *   3. 如果因元素数或字节大小限制失败，记录指标并返回 null；
+     *   4. 成功获取后更新请求总大小，并释放多余的MB资源；
+     *   5. 最后创建并返回一个 Permit 对象表示成功获取资源。
+     *
+     */
     Permit tryAcquire(Message message) {
       final int messageSize = Message.getSize(message);
       final int messageSizeMb = roundUpMb(messageSize );

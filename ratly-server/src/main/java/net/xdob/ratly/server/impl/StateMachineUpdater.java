@@ -162,6 +162,15 @@ class StateMachineUpdater implements Runnable {
     return name;
   }
 
+  /**
+   * 该方法用于持续更新状态机，直到状态变为 STOP。其主要功能如下：
+   *   1. 等待提交：调用 waitForCommit() 等待日志被提交。
+   *   2. 重载处理：如果状态是 RELOAD，则重新加载状态机。
+   *   3. 应用日志：调用 applyLog() 将已提交的日志条目应用到状态机。
+   *   4. 检查并拍快照：根据条件决定是否拍摄快照。
+   *   5. 停止判断：若满足停止条件，则执行停止操作。
+   *   6. 异常处理：捕获所有异常，记录错误，并触发服务器停止。
+   */
   @Override
   public void run() {
     for(; state != State.STOP; ) {
@@ -219,6 +228,19 @@ class StateMachineUpdater implements Runnable {
     state = State.RUNNING;
   }
 
+  /**
+   * 将日志中已提交但尚未应用到状态机的条目逐个应用到状态机中，并记录应用进度。
+   * 具体逻辑如下：
+   *   1. 获取当前已提交的日志索引 committed。
+   *   2. 循环处理从 appliedIndex + 1 开始直到没有新日志可应用或状态不是 RUNNING 或需要停止。
+   *   3. 对每个待应用的日志条目调用 raftLog.retainLog(nextIndex) 获取日志对象。
+   *   4. 若日志为 null，说明可能需要加载快照，跳出循环。
+   *   5. 使用 server.applyLogToStateMachine(next) 将日志条目异步应用到状态机。
+   *   6. 更新 appliedIndex 并确保其正确递增。
+   *   7. 如果有返回的 CompletableFuture<Message>，则加入 futures 列表并注册回调通知应用完成；否则直接通知完成。
+   *   8. 每次处理完一个日志条目后调用 next.release() 释放资源。
+   *   9. 最终返回包含所有未完成 Future 的 MemoizedSupplier。
+   */
   private MemoizedSupplier<List<CompletableFuture<Message>>> applyLog() throws RaftLogIOException {
     final MemoizedSupplier<List<CompletableFuture<Message>>> futures = MemoizedSupplier.valueOf(ArrayList::new);
     final long committed = raftLog.getLastCommittedIndex();

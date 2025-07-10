@@ -74,6 +74,19 @@ class WatchRequests {
       return index;
     }
 
+    /**
+     * 该函数 add 的功能是将一个 Raft 客户端的 watch 请求加入到 watch 队列中，
+     * 并在满足条件或超时后返回结果。具体逻辑如下：
+     *   1. 计算当前时间和超时时间：基于系统纳秒时间，计算出向上取整的超时时间节点。
+     *   2. 创建 PendingWatch 对象：封装请求和超时时间。
+     *   3. 检查是否已满足条件：若当前队列的 index 已大于等于 pending 的 index，则直接返回已完成的 Future。
+     *   4. 尝试入队与资源控制：
+     *      使用 TreeMap.compute 确保唯一性；
+     *      通过 ResourceSemaphore 控制并发资源，若无法获取资源（队列满），则记录指标并返回异常。
+     *   5. 处理重复请求：如果该 pending 已存在，则返回其 Future。
+     *   6. 注册超时处理：若为新加入项，设置超时回调以触发 handleTimeout 方法。
+     *   7. 返回 Future：供调用者监听完成结果。
+     */
     CompletableFuture<Long> add(RaftClientRequest request) {
       final long currentTime = Timestamp.currentTimeNanos();
       final long roundUp = watchTimeoutDenominationNanos.roundUpNanos(currentTime);
@@ -183,6 +196,14 @@ class WatchRequests {
         new WatchQueue(r, elementLimit, raftServerMetrics)));
   }
 
+  /**
+   * 该函数用于将客户端的 Watch 请求添加到对应的队列中，并判断是否需要异步等待：
+   *   1. 从请求中提取 Watch 类型及其配置（如复制级别 replication）；
+   *   2. 根据 replication 找到对应的 WatchQueue 队列；
+   *   3. 获取当前队列的最新索引 queueIndex；
+   *   4. 如果请求中的索引 watch.getIndex() ≤ queueIndex，表示条件已满足，直接返回已完成的 Future；
+   *   5. 否则，将请求加入队列，并返回一个异步 Future，后续会在条件满足时被唤醒。
+   */
   CompletableFuture<Long> add(RaftClientRequest request) {
     final WatchRequestTypeProto watch = request.getType().getWatch();
     final WatchQueue queue = queues.get(watch.getReplication());

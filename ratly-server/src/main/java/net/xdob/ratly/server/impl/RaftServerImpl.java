@@ -858,14 +858,25 @@ class RaftServerImpl implements Division,
   }
 
   /**
-   * Append a transaction to the log for processing a client request.
-   * Note that the given request could be different from {@link TransactionContext#getClientRequest()}
-   * since the request could be converted; see {@link #convertRaftClientRequest(RaftClientRequest)}.
-   *
-   * @param request The client request.
-   * @param context The context of the transaction.
-   * @param cacheEntry the entry in the retry cache.
-   * @return a future of the reply.
+   * 将一个事务追加到日志中，以处理客户端请求。
+   * 注意，给定的请求可能与 {@link TransactionContext#getClientRequest()} 不同，
+   * 因为请求可能会被转换；参见 {@link #convertRaftClientRequest(RaftClientRequest)}。
+   * 其核心逻辑如下：
+   *   1. 参数校验与调试注入：检查请求非空，并允许测试时注入代码。
+   *   2. 状态检查：通过 checkLeaderState 确保当前节点是合法的 Leader，否则返回错误响应。
+   *   3. 获取 Leader 状态：确保当前节点处于 Leader 角色，并准备写入日志。
+   *   4. 资源许可控制：尝试获取写入许可（PendingRequests.Permit），失败则返回资源不可用异常。
+   *   5. 日志追加：调用 state.appendLog(context) 将事务上下文写入日志。
+   *   6. 异常处理：
+   *      若发生 StateMachineException，构造异常响应并提交 Leader 下台事件（如需）。
+   *      若发生 ServerNotReadyException，直接返回服务未就绪异常。
+   *   7. 添加待处理请求：将请求和上下文封装为 PendingRequest 并加入队列。
+   *   8. 通知发送者：触发日志复制流程。
+   *   9. 返回结果：返回 pending.getFuture()，等待后续日志提交完成后的响应。
+   * @param request 客户端请求。
+   * @param context 事务的上下文。
+   * @param cacheEntry 重试缓存中的条目。
+   * @return 回复的 Future 对象。
    */
   private CompletableFuture<RaftClientReply> appendTransaction(
       RaftClientRequest request, TransactionContextImpl context, CacheEntry cacheEntry) {
@@ -908,7 +919,7 @@ class RaftServerImpl implements Division,
         return CompletableFuture.completedFuture(exceptionReply);
       }
 
-      // put the request into the pending queue
+      // 将请求放入待处理队列中
       pending = leaderState.addPendingRequest(permit, request, context);
       if (pending == null) {
         cacheEntry.failWithException(new ResourceUnavailableException(
@@ -980,7 +991,14 @@ class RaftServerImpl implements Division,
   }
 
   /**
-   * 提交一个客户端发送过来的请求给处理服务器。
+   * 该函数 submitClientRequestAsync 的作用是异步处理客户端提交的 Raft 请求，
+   * 其主要功能如下：
+   *   1. 保留请求引用并记录日志：通过 requestRef.retain() 保留请求对象，防止在处理过程中被释放，并记录调试日志。
+   *   2. 检查服务器生命周期状态：调用 assertLifeCycleState(LifeCycle.States.RUNNING) 确保服务器处于运行状态，否则构造异常响应返回给客户端。
+   *   3. 启动性能计时器：根据请求类型获取对应的指标计时器（如读、写等），用于统计请求耗时。
+   *   4. 执行请求处理链：调用 replyFuture(requestRef) 启动实际的请求处理流程，返回一个包含响应的 CompletableFuture。
+   *   5. 完成时停止计时与错误统计：无论请求成功或失败，都会停止计时器，并在发生异常时增加失败计数器。
+   *   6. 最终释放请求资源：在 finally 块中调用 requestRef.release() 释放请求引用。
    */
   @Override
   public CompletableFuture<RaftClientReply> submitClientRequestAsync(
@@ -1033,6 +1051,15 @@ class RaftServerImpl implements Division,
     }
   }
 
+  /**
+   * 该函数 writeAsync 的作用是异步处理写请求，
+   * 并根据复制级别决定是否等待特定的复制完成：
+   *   1. 获取请求对象：从引用中获取实际的 RaftClientRequest 请求。
+   *   2. 执行写操作：调用 writeAsyncImpl 执行实际的异步写逻辑。
+   *   3. 检查复制级别：
+   *      如果请求是写操作且复制级别不是 MAJORITY，则继续调用 waitForReplication 等待指定复制级别达成。
+   *   4. 返回结果：最终返回带有写结果或复制完成后的响应的 CompletableFuture
+   */
   private CompletableFuture<RaftClientReply> writeAsync(ReferenceCountedObject<RaftClientRequest> requestRef) {
     final RaftClientRequest request = requestRef.get();
     final CompletableFuture<RaftClientReply> future = writeAsyncImpl(requestRef);
@@ -1046,6 +1073,13 @@ class RaftServerImpl implements Division,
     return future;
   }
 
+  /**
+   * 该函数的主要流程如下：
+   *   1. 检查领导状态：若节点不是Leader或处于不可用状态，返回对应的异常响应。
+   *   2. 查询重试缓存：如果请求来自重试，直接返回缓存中的结果。
+   *   3. 启动事务：调用状态机开始处理事务，若失败则记录异常并返回错误响应。
+   *   4. 提交事务：将请求、上下文和缓存条目一起提交到日志中进行后续处理。
+   */
   private CompletableFuture<RaftClientReply> writeAsyncImpl(ReferenceCountedObject<RaftClientRequest> requestRef) {
     final RaftClientRequest request = requestRef.get();
     final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);
@@ -1903,11 +1937,20 @@ class RaftServerImpl implements Division,
     role.getLeaderState().ifPresent(LeaderStateImpl::submitUpdateCommitEvent);
   }
 
+
   /**
-   * The log has been submitted to the state machine. Use the future to update
-   * the pending requests and retry cache.
-   * @param stateMachineFuture the future returned by the state machine
-   *                           from which we will get transaction result later
+   * 该函数的主要功能是处理状态机返回的结果，并据此更新待处理请求和重试缓存。
+   * 具体逻辑如下：
+   *   1. 获取或创建缓存条目：根据客户端调用ID从重试缓存中获取或创建一个条目。
+   *   2. 日志警告与缓存刷新：
+   *      - 如果当前节点是Leader且缓存条目已完成，输出警告。
+   *      - 如果缓存条目标记为失败，则刷新该缓存条目。
+   *   3. 处理状态机结果：
+   *      - 当状态机异步操作完成时：
+   *      - 移除事务管理器中的对应事务。
+   *      - 构建响应对象，若无异常则设置成功状态及响应数据；否则封装为 StateMachineException。
+   *      - 更新Leader的待处理请求并更新缓存结果。
+   *
    */
   private CompletableFuture<Message> replyPendingRequest(
       ClientInvocationId invocationId, TermIndex termIndex, CompletableFuture<Message> stateMachineFuture) {
@@ -1993,7 +2036,7 @@ class RaftServerImpl implements Division,
       try {
         // Let the StateMachine inject logic for committed transactions in sequential order.
         trx = stateMachine.applyTransactionSerial(trx);
-
+        //异步应用事务到状态机，并通过 replyPendingRequest 处理响应和异常。
         final CompletableFuture<Message> stateMachineFuture = stateMachine.applyTransaction(trx);
         messageFuture = replyPendingRequest(invocationId, TermIndex.valueOf(next), stateMachineFuture);
       } catch (Exception e) {
