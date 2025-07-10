@@ -1286,6 +1286,17 @@ class RaftServerImpl implements Division,
     return transferLeadership.isSteppingDown();
   }
 
+  /**
+   * 该函数的作用是异步地将 Raft 集群中的领导权转移给指定的节点（request.getNewLeader()）。
+   * 其主要逻辑如下：
+   *   1. 如果新领导者为空，则执行下台当前领导的操作。
+   *   2. 检查服务器生命周期状态是否为运行中，并验证请求的组一致性。
+   *   3. 检查当前节点是否为 Leader，若不是则返回错误。
+   *   4. 确保没有正在进行的配置变更（reconfiguration）。
+   *   5. 确保目标节点存在于当前配置中。
+   *   6. 确保目标节点具有最高优先级。
+   *   7. 若所有条件满足，则调用 transferLeadership.start() 开始领导权转移。
+   */
   CompletableFuture<RaftClientReply> transferLeadershipAsync(TransferLeadershipRequest request)
       throws IOException {
     if (request.getNewLeader() == null) {
