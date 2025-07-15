@@ -81,12 +81,13 @@ class RaftServerProxy implements RaftServer {
   }
 
   /**
-   * A map: {@link RaftGroupId} -> {@link RaftServerImpl} futures.
+   * 一个映射：{@link RaftGroupId} -> {@link RaftServerImpl} 的Future对象。
    * <p>
-   * The map is synchronized for mutations and the bulk {@link #getGroupIds()}/{@link #getAll()} methods
-   * but the (non-bulk) {@link #get(RaftGroupId)} and {@link #containsGroup(RaftGroupId)} methods are not.
-   * The thread safety and atomicity guarantees for the non-bulk methods are provided by {@link ConcurrentMap}.
+   * 该映射在进行修改以及批量的 {@link #getGroupIds()}/{@link #getAll()} 方法时是同步的，
+   * 但（非批量的）{@link #get(RaftGroupId)} 和 {@link #containsGroup(RaftGroupId)} 方法则不是。
+   * 非批量方法的线程安全性和原子性保证由 {@link ConcurrentMap} 提供。
    */
+
   class ImplMap implements Closeable {
     private final ConcurrentMap<RaftGroupId, CompletableFuture<RaftServerImpl>> map = new ConcurrentHashMap<>();
     private boolean isClosed = false;

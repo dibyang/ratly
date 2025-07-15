@@ -272,6 +272,14 @@ class LeaderStateImpl implements LeaderState {
     }
   }
 
+  /**
+   * 该内部类 StartupLogEntry 用于记录领导者启动时的日志索引和控制领导者是否就绪的状态。
+   *   1. startIndex：在Leader启动时，将当前配置写入日志，并记录该日志条目的索引。
+   *   2. appliedIndexFuture：未来会在该日志被应用后完成此 Future。
+   *   3. getAppliedIndexFuture()：返回该 Future，供外部等待日志被应用。
+   *   4. checkStartIndex()：判断传入的日志条目是否为启动日志条目，若是，则完成 Future 并标记 Leader 已就绪。
+   *   5. isApplied()：通过 JavaUtils.isCompletedNormally() 检查日志是否已正常应用。
+   */
   private class StartupLogEntry {
     /** The log index at leader startup. */
     private final long startIndex = appendConfiguration(RaftConfigurationImpl.newBuilder()

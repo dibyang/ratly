@@ -1,29 +1,15 @@
 import net.researchgate.release.GitAdapter
 
-buildscript {
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url 'https://maven.aliyun.com/repository/public/' }
-    }
-    dependencies {
-        classpath 'net.researchgate:gradle-release:2.6.0'
-    }
-    //skip Test tasks
-    gradle.taskGraph.whenReady {
-        tasks.each { task ->
-            if (task.name.contains("test")) {
-                task.enabled = false
-            }
-        }
-    }
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'signing'
+    id 'net.researchgate.release' version('2.6.0')
 }
 
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
-apply plugin: 'net.researchgate.release'
-
+tasks.withType(Test).configureEach {
+    enabled = false
+}
 
 /**
  * signing.properties 文件内容示例如下
@@ -89,7 +75,6 @@ subprojects {
     apply plugin: "java-library"
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
-
 
 
     configurations.configureEach {
