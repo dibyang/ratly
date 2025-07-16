@@ -10,10 +10,7 @@ public interface SessionMgr {
    */
   Session newSession(SessionRequest sessionRequest, ConnSupplier connSupplier) throws SQLException;
 
-  /**
-   * 打开非托管的session
-   */
-  Session getOrOpenSession(String sessionId, ConnSupplier connSupplier) throws SQLException;
+
   Optional<Session> getSession(String id);
   List<Session> getAllSessions();
   Session removeSession(String sessionId);

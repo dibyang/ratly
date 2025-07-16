@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 public class Session implements AutoCloseable {
   static final Logger LOG = LoggerFactory.getLogger(Session.class);
+  private final String db;
   private final String user;
   private final String id;
   private final Consumer<String> closed;
@@ -19,6 +20,7 @@ public class Session implements AutoCloseable {
   private transient volatile long accessTime = System.nanoTime();
 
   public Session(SessionRequest request, ConnSupplier connSupplier, Consumer<String> closed) {
+    this.db = request.getDb();
     this.user = request.getUser();
     this.id = request.toSessionId();
     this.connSupplier = connSupplier;
@@ -40,6 +42,10 @@ public class Session implements AutoCloseable {
    */
   public long getAccessTimeOffset(){
     return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - accessTime);
+  }
+
+  public String getDb() {
+    return db;
   }
 
   public String getId() {

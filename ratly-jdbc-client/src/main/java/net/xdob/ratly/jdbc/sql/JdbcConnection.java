@@ -60,7 +60,7 @@ public class JdbcConnection implements Connection {
         .setDb(ci.getDb())
         .setSender(Sender.connection)
         .setType(UpdateType.openSession)
-        .setSession(ci.getUser())
+        .setUser(ci.getUser())
         .setPassword(rsaHelper.encrypt(ci.getPassword()));
     UpdateReply updateReplyProto = sendUpdate(updateRequest);
     if(updateReplyProto.getEx()!=null){

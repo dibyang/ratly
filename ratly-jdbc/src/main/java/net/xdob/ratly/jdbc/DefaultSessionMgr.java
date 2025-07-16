@@ -36,20 +36,7 @@ public class DefaultSessionMgr implements SessionMgr{
     }
   }
 
-  @Override
-  public Session getOrOpenSession(String sessionId, ConnSupplier connSupplier) throws SQLException {
-    synchronized (sessions) {
-      Session session = getSession(sessionId).orElse(null);
-      if(session==null) {
-        SessionRequest request = SessionRequest.fromSessionId(sessionId);
-        session = new Session(request, connSupplier, this::removeSession);
-        session.updateAccessTime();
-        sessions.put(session.getId(), session);
-        //LOG.info("open session={}", sessionId);
-      }
-      return session;
-    }
-  }
+
 
   @Override
   public Optional<Session> getSession(String sessionId) {
@@ -92,7 +79,7 @@ public class DefaultSessionMgr implements SessionMgr{
     List<Session> timeoutSessions = sessions.values().stream().filter(e -> e.getAccessTimeOffset() > TIME_OUT)
         .collect(Collectors.toList());
     for (Session session : timeoutSessions) {
-      context.closeSession(session.getId());
+      context.closeSession(session.getDb(), session.getId());
     }
   }
 }

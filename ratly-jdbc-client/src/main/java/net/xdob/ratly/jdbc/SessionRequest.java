@@ -6,6 +6,16 @@ import net.xdob.ratly.util.Finder;
 public class SessionRequest {
 	private String uid;
 	private String user;
+	private String db;
+
+	public String getDb() {
+		return db;
+	}
+
+	public SessionRequest setDb(String db) {
+		this.db = db;
+		return this;
+	}
 
 	public String getUid() {
 		return uid;
@@ -29,17 +39,18 @@ public class SessionRequest {
 		return user + "$" + uid;
 	}
 
-	public static SessionRequest of(String user, String uid){
-		return new SessionRequest().setUser(user).setUid(uid);
+	public static SessionRequest of(String db, String user, String uid){
+		return new SessionRequest().setDb(db).setUser(user).setUid(uid);
 	}
 
-	public static SessionRequest fromSessionId(String sessionId){
+	public static SessionRequest fromSessionId(String db, String sessionId){
 		Finder finder = Finder.c(sessionId);
 		String user = finder.head("$").getValue();
 		String uid = finder.tail("$").getValue();
 		SessionRequest req = new SessionRequest();
 		req.setUid(uid);
 		req.setUser(user);
+		req.setDb(db);
 		return req;
 	}
 }

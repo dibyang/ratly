@@ -112,8 +112,8 @@ public class DBSMPlugin implements SMPlugin {
       }
 
       @Override
-      public void closeSession(String sessionId) {
-
+      public void closeSession(String db, String sessionId) {
+        //暂时没有实现
       }
     };
   }

@@ -261,7 +261,7 @@ public class InnerDb {
   public void applyTransaction(UpdateRequest updateRequest, TermIndex termIndex, UpdateReply updateReply) throws SQLException {
 
     if(updateRequest.getType()==UpdateType.openSession){
-      SessionRequest sessionRequest = SessionRequest.of(updateRequest.getUser(), String.valueOf(termIndex.getIndex()));
+      SessionRequest sessionRequest = SessionRequest.of(updateRequest.getDb(), updateRequest.getUser(), String.valueOf(termIndex.getIndex()));
       String user = sessionRequest.getUser();
       String password = context.getRsaHelper().decrypt(updateRequest.getPassword());
       DbUser dbUser = getDbInfo().getUser(user).orElse(null);
@@ -424,6 +424,7 @@ public class InnerDb {
     }
     File sessionFile = snapshotFile.toPath().resolveSibling(getName() + SESSIONS_JSON_EXT).toFile();
     List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
+        .sorted(Comparator.comparing(e->e))
         .collect(Collectors.toList());
     N3Map n3Map = new N3Map();
     n3Map.put(SESSIONS_KEY, sessionIds);
@@ -474,7 +475,7 @@ public class InnerDb {
           List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
           for (String sessionId : sessionIds) {
             try {
-              sessionMgr.newSession(SessionRequest.fromSessionId(sessionId), dataSource::getConnection);
+              sessionMgr.newSession(SessionRequest.fromSessionId(dbInfo.getName(), sessionId), dataSource::getConnection);
             } catch (SQLException e) {
               LOG.warn("node {} newSession error.", context.getPeerId(), e);
             }

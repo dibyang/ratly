@@ -1131,7 +1131,6 @@ class LeaderStateImpl implements LeaderState {
                                 .elapsedTimeMs() <= server.getMaxTimeoutMs())
         .map(LogAppender::getFollowerId)
         .collect(Collectors.toList());
-
     final RaftConfiguration conf = server.getRaftConf();
     if (conf.hasMajority(activePeers, server.getId())) {
       // leadership check passed
