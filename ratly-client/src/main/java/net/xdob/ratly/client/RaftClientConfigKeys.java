@@ -26,7 +26,7 @@ public interface RaftClientConfigKeys {
     String PREFIX = RaftClientConfigKeys.PREFIX + ".rpc";
 
     String REQUEST_TIMEOUT_KEY = PREFIX + ".request.timeout";
-    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(3, TimeUnit.SECONDS);
+    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(30, TimeUnit.SECONDS);
     static TimeDuration requestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(REQUEST_TIMEOUT_DEFAULT.getUnit()),
           REQUEST_TIMEOUT_KEY, REQUEST_TIMEOUT_DEFAULT, getDefaultLog());

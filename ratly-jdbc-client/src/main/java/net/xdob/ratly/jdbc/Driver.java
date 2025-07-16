@@ -12,11 +12,11 @@ import java.sql.*;
 import java.util.Properties;
 
 
-public final class RatlyDriver extends AbstractDriver
+public final class Driver extends AbstractDriver
 {
 
-	private static final Logger logger = LoggerFactory.getLogger(RatlyDriver.class);
-	static final RatlyDriver INSTANCE = new RatlyDriver();
+	private static final Logger logger = LoggerFactory.getLogger(Driver.class);
+	static final Driver INSTANCE = new Driver();
 	public static final String START_URL = "jdbc:ratly:";
 	public static final String URL_FORMAT = START_URL+":{db}:group={group};peers={peers}";
 
@@ -57,7 +57,7 @@ public final class RatlyDriver extends AbstractDriver
 		return null;
 	}
 
-	public static synchronized RatlyDriver load() {
+	public static synchronized Driver load() {
 		try {
 			if (!registered) {
 				registered = true;

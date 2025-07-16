@@ -8,12 +8,9 @@ import net.xdob.ratly.grpc.GrpcFactory;
 import net.xdob.ratly.jdbc.*;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.protocol.*;
-import net.xdob.ratly.retry.RetryLimited;
 import net.xdob.ratly.retry.RetryPolicies;
-import net.xdob.ratly.security.Base58;
+import net.xdob.ratly.retry.RetryPolicy;
 import net.xdob.ratly.security.RsaHelper;
-import net.xdob.ratly.security.crypto.factory.PasswordEncoderFactories;
-import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
 import org.slf4j.Logger;
@@ -50,23 +47,26 @@ public class JdbcConnection implements Connection {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     builder.setRaftGroup(raftGroup);
-    RetryLimited retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(20,
+    RetryPolicy retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(20,
         TimeDuration.ONE_SECOND);
     builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     client = builder.build();
-    SessionRequest sessionRequest = SessionRequest.of(ci.getUser(), Base58.encode(UUID.randomUUID()));
+    session = openSession();
+  }
+
+  private String openSession() throws SQLException {
     UpdateRequest updateRequest = new UpdateRequest()
         .setDb(ci.getDb())
         .setSender(Sender.connection)
         .setType(UpdateType.openSession)
-        .setSession(sessionRequest.toSessionId())
+        .setSession(ci.getUser())
         .setPassword(rsaHelper.encrypt(ci.getPassword()));
     UpdateReply updateReplyProto = sendUpdate(updateRequest);
     if(updateReplyProto.getEx()!=null){
       throw updateReplyProto.getEx();
     }
-    session = sessionRequest.toSessionId();
+		return updateReplyProto.getSessionId();
   }
 
 

@@ -261,8 +261,7 @@ public class InnerDb {
   public void applyTransaction(UpdateRequest updateRequest, TermIndex termIndex, UpdateReply updateReply) throws SQLException {
 
     if(updateRequest.getType()==UpdateType.openSession){
-      String sessionId = updateRequest.getSession();
-      SessionRequest sessionRequest = SessionRequest.fromSessionId(sessionId);
+      SessionRequest sessionRequest = SessionRequest.of(updateRequest.getUser(), String.valueOf(termIndex.getIndex()));
       String user = sessionRequest.getUser();
       String password = context.getRsaHelper().decrypt(updateRequest.getPassword());
       DbUser dbUser = getDbInfo().getUser(user).orElse(null);
@@ -279,7 +278,8 @@ public class InnerDb {
           }
         }
       }
-      sessionMgr.newSession(sessionRequest, dataSource::getConnection);
+      Session session = sessionMgr.newSession(sessionRequest, dataSource::getConnection);
+      updateReply.setSessionId(session.getId());
     }else if(updateRequest.getType()==UpdateType.closeSession){
       String sessionId = updateRequest.getSession();
       sessionMgr.closeSession(sessionId);

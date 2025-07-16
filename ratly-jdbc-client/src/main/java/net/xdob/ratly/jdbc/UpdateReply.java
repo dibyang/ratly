@@ -15,6 +15,7 @@ public class UpdateReply implements Serializable {
   private final List<Long> counts =  new ArrayList<>();
   private final List<ResultSet> rsList =  new ArrayList<>();
   private JdbcSavepoint savepoint;
+  private String sessionId;
 
   public SQLException getEx() {
     return ex;
@@ -60,4 +61,12 @@ public class UpdateReply implements Serializable {
     return this;
   }
 
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  public UpdateReply setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+    return this;
+  }
 }
