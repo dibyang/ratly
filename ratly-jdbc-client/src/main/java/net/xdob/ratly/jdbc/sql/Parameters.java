@@ -1,26 +1,17 @@
 package net.xdob.ratly.jdbc.sql;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
 
 public class Parameters implements Serializable {
-  private final ArrayList<Parameter> parameters = Lists.newArrayList();
+  private final Map<Integer,Parameter> parameters = Maps.newConcurrentMap();
 
-  public Parameter computeIfAbsent(int parameterIndex, Function<Integer, Parameter> mappingFunction){
-
-    synchronized (parameters) {
-      Parameter parameter = parameters.stream().filter(e -> e.getIndex() == parameterIndex)
-          .findFirst().orElse(null);
-      if(parameter==null){
-        parameter= mappingFunction.apply(parameterIndex);
-        parameters.add(parameter);
-      }
-      return parameter;
-    }
+  public Parameter getOrCreate(int parameterIndex){
+    return parameters.computeIfAbsent(parameterIndex, Parameter::c);
   }
 
   public Parameters clear(){
@@ -29,12 +20,12 @@ public class Parameters implements Serializable {
   }
 
   public Parameters addAll(Parameters parameters){
-    this.parameters.addAll(parameters.parameters);
+    this.parameters.putAll(parameters.parameters);
     return this;
   }
 
   public List<Parameter> getParameters() {
-    return parameters;
+    return new ArrayList<>(parameters.values());
   }
 
   public boolean isEmpty(){

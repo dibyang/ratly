@@ -81,13 +81,20 @@ public class ZipUtils {
   }
 
   public static void compressFiles(String zipFilePath, String... filePaths) throws IOException {
-    compressFiles(new File(zipFilePath), Arrays.stream(filePaths)
+    compressFiles(null, new File(zipFilePath), Arrays.stream(filePaths)
         .map(File::new).toArray(File[]::new));
   }
 
   public static void compressFiles(File zipFile, File... files) throws IOException {
+    compressFiles(null, zipFile, files);
+  }
+
+  public static void compressFiles(Integer level, File zipFile, File... files) throws IOException {
     try(FileOutputStream fos = new FileOutputStream(zipFile);
         ZipOutputStream zos = new ZipOutputStream(fos)) {
+      if(level!=null&&level>=0&&level<=9){
+        zos.setLevel(level);
+      }
       for (File file : files) {
         if(file.exists()) {
           try (FileInputStream fis = new FileInputStream(file)) {

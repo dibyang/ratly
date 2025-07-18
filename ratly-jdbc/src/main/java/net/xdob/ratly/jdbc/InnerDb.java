@@ -1,6 +1,8 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.base.Stopwatch;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
@@ -15,7 +17,6 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
 import net.xdob.ratly.util.ZipUtils;
-import org.apache.commons.dbcp2.BasicDataSource;
 import org.h2.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +26,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.sql.*;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,13 +35,15 @@ import java.util.stream.Collectors;
 
 public class InnerDb {
   static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
-  public static final String DB2ZIP = "db.zip";
+
+  public static final String SESSIONS_KEY = "sessions";
+  public static final String SQL_EXT = "sql";
+  public static final String SESSIONS_JSON_EXT = "sessions.json";
+  public static final String DB_EXT = "mv.db";
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
-  public static final String SESSIONS_KEY = "sessions";
-  public static final String SQL_EXT = ".sql";
-  public static final String SESSIONS_JSON_EXT = "_sessions.json";
-  private final BasicDataSource dataSource = new BasicDataSource();
+  private final HikariConfig dsConfig = new HikariConfig();
+  private volatile HikariDataSource dataSource = null;
   private final DefaultSessionMgr sessionMgr;
 
   private final Path dbStore;
@@ -92,43 +93,30 @@ public class InnerDb {
         Driver.load();
 
         String dbPath = dbStore.resolve(getName()).toString();
-        // 基于存储目录初始化
-        String url = "jdbc:h2:file:" + dbPath;
         LOG.info("initialize db dbPath={}", dbPath);
-        dataSource.setUrl(url + ";AUTO_SERVER=TRUE");
-        dataSource.setDriverClassName("org.h2.Driver");
-        dataSource.setUsername(INNER_USER);
-        dataSource.setPassword(INNER_PASSWORD);
-        //连接验证方式超时时间
-        dataSource.setValidationQueryTimeout(Duration.ofSeconds(10));
-        //连接验证方式
-        //dataSource.setValidationQuery("SELECT 1");
-        //创建连接的时候是否进行验证
-        dataSource.setTestOnCreate(false);
-        //从连接池中获取的时候验证
-        dataSource.setTestOnBorrow(true);
-        //空闲连接进行验证
-        dataSource.setTestWhileIdle(false);
-        //换回连接池进行验证
-        dataSource.setTestOnReturn(true);
-        //设置空闲连接验证时间间隔
-        dataSource.setDurationBetweenEvictionRuns(Duration.ofSeconds(60));
-        //设置验证空闲连接的数量
-        dataSource.setNumTestsPerEvictionRun(3);
-        //设置空闲连接验证间隔（不生效的）
-        dataSource.setMinEvictableIdle(Duration.ofSeconds(600));
-        //初始化连接数量
-        dataSource.setInitialSize(4);
-        //最大连接数量
-        dataSource.setMaxTotal(16);
-        //设置默认超时时间
-        dataSource.setDefaultQueryTimeout(Duration.ofSeconds(10));
+        // 基于存储目录初始化
+        String url = "jdbc:h2:file:" + dbPath
+            + ";AUTO_SERVER=TRUE"
+            + ";QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
+
+
+        dsConfig.setJdbcUrl(url);
+        dsConfig.setUsername(INNER_USER);
+        dsConfig.setPassword(INNER_PASSWORD);
+
+        // 2. 可选：优化配置
+        dsConfig.setConnectionTimeout(30_000);    // 连接超时(ms)
+        dsConfig.setIdleTimeout(600_000);         // 空闲超时(ms)
+        dsConfig.setMaxLifetime(1_800_000);        // 最大存活时间(ms)
+        dsConfig.setMaximumPoolSize(32);         // 最大连接数
+        dsConfig.setMinimumIdle(5);              // 最小空闲连接
+        dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
 
 
         context.getScheduler().scheduleAtFixedRate(()->{
           transactionMgr.checkTimeoutTx();
         },10, 10, TimeUnit.SECONDS);
-
+        openDs();
 //        context.getScheduler().scheduleAtFixedRate(()->{
 //          sessionMgr.checkTimeout();
 //        },20, 20, TimeUnit.SECONDS);
@@ -138,6 +126,19 @@ public class InnerDb {
         initialized.set(false);
         LOG.warn("initialize failed "+ dbInfo.getName(), e);
       }
+    }
+  }
+
+  private void openDs() {
+    if(dataSource==null){
+      dataSource = new HikariDataSource(dsConfig);
+    }
+  }
+
+  private void closeDs() {
+    if(dataSource!=null){
+      dataSource.close();
+      dataSource = null;
     }
   }
 
@@ -278,6 +279,7 @@ public class InnerDb {
           }
         }
       }
+      openDs();
       Session session = sessionMgr.newSession(sessionRequest, dataSource::getConnection);
       updateReply.setSessionId(session.getId());
     }else if(updateRequest.getType()==UpdateType.closeSession){
@@ -364,6 +366,7 @@ public class InnerDb {
                        UpdateRequest updateRequest,
                        UpdateReply updateReply) throws SQLException {
     try (PreparedStatement ps = connection.prepareStatement(updateRequest.getSql())) {
+      ps.setQueryTimeout(60);
       if (!updateRequest.getBatchParams().isEmpty()) {
         for (Parameters batchParam : updateRequest.getBatchParams()) {
           setParams(ps, batchParam);
@@ -394,6 +397,7 @@ public class InnerDb {
                         UpdateRequest updateRequest,
                         UpdateReply updateReply) throws SQLException {
     try (Statement s = connection.createStatement()) {
+      s.setQueryTimeout(60);
       if (!updateRequest.getBatchSql().isEmpty()) {
         for (String sql : updateRequest.getBatchSql()) {
           s.addBatch(sql);
@@ -409,20 +413,40 @@ public class InnerDb {
     }
   }
 
-  public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
-
-    String module = getName() + "." + DB2ZIP;
-    File snapshotFile = storage.getSnapshotFile(module, last.getTerm(), last.getIndex());
-
-    File sqlFile = snapshotFile.toPath().resolveSibling(getName() + SQL_EXT).toFile();
+  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last){
+    File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
+    File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
     Stopwatch stopwatch = Stopwatch.createStarted();
-    try (Connection connection = dataSource.getConnection();
+    // 基于存储目录初始化
+    String url = "jdbc:h2:file:" + dbPath.toString()
+        + ";AUTO_SERVER=TRUE"
+        + ";QUERY_TIMEOUT=600";
+    try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
          Statement statement = connection.createStatement()) {
+      statement.setQueryTimeout(600);
       statement.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
     }catch (SQLException e){
-      throw new IOException(e);
+      LOG.warn("takeSqlSnapshot error", e);
     }
-    File sessionFile = snapshotFile.toPath().resolveSibling(getName() + SESSIONS_JSON_EXT).toFile();
+    getFileInfo(sqlFile);
+    LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
+
+  }
+
+  public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
+    List<FileInfo> infos = new ArrayList<>();
+    Stopwatch stopwatch = Stopwatch.createStarted();
+
+    File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
+    Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
+    Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    LOG.info("Taking a DB snapshot to file {}, use time:{}", dbFile.toString(), stopwatch);
+    infos.add(getFileInfo(dbFile));
+    stopwatch.reset().start();
+    context.getScheduler().submit(()->{
+      takeSqlSnapshot(storage, last);
+    });
+    File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
     List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
         .sorted(Comparator.comparing(e->e))
         .collect(Collectors.toList());
@@ -430,15 +454,17 @@ public class InnerDb {
     n3Map.put(SESSIONS_KEY, sessionIds);
     String json = Jsons.i.toJson(n3Map);
     Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
-    ZipUtils.compressFiles(snapshotFile, sqlFile, sessionFile);
-    sqlFile.delete();
-    sessionFile.delete();
-    LOG.info("Taking a DB snapshot to file {}, use time:", snapshotFile.toString(), stopwatch);
-    List<FileInfo> infos = new ArrayList<>();
-    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
-    final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
-    infos.add(info);
+    LOG.info("Taking a DB snapshot to file {}, use time:{}", sessionFile.toString(), stopwatch);
+
+    infos.add(getFileInfo(sessionFile));
+
     return infos;
+  }
+
+  private static FileInfo getFileInfo(File sessionFile) {
+    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(sessionFile);
+    final FileInfo info = new FileInfo(sessionFile.toPath(), md5);
+    return info;
   }
 
 
@@ -446,55 +472,59 @@ public class InnerDb {
     if(snapshot==null){
       return;
     }
-
-    String module = getName() + "." + DB2ZIP;
-    List<FileInfo> zipfiles = snapshot.getFiles(module);
-    if(!zipfiles.isEmpty()) {
-      FileInfo fileInfo = zipfiles.get(0);
-      final File snapshotFile = fileInfo.getPath().toFile();
-      final String snapshotFileName = snapshotFile.getPath();
-      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
-      if (md5.equals(fileInfo.getFileDigest())) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        LOG.info("restore DB snapshot from {}", snapshotFileName);
-        ZipUtils.decompressFiles(snapshotFile, snapshotFile.getParentFile());
-        File sqlFile = snapshotFile.toPath().resolveSibling(getName() + SQL_EXT).toFile();
-        if(sqlFile.exists()) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
+    if(dbfileInfo!=null) {
+      final File dbFile = dbfileInfo.getPath().toFile();
+      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(dbFile);
+      if (md5.equals(dbfileInfo.getFileDigest())) {
+        LOG.info("restore DB snapshot from {}", dbFile.getPath());
+        closeDs();
+        Files.copy(dbFile.toPath(), dbStore.resolve(getName()+ "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
+        openDs();
+      }
+    }else{
+      FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
+      if(sqlfileInfo!=null) {
+        final File sqlFile = sqlfileInfo.getPath().toFile();
+        final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(sqlFile);
+        if (md5.equals(sqlfileInfo.getFileDigest())) {
+          LOG.info("restore DB snapshot from {}", sqlFile.getPath());
           try (Connection connection = dataSource.getConnection();
                Statement statement = connection.createStatement()) {
+            statement.setQueryTimeout(600);
             statement.execute("RUNSCRIPT FROM '" + sqlFile.toString() + "'");
           } catch (SQLException e) {
             throw new IOException(e);
           }
-          sqlFile.delete();
         }
-        File sessionFile = snapshotFile.toPath().resolveSibling(getName() + SESSIONS_JSON_EXT).toFile();
-        if(sessionFile.exists()) {
-          byte[] bytes = Files.readAllBytes(sessionFile.toPath());
-          N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
-          List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
-          for (String sessionId : sessionIds) {
-            try {
-              sessionMgr.newSession(SessionRequest.fromSessionId(dbInfo.getName(), sessionId), dataSource::getConnection);
-            } catch (SQLException e) {
-              LOG.warn("node {} newSession error.", context.getPeerId(), e);
-            }
-          }
-          sessionFile.delete();
-        }
-        LOG.info("restore DB snapshot use time: {}", stopwatch);
       }
     }
+
+    FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
+    if(sessionfileInfo!=null) {
+      final File sessionFile = sessionfileInfo.getPath().toFile();
+      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(sessionFile);
+      if (md5.equals(sessionfileInfo.getFileDigest())) {
+        byte[] bytes = Files.readAllBytes(sessionFile.toPath());
+        N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
+        List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
+        for (String sessionId : sessionIds) {
+          try {
+            sessionMgr.newSession(SessionRequest.fromSessionId(dbInfo.getName(), sessionId), dataSource::getConnection);
+          } catch (SQLException e) {
+            LOG.warn("node {} newSession error.", context.getPeerId(), e);
+          }
+        }
+      }
+    }
+    LOG.info("restore DB snapshot use time: {}", stopwatch);
   }
 
 
   public void close() throws IOException {
-    try {
-      if (dataSource.isClosed()) {
-        dataSource.close();
-      }
-    } catch (SQLException e) {
-      LOG.warn("", e);
+    if (!dataSource.isClosed()) {
+      dataSource.close();
     }
   }
 }

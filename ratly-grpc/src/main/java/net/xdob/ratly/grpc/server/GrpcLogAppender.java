@@ -260,7 +260,8 @@ public class GrpcLogAppender extends LogAppenderBase {
   @Override
   public void run() throws IOException {
     for(; isRunning(); mayWait()) {
-      if(isEnabledSand()) {
+      boolean enabledSand = isEnabledSand();
+      if(enabledSand) {
         //HB period is expired OR we have messages OR follower is behind with commit index
         if (shouldSendAppendEntries() || isFollowerCommitBehindLastCommitIndex()) {
           final boolean installingSnapshot = installSnapshot();
@@ -295,7 +296,9 @@ public class GrpcLogAppender extends LogAppenderBase {
   private void mayWait() {
     // use lastSend time instead of lastResponse time
     try {
-      getEventAwaitForSignal().await(getWaitTimeMs() + errorWaitTimeMs(),
+      long waitTimeMs = getWaitTimeMs();
+      long errorWaitTimeMs = errorWaitTimeMs();
+      getEventAwaitForSignal().await(waitTimeMs + errorWaitTimeMs,
           TimeUnit.MILLISECONDS);
     } catch (InterruptedException ie) {
       LOG.warn(this + ": Wait interrupted by " + ie);

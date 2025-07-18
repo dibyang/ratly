@@ -13,6 +13,8 @@ import java.net.URL;
 import java.sql.*;
 import java.sql.Date;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class JdbcPreparedStatement extends JdbcStatement implements PreparedStatement {
   protected Parameters parameters = new Parameters();
@@ -58,13 +60,24 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public long[] executeLargeBatch() throws SQLException {
+    List<Long> batchCounts = new ArrayList<>();
+    int start = 0;
     UpdateRequest updateRequest = newUpdateRequest()
         .setSql(sql);
-    for (int i = 0; i < batchParameters.size(); i++) {
-      updateRequest.addBatchParams(batchParameters.get(i));
+    while (start < batchParameters.size()) {
+      updateRequest.getBatchParams().clear();
+      batchParameters.stream().skip(start)
+          .limit(limit)
+          .forEach(updateRequest::addBatchParams);
+      start += updateRequest.getBatchParams().size();
+      long[] counts = sendUpdateBatch(updateRequest);
+      for (long count : counts) {
+        batchCounts.add(count);
+      }
     }
-
-    return sendUpdateBatch(updateRequest);
+    return batchCounts.stream()
+        .mapToLong(Long::longValue)
+        .toArray() ;
   }
 
   @Override
@@ -80,7 +93,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   }
 
   private Parameter getParameter(int parameterIndex) {
-    return parameters.computeIfAbsent(parameterIndex, Parameter::c);
+    return parameters.getOrCreate(parameterIndex);
   }
 
   @Override
@@ -201,6 +214,12 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
       batchParameters.add(parameters);
       parameters = new Parameters();
     }
+  }
+
+  @Override
+  public void clearBatch() throws SQLException {
+    super.clearBatch();
+    batchParameters.clear();
   }
 
   @Override

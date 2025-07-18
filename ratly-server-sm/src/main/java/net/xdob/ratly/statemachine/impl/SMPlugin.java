@@ -18,6 +18,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public interface SMPlugin extends Closeable {
   Logger LOG = LoggerFactory.getLogger(SMPlugin.class);
@@ -36,6 +37,7 @@ public interface SMPlugin extends Closeable {
   default Object applyTransaction(TermIndex termIndex, ByteString msg) throws SQLException {
     return null;
   }
+
 
   default List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException{
     return Lists.newArrayList();

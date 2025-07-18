@@ -79,7 +79,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     this.peerId = peerId;
     this.logQuery = logQuery;
     if(this.scheduler==null){
-      this.scheduler = Executors.newSingleThreadScheduledExecutor();
+      this.scheduler = Executors.newScheduledThreadPool(4);
     }
     storage.init(raftStorage);
     for (SMPlugin plugin : pluginMap.values()) {
@@ -128,7 +128,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
     isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
-    fireLeaderStateEvent(isLeader);
+    scheduler.submit(()->fireLeaderStateEvent(isLeader));
     leaderChangedFuture.complete(newLeaderId);
   }
 
@@ -176,20 +176,24 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     ReferenceCountedObject<LogEntryProto> logEntryRef = trx.getLogEntryRef();
     try(AutoCloseableLock writeLock = writeLock()) {
       LogEntryProto entry = logEntryRef.retain();
-      WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(entry.getStateMachineLogEntry().getLogData());
-      String pluginId = wrapMsgProto.getType();
-      SMPlugin smPlugin = pluginMap.get(pluginId);
-      if(smPlugin!=null) {
-        //跳过已应用过的日志
-        if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
-          builder.setRelay(fasts.asByteString(null));
+      if(entry.getIndex()>getLastAppliedTermIndex().getIndex()){
+        WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(entry.getStateMachineLogEntry().getLogData());
+        String pluginId = wrapMsgProto.getType();
+        SMPlugin smPlugin = pluginMap.get(pluginId);
+        if(smPlugin!=null) {
+          //跳过已应用过的日志
+          if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
+            builder.setRelay(fasts.asByteString(null));
+          }else {
+            Object reply = smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto.getMsg());
+            updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
+            builder.setRelay(fasts.asByteString(reply));
+          }
         }else {
-          Object reply = smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto.getMsg());
-          updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
-          builder.setRelay(fasts.asByteString(reply));
+          throw new SQLException("plugin ["+pluginId+"] not find.");
         }
-      }else {
-        throw new SQLException("plugin ["+pluginId+"] not find.");
+      }else{
+        builder.setRelay(fasts.asByteString(null));
       }
     } catch (InvalidProtocolBufferException e) {
       LOG.warn("", e);
@@ -216,10 +220,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public long takeSnapshot() throws IOException {
+    TermIndex last = null;
+    Properties appliedIndexMap = new Properties();
     try(AutoCloseableLock readLock = readLock()) {
-      Properties appliedIndexMap = new Properties();
-      TermIndex last = getLastPluginAppliedTermIndex();
       List<FileInfo> infos = Lists.newArrayList();
+      last = getLastPluginAppliedTermIndex();
       for (SMPlugin plugin : pluginMap.values()) {
         long appliedIndex = plugin.getLastPluginAppliedIndex();
         LOG.info("plugin {} index={}", plugin.getId(), plugin.getLastPluginAppliedIndex());
@@ -235,8 +240,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
         return last.getIndex();
       }
-      return super.takeSnapshot();
     }
+    return super.takeSnapshot();
   }
 
   /**

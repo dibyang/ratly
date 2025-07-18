@@ -205,6 +205,10 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
     return new File(dir, getSnapshotFileName(module, term, endIndex));
   }
+
+  public File getRootFile() {
+		return Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
+  }
   /**
    * 生成对应 term 和 endIndex 的临时文件路径。
    */

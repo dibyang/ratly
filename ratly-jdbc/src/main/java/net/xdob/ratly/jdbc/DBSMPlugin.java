@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
@@ -50,10 +51,11 @@ public class DBSMPlugin implements SMPlugin {
 
   private final Map<String,InnerDb> dbMap = Maps.newConcurrentMap();
 
-  private final List<DbDef> dbDefs = new ArrayList<>();
+  private final Map<String, DbDef> dbDefs = Maps.newConcurrentMap();;
   private final RsaHelper rsaHelper = new RsaHelper();
 
   private DbsContext dbsContext;
+  private boolean dynamicCreate = false;
 
 
   public DBSMPlugin() {
@@ -62,6 +64,14 @@ public class DBSMPlugin implements SMPlugin {
   @Override
   public String getId() {
     return DB;
+  }
+
+  public boolean isDynamicCreate() {
+    return dynamicCreate;
+  }
+
+  public void setDynamicCreate(boolean dynamicCreate) {
+    this.dynamicCreate = dynamicCreate;
   }
 
   @Override
@@ -141,20 +151,21 @@ public class DBSMPlugin implements SMPlugin {
     }
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
     loadDbs(dbsFile, false);
-
-    for (DbDef dbDef : dbDefs) {
-      dbMap.computeIfAbsent(dbDef.getDb(), n -> {
-        DbInfo dbInfo = new DbInfo().setName(dbDef.getDb());
-        String encode = context.getPasswordEncoder().encode(dbDef.getPassword());
-        dbInfo.getUsers().add(new DbUser(dbDef.getUser()).setPassword(encode));
-        InnerDb innerDb = new InnerDb(dbCache, dbInfo, dbsContext);
-        innerDb.initialize();
-        return innerDb;
-      });
+    for (DbDef dbDef : dbDefs.values()) {
+      addDbIfAbsent(dbDef);
     }
-
     saveDbs();
+  }
 
+  private void addDbIfAbsent(DbDef dbDef) {
+    dbMap.computeIfAbsent(dbDef.getDb(), n -> {
+      DbInfo dbInfo = new DbInfo().setName(dbDef.getDb());
+      String encode = context.getPasswordEncoder().encode(dbDef.getPassword());
+      dbInfo.addUser(dbDef.getUser(), encode);
+      InnerDb innerDb = new InnerDb(dbCache, dbInfo, dbsContext);
+      innerDb.initialize();
+      return innerDb;
+    });
   }
 
   private void loadDbs(File dbsFile, boolean loadAppliedIndex) throws IOException {
@@ -229,16 +240,25 @@ public class DBSMPlugin implements SMPlugin {
     UpdateRequest updateRequest = context.as(msg);
     String db = updateRequest.getDb();
     InnerDb innerDb = dbMap.get(db);
+    if(innerDb==null&&dynamicCreate
+        &&(updateRequest.getType()==UpdateType.openSession)){
+      String user = updateRequest.getUser();
+      String password = rsaHelper.decrypt(updateRequest.getPassword());
+      this.addDbIfAbsent(db, user, password);
+      addDbIfAbsent(dbDefs.get(db));
+      saveDbs();
+      innerDb = dbMap.get(db);
+    }
     if(innerDb!=null){
       innerDb.applyTransaction(updateRequest, termIndex, updateReply);
-    } else {
+    } else{
       throw new NoDatabaseException(db);
     }
     return updateReply;
   }
 
   public DBSMPlugin addDbIfAbsent(String db, String user, String password){
-    dbDefs.add(new DbDef(db, user, password));
+    dbDefs.computeIfAbsent(db, name->new DbDef(name, user, password));
     return this;
   }
 

@@ -25,6 +25,7 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class RMapSMPlugin implements SMPlugin {
@@ -152,6 +153,7 @@ public class RMapSMPlugin implements SMPlugin {
     appliedIndex.updateToMax(index,
         message -> LOG.debug("updateAppliedIndex {}", message));
   }
+
 
   @Override
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {

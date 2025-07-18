@@ -26,7 +26,7 @@ public interface RaftClientConfigKeys {
     String PREFIX = RaftClientConfigKeys.PREFIX + ".rpc";
 
     String REQUEST_TIMEOUT_KEY = PREFIX + ".request.timeout";
-    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(30, TimeUnit.SECONDS);
+    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(60, TimeUnit.SECONDS);
     static TimeDuration requestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(REQUEST_TIMEOUT_DEFAULT.getUnit()),
           REQUEST_TIMEOUT_KEY, REQUEST_TIMEOUT_DEFAULT, getDefaultLog());
@@ -36,7 +36,7 @@ public interface RaftClientConfigKeys {
     }
 
     String WATCH_REQUEST_TIMEOUT_KEY = PREFIX + ".watch.request.timeout";
-    TimeDuration WATCH_REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(10, TimeUnit.SECONDS);
+    TimeDuration WATCH_REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(20, TimeUnit.SECONDS);
     static TimeDuration watchRequestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(WATCH_REQUEST_TIMEOUT_DEFAULT.getUnit()),
           WATCH_REQUEST_TIMEOUT_KEY, WATCH_REQUEST_TIMEOUT_DEFAULT, getDefaultLog());

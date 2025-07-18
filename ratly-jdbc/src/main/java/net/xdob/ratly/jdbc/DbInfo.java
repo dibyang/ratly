@@ -2,13 +2,13 @@ package net.xdob.ratly.jdbc;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 public class DbInfo implements Serializable {
   private String name;
   private final List<DbUser> users = new ArrayList<>();
-
   public DbInfo() {
   }
 
@@ -31,7 +31,7 @@ public class DbInfo implements Serializable {
   }
 
   public List<DbUser> getUsers() {
-    return users;
+    return Collections.unmodifiableList(users);
   }
 
   public Optional<DbUser> getUser(String user){

@@ -10,6 +10,8 @@ import org.h2.message.DbException;
 import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class JdbcStatement implements Statement {
   private final ArrayList<String> batchCommands = new ArrayList<>();
@@ -19,6 +21,7 @@ public class JdbcStatement implements Statement {
   protected long updateCount;
   private int fetchDirection;
   private int fetchSize;
+  protected volatile int limit = 100;
 
   public JdbcStatement(SqlClient sqlClient) {
     this.sqlClient = sqlClient;
@@ -97,11 +100,25 @@ public class JdbcStatement implements Statement {
 
   @Override
   public long[] executeLargeBatch() throws SQLException {
+    List<Long> batchCounts = new ArrayList<>();
+
+    int start = 0;
     UpdateRequest updateRequest = newUpdateRequest();
-    for (int i = 0; i < batchCommands.size(); i++) {
-      updateRequest.getBatchSql().add(batchCommands.get(i));
+    while (start < batchCommands.size()) {
+      updateRequest.getBatchSql().clear();
+      batchCommands.stream()
+          .skip(start)
+          .limit(limit)
+          .forEach(updateRequest.getBatchSql()::add);
+      start += updateRequest.getBatchSql().size();
+      long[] counts = sendUpdateBatch(updateRequest);
+      for (long count : counts) {
+        batchCounts.add(count);
+      }
     }
-    return sendUpdateBatch(updateRequest);
+    return batchCounts.stream()
+        .mapToLong(Long::longValue)
+        .toArray() ;
   }
 
 

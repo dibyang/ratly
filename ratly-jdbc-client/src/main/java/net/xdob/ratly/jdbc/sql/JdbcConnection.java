@@ -226,15 +226,19 @@ public class JdbcConnection implements Connection {
         // ignore SQLException
       }
     }
-    try {
-      if(session!=null&&!session.isEmpty()) {
+    if(session!=null&&!session.isEmpty()) {
+      try {
         UpdateRequest updateRequest = new UpdateRequest()
             .setDb(ci.getDb())
             .setSender(Sender.connection)
             .setType(UpdateType.closeSession)
             .setSession(session);
-        UpdateReply updateReplyProto = sendUpdate(updateRequest);
+        sendUpdate(updateRequest);
+      }catch (Exception e){
+        // ignore SQLException
       }
+    }
+    try {
       client.close();
     } catch (IOException e) {
       throw new SQLException(e);

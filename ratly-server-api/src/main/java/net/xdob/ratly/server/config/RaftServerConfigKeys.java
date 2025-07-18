@@ -473,7 +473,7 @@ RaftServerConfigKeys {
     }
 
     String TIMEOUT_MAX_KEY = PREFIX + ".timeout.max";
-    TimeDuration TIMEOUT_MAX_DEFAULT = TimeDuration.valueOf(800, TimeUnit.MILLISECONDS);
+    TimeDuration TIMEOUT_MAX_DEFAULT = TimeDuration.valueOf(1200, TimeUnit.MILLISECONDS);
 
     static TimeDuration timeoutMax(RaftProperties properties, Consumer<String> logger) {
       return getTimeDuration(properties.getTimeDuration(TIMEOUT_MAX_DEFAULT.getUnit()),
@@ -520,7 +520,7 @@ RaftServerConfigKeys {
     }
 
     String REQUEST_TIMEOUT_KEY = PREFIX + ".request.timeout";
-    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(10000, TimeUnit.MILLISECONDS);
+    TimeDuration REQUEST_TIMEOUT_DEFAULT = TimeDuration.valueOf(30000, TimeUnit.MILLISECONDS);
 
     static TimeDuration requestTimeout(RaftProperties properties) {
       return getTimeDuration(properties.getTimeDuration(REQUEST_TIMEOUT_DEFAULT.getUnit()),
