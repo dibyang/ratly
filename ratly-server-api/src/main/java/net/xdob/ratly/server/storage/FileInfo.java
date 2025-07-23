@@ -10,7 +10,7 @@ import net.xdob.ratly.io.MD5Hash;
  */
 public class FileInfo {
   private final Path path;
-  private final MD5Hash fileDigest;
+  private MD5Hash fileDigest;
   private final long fileSize;
   private final String module;
 
@@ -38,6 +38,11 @@ public class FileInfo {
   /** @return the MD5 file digest of the file. */
   public MD5Hash getFileDigest() {
     return fileDigest;
+  }
+
+  public FileInfo setFileDigest(MD5Hash fileDigest) {
+    this.fileDigest = fileDigest;
+    return this;
   }
 
   /** @return the size of the file. */

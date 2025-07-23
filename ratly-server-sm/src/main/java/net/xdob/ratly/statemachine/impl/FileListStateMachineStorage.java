@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -120,13 +121,20 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   }
 
   public static void main(String[] args) throws IOException {
-    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.md5";
-    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
-    System.out.println("pp matches() = " + matcher.matches());
-
-    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
-    System.out.println("pp md5 matches() = " + matcher2.matches());
-    System.out.println("matcher2.group(3) = " + matcher2.group(3));
+//    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.md5";
+//    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
+//    System.out.println("pp matches() = " + matcher.matches());
+//
+//    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
+//    System.out.println("pp md5 matches() = " + matcher2.matches());
+//    System.out.println("matcher2.group(3) = " + matcher2.group(3));
+    List<FileListSnapshotInfo> infos = getFileListSnapshotInfos(Paths.get("d:/test/sm"));
+    for (FileListSnapshotInfo info : infos) {
+      for (FileInfo file : info.getFiles()) {
+        System.out.println("file = " + file);
+        System.out.println("file.getFileDigest() = " + file.getFileDigest());
+      }
+    }
   }
 
   /**

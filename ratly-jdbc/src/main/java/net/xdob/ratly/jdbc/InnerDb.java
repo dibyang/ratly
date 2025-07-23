@@ -413,7 +413,7 @@ public class InnerDb {
     }
   }
 
-  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last){
+  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last, FileInfo dbFileInfo){
     File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
     File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
     Stopwatch stopwatch = Stopwatch.createStarted();
@@ -428,7 +428,9 @@ public class InnerDb {
     }catch (SQLException e){
       LOG.warn("takeSqlSnapshot error", e);
     }
-    getFileInfo(sqlFile);
+    MD5FileUtil.computeAndSaveMd5ForFile(sqlFile);
+    MD5Hash md5Hash = MD5FileUtil.computeAndSaveMd5ForFile(dbFileInfo.getPath().toFile());
+    dbFileInfo.setFileDigest(md5Hash);
     LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
 
   }
@@ -448,10 +450,11 @@ public class InnerDb {
     Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
     Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     LOG.info("Taking a DB snapshot to file {}, use time:{}", dbFile.toString(), stopwatch);
-    infos.add(getFileInfo(dbFile));
+    FileInfo dbFileInfo = getFileInfo(dbFile);
+    infos.add(dbFileInfo);
     stopwatch.reset().start();
     context.getScheduler().submit(()->{
-      takeSqlSnapshot(storage, last);
+      takeSqlSnapshot(storage, last, dbFileInfo);
     });
     File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
     List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
@@ -468,10 +471,9 @@ public class InnerDb {
     return infos;
   }
 
-  private static FileInfo getFileInfo(File sessionFile) {
-    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(sessionFile);
-    final FileInfo info = new FileInfo(sessionFile.toPath(), md5);
-    return info;
+  private static FileInfo getFileInfo(File file) {
+    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(file);
+		return new FileInfo(file.toPath(), md5);
   }
 
 
@@ -480,23 +482,28 @@ public class InnerDb {
       return;
     }
     Stopwatch stopwatch = Stopwatch.createStarted();
+    boolean restoreDb = false;
     FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
     if(dbfileInfo!=null) {
       final File dbFile = dbfileInfo.getPath().toFile();
       final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(dbFile);
       if (md5.equals(dbfileInfo.getFileDigest())) {
-        LOG.info("restore DB snapshot from {}", dbFile.getPath());
+        LOG.info("restore DB file snapshot from {}", dbFile.getPath());
         closeDs();
         Files.copy(dbFile.toPath(), dbStore.resolve(getName()+ "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
         openDs();
+        restoreDb = true;
+      }else{
+        LOG.warn("DB file snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
       }
-    }else{
+    }
+    if(!restoreDb){
       FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
       if(sqlfileInfo!=null) {
         final File sqlFile = sqlfileInfo.getPath().toFile();
         final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(sqlFile);
         if (md5.equals(sqlfileInfo.getFileDigest())) {
-          LOG.info("restore DB snapshot from {}", sqlFile.getPath());
+          LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
           try (Connection connection = dataSource.getConnection();
                Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(600);
@@ -504,6 +511,8 @@ public class InnerDb {
           } catch (SQLException e) {
             throw new IOException(e);
           }
+        }else {
+          LOG.warn("DB sql snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
         }
       }
     }
