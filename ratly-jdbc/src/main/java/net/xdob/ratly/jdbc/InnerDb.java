@@ -437,6 +437,13 @@ public class InnerDb {
     List<FileInfo> infos = new ArrayList<>();
     Stopwatch stopwatch = Stopwatch.createStarted();
 
+    try(Connection connection = dataSource.getConnection();
+        Statement stmt = connection.createStatement()){
+      //快照前让数据落盘  CHECKPOINT SYNC
+      stmt.executeUpdate("checkpoint sync");
+    }catch (SQLException e){
+      throw new IOException(e);
+    }
     File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
     Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
     Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
