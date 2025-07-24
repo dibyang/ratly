@@ -17,7 +17,7 @@ import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
-import net.xdob.ratly.statemachine.RaftLogQuery;
+import net.xdob.ratly.statemachine.ServerStateSupport;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.statemachine.TransactionContext;
@@ -41,7 +41,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
   private ScheduledExecutorService scheduler;
   private final FileListStateMachineStorage storage = new FileListStateMachineStorage();
-  private MemoizedSupplier<RaftLogQuery> logQuery;
+  private MemoizedSupplier<ServerStateSupport> serverStateSupport;
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
   private RaftPeerId peerId;
 
@@ -74,10 +74,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId,
-                         RaftStorage raftStorage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
+                         RaftStorage raftStorage, MemoizedSupplier<ServerStateSupport> logQuery) throws IOException {
     super.initialize(server, groupId, peerId, raftStorage, logQuery);
     this.peerId = peerId;
-    this.logQuery = logQuery;
+    this.serverStateSupport = logQuery;
     if(this.scheduler==null){
       this.scheduler = Executors.newScheduledThreadPool(4);
     }
@@ -256,7 +256,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         .min(Comparator.comparingLong(e->e))
         .orElse(RaftLog.INVALID_LOG_INDEX);
     if(lastPluginAppliedIndex>RaftLog.INVALID_LOG_INDEX){
-      last = logQuery.get().getTermIndex(lastPluginAppliedIndex.longValue());
+      last = serverStateSupport.get().getTermIndex(lastPluginAppliedIndex.longValue());
     }
     return last;
   }
@@ -327,8 +327,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   }
 
   @Override
-  public RaftLogQuery getRaftLogQuery() {
-    return logQuery.get();
+  public ServerStateSupport getServerStateSupport() {
+    return serverStateSupport.get();
   }
 
   @Override
@@ -339,6 +339,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public PasswordEncoder getPasswordEncoder() {
     return passwordEncoder;
+  }
+
+  @Override
+  public void stopServerState() {
+    getServerStateSupport().stopServerState();
   }
 
 

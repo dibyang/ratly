@@ -6,6 +6,7 @@ import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.exception.DbErrorException;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;

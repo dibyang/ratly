@@ -214,7 +214,7 @@ class RaftServerImpl implements Division,
   private final AtomicBoolean firstElectionSinceStartup = new AtomicBoolean(true);
   private final ThreadGroup threadGroup;
 
-  private final AtomicBoolean stateStartOrStop = new AtomicBoolean(false);
+  private final AtomicBoolean stateStart = new AtomicBoolean(false);
   private final VNodeLease vnodeLease;
   private final String storageMount;
 
@@ -377,18 +377,16 @@ class RaftServerImpl implements Division,
   }
 
   private void checkServerState(){
-    if(getId().isVirtual()){
-      if(!startComplete.get()) {
-        if (!vnodeLease.isValid()) {
-          startSeverState();
-        }
-      }else{
-        //存储健康检查
-        boolean checkHealth = this.state.getStorage().checkHealth();
-        if(!checkHealth){
-          LOG.warn("Storage health check failed, will stop SeverState");
-          stopSeverState();
-        }
+    if(!startComplete.get()) {
+      if (!vnodeLease.isValid()) {
+        startSeverState();
+      }
+    }else{
+      //存储健康检查
+      boolean checkHealth = this.state.getStorage().checkHealth();
+      if(!checkHealth){
+        LOG.warn("Storage health check failed, will stop SeverState");
+        stopSeverState();
       }
     }
   }
@@ -417,7 +415,7 @@ class RaftServerImpl implements Division,
    */
   public void startSeverState() {
     if(!startComplete.get()){
-      if(stateStartOrStop.compareAndSet(false,true)){
+      if(stateStart.compareAndSet(false,true)){
         try {
           LOG.info("try start SeverState");
           checkStorageMount();
@@ -430,7 +428,7 @@ class RaftServerImpl implements Division,
         } catch (Exception e) {
           LOG.warn("startSeverState failed", e);
         }finally {
-          stateStartOrStop.set(false);
+          stateStart.set(false);
         }
       }
     }
@@ -440,17 +438,11 @@ class RaftServerImpl implements Division,
    * 停止ServerState
    */
   public void stopSeverState() {
-    if(stateStartOrStop.compareAndSet(false,true)) {
-      try{
-        if (startComplete.compareAndSet(true, false)) {
-          LOG.info("stop SeverState");
-          this.state.close();
-          vnodeLease.extend();
-          LOG.info("{}: Successfully stopped.", getMemberId());
-        }
-      }finally {
-        stateStartOrStop.set(false);
-      }
+    if (startComplete.compareAndSet(true, false)) {
+      LOG.info("stop SeverState");
+      this.state.close();
+      vnodeLease.extend();
+      LOG.info("{}: Successfully stopped.", getMemberId());
     }
   }
 

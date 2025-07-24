@@ -125,6 +125,11 @@ public class DBSMPlugin implements SMPlugin {
       public void closeSession(String db, String sessionId) {
         //暂时没有实现
       }
+
+      @Override
+      public void stopServerState() {
+        context.stopServerState();
+      }
     };
   }
 

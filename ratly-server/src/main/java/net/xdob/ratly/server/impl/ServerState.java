@@ -19,7 +19,7 @@ import net.xdob.ratly.server.raftlog.segmented.SegmentedRaftLog;
 import net.xdob.ratly.server.storage.*;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
-import net.xdob.ratly.statemachine.RaftLogQuery;
+import net.xdob.ratly.statemachine.ServerStateSupport;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.StateMachine;
 import net.xdob.ratly.statemachine.TransactionContext;
@@ -27,7 +27,6 @@ import net.xdob.ratly.util.*;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,7 +40,7 @@ import static net.xdob.ratly.server.Division.LOG;
 /**
  * Common states of a raft peer. Protected by RaftServer's lock.
  */
-class ServerState implements RaftLogQuery {
+class ServerState implements ServerStateSupport {
   private final RaftGroupMemberId memberId;
   private final RaftServerImpl server;
   /** Raft log */
@@ -528,6 +527,11 @@ class ServerState implements RaftLogQuery {
       logEntryProto = raftLog.get(index);
     }
     return logEntryProto;
+  }
+
+  @Override
+  public void stopServerState() {
+    server.stopSeverState();
   }
 
   boolean containsTermIndex(TermIndex ti) {

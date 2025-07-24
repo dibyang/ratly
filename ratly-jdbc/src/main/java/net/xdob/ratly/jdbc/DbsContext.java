@@ -17,4 +17,5 @@ public interface DbsContext {
   RsaHelper getRsaHelper();
   void updateDbs();
   void closeSession(String db, String sessionId);
+  void stopServerState();
 }

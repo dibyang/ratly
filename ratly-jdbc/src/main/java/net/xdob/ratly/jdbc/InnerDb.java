@@ -8,6 +8,7 @@ import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
+import net.xdob.ratly.server.exception.DbErrorException;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
@@ -450,8 +451,22 @@ public class InnerDb {
     }
     File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
     Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
+    if(!sourceDbFile.toFile().exists()||sourceDbFile.toFile().length()<128){
+      throw new IOException(new DbErrorException(dbFile.toString()));
+    }
     Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     LOG.info("Taking a DB snapshot to file {}, use time:{}", dbFile.toString(), stopwatch);
+    AutoFix autoFix = new AutoFix();
+    try {
+      String dbName = getDbName(dbFile);
+      boolean hasError = autoFix.needFix(dbFile.getParent(), dbName, INNER_USER, INNER_PASSWORD);
+      if (hasError) {
+        throw new IOException(new DbErrorException(dbFile.toString()));
+      }
+    } catch (SQLException e) {
+      throw new IOException(new DbErrorException(dbFile.toString(),e));
+    }
+
     FileInfo dbFileInfo = getFileInfo(dbFile);
     infos.add(dbFileInfo);
     stopwatch.reset().start();
@@ -471,6 +486,11 @@ public class InnerDb {
     infos.add(getFileInfo(sessionFile));
 
     return infos;
+  }
+
+  private String getDbName(File dbFile) {
+    String dbFileName = dbFile.getName();
+		return dbFileName.substring(0, dbFileName.length() - DB_EXT.length() -1);
   }
 
   private static FileInfo getFileInfo(File file) {
@@ -496,7 +516,8 @@ public class InnerDb {
       AutoFix autoFix = new AutoFix();
       boolean hasError = false;
       try {
-        hasError = autoFix.needFix(dbFile.getParent(), getName(), INNER_USER, INNER_PASSWORD);
+        String dbName = getDbName(dbFile);
+        hasError = autoFix.needFix(dbFile.getParent(), dbName, INNER_USER, INNER_PASSWORD);
       } catch (SQLException e) {
         LOG.warn("DB file check failed", e);
       }

@@ -7,7 +7,7 @@ import net.xdob.ratly.server.raftlog.RaftLogIOException;
 /**
  * 日志查询器
  */
-public interface RaftLogQuery {
+public interface ServerStateSupport {
   long getLastAppliedIndex();
   /**
    * 获取指定日志索引对应的 TermIndex，如果不存在返回 null。
@@ -23,5 +23,5 @@ public interface RaftLogQuery {
    * 获取指定索引或比他小最接近的状态机日志
    */
   LogEntryProto getStateMachineLog(long index) throws RaftLogIOException;
-
+  void stopServerState();
 }

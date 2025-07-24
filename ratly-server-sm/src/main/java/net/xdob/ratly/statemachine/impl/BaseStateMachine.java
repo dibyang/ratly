@@ -85,7 +85,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
   }
 
   @Override
-  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftPeerId peerId, RaftStorage storage, MemoizedSupplier<RaftLogQuery> logQuery) throws IOException {
+  public void initialize(RaftServer raftServer, RaftGroupId raftGroupId, RaftPeerId peerId, RaftStorage storage, MemoizedSupplier<ServerStateSupport> logQuery) throws IOException {
     this.groupId = raftGroupId;
     this.peerId = peerId;
     this.server.complete(raftServer);
