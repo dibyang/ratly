@@ -4,7 +4,7 @@ import net.xdob.ratly.util.Finder;
 
 
 public class SessionRequest {
-	private String uid;
+	private long uid;
 	private String user;
 	private String db;
 
@@ -17,7 +17,7 @@ public class SessionRequest {
 		return this;
 	}
 
-	public String getUid() {
+	public long getUid() {
 		return uid;
 	}
 
@@ -25,7 +25,7 @@ public class SessionRequest {
 		return user;
 	}
 
-	public SessionRequest setUid(String uid) {
+	public SessionRequest setUid(long uid) {
 		this.uid = uid;
 		return this;
 	}
@@ -39,14 +39,14 @@ public class SessionRequest {
 		return user + "$" + uid;
 	}
 
-	public static SessionRequest of(String db, String user, String uid){
+	public static SessionRequest of(String db, String user, long uid){
 		return new SessionRequest().setDb(db).setUser(user).setUid(uid);
 	}
 
 	public static SessionRequest fromSessionId(String db, String sessionId){
 		Finder finder = Finder.c(sessionId);
 		String user = finder.head("$").getValue();
-		String uid = finder.tail("$").getValue();
+		long uid = finder.tail("$").getValue(Long.class);
 		SessionRequest req = new SessionRequest();
 		req.setUid(uid);
 		req.setUser(user);

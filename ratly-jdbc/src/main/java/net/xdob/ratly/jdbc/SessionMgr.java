@@ -15,5 +15,6 @@ public interface SessionMgr {
   List<Session> getAllSessions();
   Session removeSession(String sessionId);
   void closeSession(String sessionId);
-  void checkTimeout();
+  void clearSessions();
+  void checkExpiredSessions();
 }

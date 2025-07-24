@@ -12,36 +12,24 @@ public class Session implements AutoCloseable {
   static final Logger LOG = LoggerFactory.getLogger(Session.class);
   private final String db;
   private final String user;
+  private final long uid;
   private final String id;
   private final Consumer<String> closed;
   private final ConnSupplier connSupplier;
   private Connection connection;
   private transient String tx;
-  private transient volatile long accessTime = System.nanoTime();
 
   public Session(SessionRequest request, ConnSupplier connSupplier, Consumer<String> closed) {
     this.db = request.getDb();
     this.user = request.getUser();
     this.id = request.toSessionId();
+    this.uid = request.getUid();
     this.connSupplier = connSupplier;
     this.closed = closed;
   }
 
-
-
-  /**
-   * 更新访问时间
-   */
-  public void updateAccessTime(){
-    accessTime = System.nanoTime();
-  }
-
-  /**
-   * 获取据上次访问的时长（秒）
-   * @return 据上次访问的时长（秒）
-   */
-  public long getAccessTimeOffset(){
-    return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - accessTime);
+  public long getUid() {
+    return uid;
   }
 
   public String getDb() {
@@ -53,12 +41,10 @@ public class Session implements AutoCloseable {
   }
 
   public String getUser() {
-    updateAccessTime();
     return user;
   }
 
   public Connection getConnection() throws SQLException {
-    updateAccessTime();
     if(connection==null){
       connection = connSupplier.getConnection();
       //LOG.info("session open connection, id={}", id);
@@ -95,12 +81,10 @@ public class Session implements AutoCloseable {
   }
 
   public String getTx() {
-    updateAccessTime();
     return tx;
   }
 
   public void setTx(String tx) {
-    updateAccessTime();
     this.tx = tx;
   }
 
@@ -110,4 +94,5 @@ public class Session implements AutoCloseable {
       closed.accept(id);
     }
   }
+
 }

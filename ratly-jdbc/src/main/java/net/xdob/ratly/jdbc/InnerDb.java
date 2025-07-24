@@ -16,8 +16,8 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
-import net.xdob.ratly.util.ZipUtils;
 import org.h2.Driver;
+import org.h2.tools.AutoFix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +42,7 @@ public class InnerDb {
   public static final String DB_EXT = "mv.db";
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
+
   private final HikariConfig dsConfig = new HikariConfig();
   private volatile HikariDataSource dataSource = null;
   private final DefaultSessionMgr sessionMgr;
@@ -58,13 +59,14 @@ public class InnerDb {
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
   private final ClassCache classCache = new ClassCache();
+  public int maxPoolSize = 32;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
     this.dbInfo = dbInfo;
     this.context = context;
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
-    sessionMgr = new DefaultSessionMgr(context);
+    sessionMgr = new DefaultSessionMgr(context).setMaxSessions(maxPoolSize);
     transactionMgr = new DefaultTransactionMgr(context);
   }
 
@@ -108,18 +110,18 @@ public class InnerDb {
         dsConfig.setConnectionTimeout(30_000);    // 连接超时(ms)
         dsConfig.setIdleTimeout(600_000);         // 空闲超时(ms)
         dsConfig.setMaxLifetime(1_800_000);        // 最大存活时间(ms)
-        dsConfig.setMaximumPoolSize(32);         // 最大连接数
+        dsConfig.setMaximumPoolSize(maxPoolSize);         // 最大连接数
         dsConfig.setMinimumIdle(5);              // 最小空闲连接
         dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
 
 
-        context.getScheduler().scheduleAtFixedRate(()->{
-          transactionMgr.checkTimeoutTx();
-        },10, 10, TimeUnit.SECONDS);
+        context.getScheduler()
+            .scheduleAtFixedRate(transactionMgr::checkTimeoutTx,
+                10, 10, TimeUnit.SECONDS);
         openDs();
-//        context.getScheduler().scheduleAtFixedRate(()->{
-//          sessionMgr.checkTimeout();
-//        },20, 20, TimeUnit.SECONDS);
+        context.getScheduler()
+            .scheduleAtFixedRate(sessionMgr::checkExpiredSessions,
+                20, 20, TimeUnit.SECONDS);
 
         restoreFromSnapshot(context.getLatestSnapshot());
       } catch (IOException e) {
@@ -262,7 +264,7 @@ public class InnerDb {
   public void applyTransaction(UpdateRequest updateRequest, TermIndex termIndex, UpdateReply updateReply) throws SQLException {
 
     if(updateRequest.getType()==UpdateType.openSession){
-      SessionRequest sessionRequest = SessionRequest.of(updateRequest.getDb(), updateRequest.getUser(), String.valueOf(termIndex.getIndex()));
+      SessionRequest sessionRequest = SessionRequest.of(updateRequest.getDb(), updateRequest.getUser(), termIndex.getIndex());
       String user = sessionRequest.getUser();
       String password = context.getRsaHelper().decrypt(updateRequest.getPassword());
       DbUser dbUser = getDbInfo().getUser(user).orElse(null);
@@ -481,20 +483,30 @@ public class InnerDb {
     if(snapshot==null){
       return;
     }
+
     Stopwatch stopwatch = Stopwatch.createStarted();
     boolean restoreDb = false;
     FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
     if(dbfileInfo!=null) {
       final File dbFile = dbfileInfo.getPath().toFile();
       final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(dbFile);
-      if (md5.equals(dbfileInfo.getFileDigest())) {
+      if (!md5.equals(dbfileInfo.getFileDigest())) {
+        LOG.warn("DB file snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
+      }
+      AutoFix autoFix = new AutoFix();
+      boolean hasError = false;
+      try {
+        hasError = autoFix.needFix(dbFile.getParent(), getName(), INNER_USER, INNER_PASSWORD);
+      } catch (SQLException e) {
+        LOG.warn("DB file check failed", e);
+      }
+      if(hasError) {
         LOG.info("restore DB file snapshot from {}", dbFile.getPath());
         closeDs();
-        Files.copy(dbFile.toPath(), dbStore.resolve(getName()+ "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
         openDs();
         restoreDb = true;
-      }else{
-        LOG.warn("DB file snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
+
       }
     }
     if(!restoreDb){
@@ -516,7 +528,7 @@ public class InnerDb {
         }
       }
     }
-
+    sessionMgr.clearSessions();
     FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
     if(sessionfileInfo!=null) {
       final File sessionFile = sessionfileInfo.getPath().toFile();
