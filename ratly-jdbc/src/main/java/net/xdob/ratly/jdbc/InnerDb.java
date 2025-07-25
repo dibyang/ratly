@@ -3,7 +3,8 @@ package net.xdob.ratly.jdbc;
 import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.io.SHA256Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.json.Jsons;
@@ -15,8 +16,8 @@ import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
-import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
+import net.xdob.ratly.util.SHA256FileUtil;
 import org.h2.Driver;
 import org.h2.tools.AutoFix;
 import org.slf4j.Logger;
@@ -431,9 +432,9 @@ public class InnerDb {
     }catch (SQLException e){
       LOG.warn("takeSqlSnapshot error", e);
     }
-    MD5FileUtil.computeAndSaveMd5ForFile(sqlFile);
-    MD5Hash md5Hash = MD5FileUtil.computeAndSaveMd5ForFile(dbFileInfo.getPath().toFile());
-    dbFileInfo.setFileDigest(md5Hash);
+    SHA256FileUtil.computeAndSaveDigestForFile(sqlFile);
+    Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
+    dbFileInfo.setFileDigest(digest);
     LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
 
   }
@@ -494,8 +495,8 @@ public class InnerDb {
   }
 
   private static FileInfo getFileInfo(File file) {
-    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(file);
-		return new FileInfo(file.toPath(), md5);
+    final SHA256Hash sha256 = SHA256FileUtil.computeAndSaveDigestForFile(file);
+		return new FileInfo(file.toPath(), sha256);
   }
 
 
@@ -509,9 +510,9 @@ public class InnerDb {
     FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
     if(dbfileInfo!=null) {
       final File dbFile = dbfileInfo.getPath().toFile();
-      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(dbFile);
-      if (!md5.equals(dbfileInfo.getFileDigest())) {
-        LOG.warn("DB file snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
+      final Digest digest = SHA256FileUtil.computeDigestForFile(dbFile);
+      if (!digest.equals(dbfileInfo.getFileDigest())) {
+        LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
       }
       AutoFix autoFix = new AutoFix();
       boolean hasError = false;
@@ -534,8 +535,8 @@ public class InnerDb {
       FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
       if(sqlfileInfo!=null) {
         final File sqlFile = sqlfileInfo.getPath().toFile();
-        final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(sqlFile);
-        if (md5.equals(sqlfileInfo.getFileDigest())) {
+        final Digest digest = SHA256FileUtil.computeDigestForFile(sqlFile);
+        if (digest.equals(sqlfileInfo.getFileDigest())) {
           LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
           try (Connection connection = dataSource.getConnection();
                Statement statement = connection.createStatement()) {
@@ -545,7 +546,7 @@ public class InnerDb {
             throw new IOException(e);
           }
         }else {
-          LOG.warn("DB sql snapshot md5 mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), md5);
+          LOG.warn("DB sql snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
         }
       }
     }
@@ -553,8 +554,8 @@ public class InnerDb {
     FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
     if(sessionfileInfo!=null) {
       final File sessionFile = sessionfileInfo.getPath().toFile();
-      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(sessionFile);
-      if (md5.equals(sessionfileInfo.getFileDigest())) {
+      final Digest digest = SHA256FileUtil.computeDigestForFile(sessionFile);
+      if (digest.equals(sessionfileInfo.getFileDigest())) {
         byte[] bytes = Files.readAllBytes(sessionFile.toPath());
         N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
         List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);

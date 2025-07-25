@@ -4,7 +4,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
-import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.jdbc.exception.NoDatabaseException;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.protocol.Message;
@@ -22,10 +22,7 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
-import net.xdob.ratly.util.AtomicFileOutputStream;
-import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.MD5FileUtil;
-import net.xdob.ratly.util.N3Map;
+import net.xdob.ratly.util.*;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +30,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
@@ -275,8 +271,8 @@ public class DBSMPlugin implements SMPlugin {
 
     final File snapshotFile =  storage.getSnapshotFile(DBS_JSON, last.getTerm(), last.getIndex());
     saveDbsToFile(snapshotFile,true);
-    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
-    final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
+    final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+    final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
     fileInfos.add(info);
     for (InnerDb innerDb : dbMap.values()) {
       List<FileInfo> infos = innerDb.takeSnapshot(storage, last);
@@ -298,8 +294,8 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbsFiles.isEmpty()) {
       FileInfo fileInfo = dbsFiles.get(0);
       final File snapshotFile = fileInfo.getPath().toFile();
-      final MD5Hash md5 = MD5FileUtil.computeMd5ForFile(snapshotFile);
-      if (md5.equals(fileInfo.getFileDigest())) {
+      final Digest digest = SHA256FileUtil.computeDigestForFile(snapshotFile);
+      if (digest.equals(fileInfo.getFileDigest())) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         if(snapshotFile.exists()){
           loadDbs(snapshotFile, true);

@@ -2,6 +2,7 @@ package net.xdob.ratly.server.storage;
 
 import java.nio.file.Path;
 
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.io.MD5Hash;
 
 /**
@@ -10,18 +11,18 @@ import net.xdob.ratly.io.MD5Hash;
  */
 public class FileInfo {
   private final Path path;
-  private MD5Hash fileDigest;
+  private Digest fileDigest;
   private final long fileSize;
   private final String module;
 
-  public FileInfo(Path path, MD5Hash fileDigest, String module) {
+  public FileInfo(Path path, Digest fileDigest, String module) {
     this.path = path;
     this.fileDigest = fileDigest;
     this.fileSize = path.toFile().length();
     this.module = module;
   }
 
-  public FileInfo(Path path, MD5Hash fileDigest) {
+  public FileInfo(Path path, Digest fileDigest) {
     this(path, fileDigest, null);
   }
 
@@ -35,12 +36,12 @@ public class FileInfo {
     return path;
   }
 
-  /** @return the MD5 file digest of the file. */
-  public MD5Hash getFileDigest() {
+  /** @return the file digest of the file. */
+  public Digest getFileDigest() {
     return fileDigest;
   }
 
-  public FileInfo setFileDigest(MD5Hash fileDigest) {
+  public FileInfo setFileDigest(Digest fileDigest) {
     this.fileDigest = fileDigest;
     return this;
   }

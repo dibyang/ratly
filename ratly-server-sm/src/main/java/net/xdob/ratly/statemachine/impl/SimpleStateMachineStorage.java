@@ -1,8 +1,8 @@
 package net.xdob.ratly.statemachine.impl;
 
-import static net.xdob.ratly.util.MD5FileUtil.MD5_SUFFIX;
+import static net.xdob.ratly.util.SHA256FileUtil.SHA256_SUFFIX;
 
-import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -11,7 +11,7 @@ import net.xdob.ratly.statemachine.StateMachineStorage;
 import com.google.common.annotations.VisibleForTesting;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.MD5FileUtil;
+import net.xdob.ratly.util.SHA256FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,17 +53,17 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
   public static final Pattern SNAPSHOT_REGEX =
       Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)");
   /**
-   * 用于匹配包含 MD5 校验的快照文件名的正则表达式
+   * 用于匹配包含 SHA256 校验的快照文件名的正则表达式
    */
-  public static final Pattern SNAPSHOT_MD5_REGEX =
-      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)" + MD5_SUFFIX);
+  public static final Pattern SNAPSHOT_SHA256_REGEX =
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)" + SHA256_SUFFIX);
   /**
-   * 过滤器，用于在目录中查找符合 MD5 校验规则的文件。
+   * 过滤器，用于在目录中查找符合 SHA256 校验规则的文件。
    */
-  private static final DirectoryStream.Filter<Path> SNAPSHOT_MD5_FILTER
+  private static final DirectoryStream.Filter<Path> SNAPSHOT_SHA256_FILTER
       = entry -> Optional.ofNullable(entry.getFileName())
       .map(Path::toString)
-      .map(SNAPSHOT_MD5_REGEX::matcher)
+      .map(SNAPSHOT_SHA256_REGEX::matcher)
       .filter(Matcher::matches)
       .isPresent();
   /**
@@ -148,7 +148,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
           });
       // 删除没有对应快照文件的 MD5 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
-          SNAPSHOT_MD5_FILTER)) {
+          SNAPSHOT_SHA256_FILTER)) {
         for (Path md5path : stream) {
           Path md5FileNamePath = md5path.getFileName();
           if (md5FileNamePath == null) {
@@ -156,7 +156,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
           }
           final String md5FileName = md5FileNamePath.toString();
           final File snapshotFile = new File(stateMachineDir,
-              md5FileName.substring(0, md5FileName.length() - MD5_SUFFIX.length()));
+              md5FileName.substring(0, md5FileName.length() - SHA256_SUFFIX.length()));
           if (!snapshotFile.exists()) {
             FileUtils.deletePathQuietly(md5path);
           }
@@ -233,10 +233,10 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
       }
     }
 
-    // read md5
+    // read digest
     final Path path = latest.getFile().getPath();
-    final MD5Hash md5 = MD5FileUtil.readStoredMd5ForFile(path.toFile());
-    final FileInfo info = new FileInfo(path, md5);
+    final Digest digest = SHA256FileUtil.readStoredDigestForFile(path.toFile());
+    final FileInfo info = new FileInfo(path, digest);
     return new SingleFileSnapshotInfo(info, latest.getTerm(), latest.getIndex());
   }
 

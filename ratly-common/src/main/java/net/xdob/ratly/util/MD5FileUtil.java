@@ -16,6 +16,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 使用SHA256FileUtil替代
+ */
 public abstract class MD5FileUtil {
   public static final Logger LOG = LoggerFactory.getLogger(MD5FileUtil.class);
 
@@ -42,9 +45,9 @@ public abstract class MD5FileUtil {
    * Verify that the previously saved md5 for the given file matches
    * expectedMd5.
    */
-  public static void verifySavedMD5(File dataFile, MD5Hash expectedMD5)
+  public static void verifySavedDigest(File dataFile, MD5Hash expectedMD5)
       throws IOException {
-    MD5Hash storedHash = readStoredMd5ForFile(dataFile);
+    MD5Hash storedHash = readStoredDigestForFile(dataFile);
     // Check the hash itself
     if (!expectedMD5.equals(storedHash)) {
       throw new IOException(
@@ -68,7 +71,7 @@ public abstract class MD5FileUtil {
    * @param dataFile the file containing data
    * @return the checksum stored in dataFile.md5
    */
-  public static MD5Hash readStoredMd5ForFile(File dataFile) throws IOException {
+  public static MD5Hash readStoredDigestForFile(File dataFile) throws IOException {
     final File md5File = getDigestFileForFile(dataFile);
     if (!md5File.exists()) {
       return null;
@@ -91,32 +94,36 @@ public abstract class MD5FileUtil {
     return new MD5Hash(storedHash);
   }
 
+  private static final Object lock = new Object();
+
   /**
    * Read dataFile and compute its MD5 checksum.
    */
-  public static MD5Hash computeMd5ForFile(File dataFile) throws IOException {
+  public static MD5Hash computeDigestForFile(File dataFile) throws IOException {
     final int bufferSize = SizeInBytes.ONE_MB.getSizeInt();
     final MessageDigest digester = MD5Hash.getDigester();
-    try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
-      final long fileSize = in.size();
-      for (int offset = 0; offset < fileSize; ) {
-        final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
-        digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
-        offset += readSize;
+    synchronized (lock) {
+      try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
+        final long fileSize = in.size();
+        for (int offset = 0; offset < fileSize; ) {
+          final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
+          digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
+          offset += readSize;
+        }
       }
     }
     return new MD5Hash(digester.digest());
   }
 
-  public static MD5Hash computeAndSaveMd5ForFile(File dataFile) {
+  public static MD5Hash computeAndSaveDigestForFile(File dataFile) {
     final MD5Hash md5;
     try {
-      md5 = computeMd5ForFile(dataFile);
+      md5 = computeDigestForFile(dataFile);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to compute MD5 for file " + dataFile, e);
     }
     try {
-      saveMD5File(dataFile, md5);
+      saveDigestFile(dataFile, md5);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to save MD5 " + md5 + " for file " + dataFile, e);
     }
@@ -128,13 +135,13 @@ public abstract class MD5FileUtil {
    * @param dataFile the original file whose md5 was computed
    * @param digest the computed digest
    */
-  public static void saveMD5File(File dataFile, MD5Hash digest)
+  public static void saveDigestFile(File dataFile, MD5Hash digest)
       throws IOException {
     final String digestString = StringUtils.bytes2HexString(digest.getDigest());
-    saveMD5File(dataFile, digestString);
+    saveDigestFile(dataFile, digestString);
   }
 
-  private static void saveMD5File(File dataFile, String digestString)
+  private static void saveDigestFile(File dataFile, String digestString)
       throws IOException {
     final String md5Line = digestString + " *" + dataFile.getName() + "\n";
     if (getMatcher(md5Line.trim()) == null) {

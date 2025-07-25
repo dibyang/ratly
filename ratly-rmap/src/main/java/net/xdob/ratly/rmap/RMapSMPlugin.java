@@ -1,7 +1,7 @@
 package net.xdob.ratly.rmap;
 
 import com.google.protobuf.ByteString;
-import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rmap.exception.NotFindCacheException;
 import net.xdob.ratly.protocol.Message;
@@ -17,7 +17,7 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.AtomicFileOutputStream;
-import net.xdob.ratly.util.MD5FileUtil;
+import net.xdob.ratly.util.SHA256FileUtil;
 import net.xdob.ratly.util.Types2;
 
 import java.io.File;
@@ -25,7 +25,6 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class RMapSMPlugin implements SMPlugin {
@@ -165,8 +164,8 @@ public class RMapSMPlugin implements SMPlugin {
       byte[] bytes = context.getFasts().asBytes(cache);
       out.write(bytes);
     }
-    final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
-    final FileInfo info = new FileInfo(snapshotFile.toPath(), md5);
+    final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+    final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
     return Arrays.asList(info);
   }
 
@@ -181,8 +180,8 @@ public class RMapSMPlugin implements SMPlugin {
       final File snapshotFile = fileInfo.getPath().toFile();
       final String snapshotFileName = snapshotFile.getPath();
       SMPlugin.LOG.info("restore map snapshot from {}", snapshotFileName);
-      final MD5Hash md5 = MD5FileUtil.computeAndSaveMd5ForFile(snapshotFile);
-      if (md5.equals(fileInfo.getFileDigest())) {
+      final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+      if (digest.equals(fileInfo.getFileDigest())) {
         byte[] bytes = Files.readAllBytes(snapshotFile.toPath());
         Map<String,CacheObject> old =(Map<String,CacheObject>)context.getFasts().asObject(bytes);
         CacheObject removed = old.remove(RMAP_KEY);

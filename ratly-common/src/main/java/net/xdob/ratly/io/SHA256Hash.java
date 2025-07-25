@@ -11,35 +11,35 @@ import java.util.Arrays;
 /**
  * MD5工具封装
  */
-public class MD5Hash implements Digest{
-  public static final int MD5_LEN = 16;
+public class SHA256Hash implements Digest {
+  public static final int SHA256_LEN = 32;
 
   private static final ThreadLocal<MessageDigest> DIGESTER_FACTORY =
-      ThreadLocal.withInitial(MD5Hash::newDigester);
+      ThreadLocal.withInitial(SHA256Hash::newDigester);
 
   public static MessageDigest newDigester() {
     try {
-      return MessageDigest.getInstance("MD5");
+      return MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("Failed to create MessageDigest for MD5", e);
+      throw new IllegalStateException("Failed to create MessageDigest for SHA256", e);
     }
   }
 
   private byte[] digest;
 
-  /** Constructs an MD5Hash. */
-  public MD5Hash() {
-    this.digest = new byte[MD5_LEN];
+  /** Constructs an SHA256Hash. */
+  public SHA256Hash() {
+    this.digest = new byte[SHA256_LEN];
   }
 
-  /** Constructs an MD5Hash from a hex string. */
-  public MD5Hash(String hex) {
+  /** Constructs an SHA256Hash from a hex string. */
+  public SHA256Hash(String hex) {
     setDigest(hex);
   }
 
-  /** Constructs an MD5Hash with a specified value. */
-  public MD5Hash(byte[] digest) {
-    if (digest.length != MD5_LEN) {
+  /** Constructs an SHA256Hash with a specified value. */
+  public SHA256Hash(byte[] digest) {
+    if (digest.length != SHA256_LEN) {
       throw new IllegalArgumentException("Wrong length: " + digest.length);
     }
     this.digest = digest.clone();
@@ -50,8 +50,8 @@ public class MD5Hash implements Digest{
   }
 
   /** Constructs, reads and returns an instance. */
-  public static MD5Hash read(DataInput in) throws IOException {
-    MD5Hash result = new MD5Hash();
+  public static SHA256Hash read(DataInput in) throws IOException {
+    SHA256Hash result = new SHA256Hash();
     result.readFields(in);
     return result;
   }
@@ -61,8 +61,8 @@ public class MD5Hash implements Digest{
   }
 
   /** Copy the contents of another instance into this instance. */
-  public void set(MD5Hash that) {
-    System.arraycopy(that.digest, 0, this.digest, 0, MD5_LEN);
+  public void set(SHA256Hash that) {
+    System.arraycopy(that.digest, 0, this.digest, 0, SHA256_LEN);
   }
 
   /** Returns the digest bytes. */
@@ -71,7 +71,7 @@ public class MD5Hash implements Digest{
   }
 
   /** Construct a hash value for a byte array. */
-  public static MD5Hash digest(byte[] data) {
+  public static SHA256Hash digest(byte[] data) {
     return digest(data, 0, data.length);
   }
 
@@ -85,7 +85,7 @@ public class MD5Hash implements Digest{
   }
 
   /** Construct a hash value for the content from the InputStream. */
-  public static MD5Hash digest(InputStream in) throws IOException {
+  public static SHA256Hash digest(InputStream in) throws IOException {
     final byte[] buffer = new byte[4*1024];
 
     final MessageDigest digester = getDigester();
@@ -93,41 +93,33 @@ public class MD5Hash implements Digest{
       digester.update(buffer, 0, n);
     }
 
-    return new MD5Hash(digester.digest());
+    return new SHA256Hash(digester.digest());
   }
 
   /** Construct a hash value for a byte array. */
-  public static MD5Hash digest(byte[] data, int start, int len) {
+  public static SHA256Hash digest(byte[] data, int start, int len) {
     byte[] digest;
     MessageDigest digester = getDigester();
     digester.update(data, start, len);
     digest = digester.digest();
-    return new MD5Hash(digest);
+    return new SHA256Hash(digest);
   }
 
   /** Construct a hash value for an array of byte array. */
-  public static MD5Hash digest(byte[][] dataArr, int start, int len) {
+  public static SHA256Hash digest(byte[][] dataArr, int start, int len) {
     byte[] digest;
     MessageDigest digester = getDigester();
     for (byte[] data : dataArr) {
       digester.update(data, start, len);
     }
     digest = digester.digest();
-    return new MD5Hash(digest);
+    return new SHA256Hash(digest);
   }
 
-  /** Construct a half-sized version of this MD5.  Fits in a long **/
-  public long halfDigest() {
-    long value = 0;
-    for (int i = 0; i < 8; i++) {
-      value |= ((digest[i] & 0xffL) << (8*(7-i)));
-    }
-    return value;
-  }
 
   /**
-   * Return a 32-bit digest of the MD5.
-   * @return the first 4 bytes of the md5
+   * Return a 32-bit digest of the SHA256.
+   * @return the first 4 bytes of the SHA256
    */
   public int quarterDigest() {
     int value = 0;
@@ -137,14 +129,14 @@ public class MD5Hash implements Digest{
     return value;
   }
 
-  /** Returns true iff <code>o</code> is an MD5Hash whose digest contains the
+  /** Returns true iff <code>o</code> is an SHA256Hash whose digest contains the
    * same values.  */
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof MD5Hash)) {
+    if (!(o instanceof SHA256Hash)) {
       return false;
     }
-    MD5Hash other = (MD5Hash)o;
+    SHA256Hash other = (SHA256Hash)o;
     return Arrays.equals(this.digest, other.digest);
   }
 
@@ -162,8 +154,8 @@ public class MD5Hash implements Digest{
   /** Returns a string representation of this object. */
   @Override
   public String toString() {
-    StringBuilder buf = new StringBuilder(MD5_LEN*2);
-    for (int i = 0; i < MD5_LEN; i++) {
+    StringBuilder buf = new StringBuilder(SHA256_LEN *2);
+    for (int i = 0; i < SHA256_LEN; i++) {
       int b = digest[i];
       buf.append(HEX_DIGITS[(b >> 4) & 0xf]);
       buf.append(HEX_DIGITS[b & 0xf]);
@@ -173,11 +165,11 @@ public class MD5Hash implements Digest{
 
   /** Sets the digest value from a hex string. */
   public void setDigest(String hex) {
-    if (hex.length() != MD5_LEN*2) {
+    if (hex.length() != SHA256_LEN *2) {
       throw new IllegalArgumentException("Wrong length: " + hex.length());
     }
-    this.digest = new byte[MD5_LEN];
-    for (int i = 0; i < MD5_LEN; i++) {
+    this.digest = new byte[SHA256_LEN];
+    for (int i = 0; i < SHA256_LEN; i++) {
       int j = i << 1;
       this.digest[i] = (byte)(charToNibble(hex.charAt(j)) << 4 |
           charToNibble(hex.charAt(j+1)));
@@ -194,5 +186,10 @@ public class MD5Hash implements Digest{
     } else {
       throw new RuntimeException("Not a hex character: " + c);
     }
+  }
+
+  public static void main(String[] args) {
+    SHA256Hash sha256Hash = SHA256Hash.digest("hello".getBytes());
+    System.out.println("sha256Hash = " + sha256Hash);
   }
 }

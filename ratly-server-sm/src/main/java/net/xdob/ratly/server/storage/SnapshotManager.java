@@ -3,7 +3,6 @@ package net.xdob.ratly.server.storage;
 import net.xdob.ratly.io.CorruptedFileException;
 import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.proto.raft.FileChunkProto;
-import net.xdob.ratly.proto.raft.InstallSnapshotReplyProto;
 import net.xdob.ratly.proto.raft.InstallSnapshotRequestProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -192,7 +191,7 @@ public class SnapshotManager {
           throw new CorruptedFileException(tmpSnapshotFile,
               "MD5 mismatch for snapshot-" + lastIncludedIndex + " installation.  " + renameMessage);
         } else {
-          MD5FileUtil.saveMD5File(tmpSnapshotFile, digest);
+          MD5FileUtil.saveDigestFile(tmpSnapshotFile, digest);
         }
       }
     }

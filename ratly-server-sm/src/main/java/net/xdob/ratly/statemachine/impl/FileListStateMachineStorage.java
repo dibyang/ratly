@@ -2,7 +2,7 @@ package net.xdob.ratly.statemachine.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import net.xdob.ratly.io.MD5Hash;
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -10,7 +10,7 @@ import net.xdob.ratly.statemachine.SnapshotRetentionPolicy;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.MD5FileUtil;
+import net.xdob.ratly.util.SHA256FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,13 +19,12 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static net.xdob.ratly.util.MD5FileUtil.MD5_SUFFIX;
+import static net.xdob.ratly.util.SHA256FileUtil.SHA256_SUFFIX;
 
 /**
  * 用于管理存储在多个文件中的状态机快照。
@@ -48,21 +47,21 @@ public class FileListStateMachineStorage implements StateMachineStorage {
    * snapshot.term_index
    */
   public static final Pattern SNAPSHOT_REGEX =
-      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+(?<!\\.md5)$)" );
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+(?<!\\"+SHA256_SUFFIX+")$)" );
   /**
-   * 用于匹配包含 MD5 校验的快照文件名的正则表达式
+   * 用于匹配包含校验的快照文件名的正则表达式
    */
-  public static final Pattern SNAPSHOT_MD5_REGEX =
-      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+)" + MD5_SUFFIX+"$");
+  public static final Pattern SNAPSHOT_SHA256_REGEX =
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+)" + SHA256_SUFFIX +"$");
 
 
   /**
-   * 过滤器，用于在目录中查找符合 MD5 校验规则的文件。
+   * 过滤器，用于在目录中查找符合校验规则的文件。
    */
-  private static final DirectoryStream.Filter<Path> SNAPSHOT_MD5_FILTER
+  private static final DirectoryStream.Filter<Path> SNAPSHOT_SIG_FILTER
       = entry -> Optional.ofNullable(entry.getFileName())
       .map(Path::toString)
-      .map(SNAPSHOT_MD5_REGEX::matcher)
+      .map(SNAPSHOT_SHA256_REGEX::matcher)
       .filter(Matcher::matches)
       .isPresent();
   /**
@@ -120,22 +119,6 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     return infos;
   }
 
-  public static void main(String[] args) throws IOException {
-//    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.md5";
-//    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
-//    System.out.println("pp matches() = " + matcher.matches());
-//
-//    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
-//    System.out.println("pp md5 matches() = " + matcher2.matches());
-//    System.out.println("matcher2.group(3) = " + matcher2.group(3));
-    List<FileListSnapshotInfo> infos = getFileListSnapshotInfos(Paths.get("d:/test/sm"));
-    for (FileListSnapshotInfo info : infos) {
-      for (FileInfo file : info.getFiles()) {
-        System.out.println("file = " + file);
-        System.out.println("file.getFileDigest() = " + file.getFileDigest());
-      }
-    }
-  }
 
   /**
    * 功能：根据快照保留策略清理过期的快照文件。如果快照数量超过保留的数量，它会删除旧的快照文件。
@@ -174,7 +157,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
       // 删除没有对应快照文件的 MD5 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
-          SNAPSHOT_MD5_FILTER)) {
+          SNAPSHOT_SIG_FILTER)) {
         for (Path md5path : stream) {
           Path md5FileNamePath = md5path.getFileName();
           if (md5FileNamePath == null) {
@@ -182,7 +165,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
           }
           final String md5FileName = md5FileNamePath.toString();
           final File snapshotFile = new File(stateMachineDir,
-              md5FileName.substring(0, md5FileName.length() - MD5_SUFFIX.length()));
+              md5FileName.substring(0, md5FileName.length() - SHA256_SUFFIX.length()));
           if (!snapshotFile.exists()) {
             FileUtils.deletePathQuietly(md5path);
           }
@@ -252,8 +235,8 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     // read md5
     for (FileInfo file : latest.getFiles()) {
       final Path path = file.getPath();
-      final MD5Hash md5 = MD5FileUtil.readStoredMd5ForFile(path.toFile());
-      final FileInfo info = new FileInfo(path, md5, file.getModule());
+      final Digest digest = SHA256FileUtil.readStoredDigestForFile(path.toFile());
+      final FileInfo info = new FileInfo(path, digest, file.getModule());
       infos.add(info);
     }
     return new FileListSnapshotInfo(infos, latest.getTerm(), latest.getIndex());
@@ -299,5 +282,17 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   @VisibleForTesting
   File getStateMachineDir() {
     return stateMachineDir;
+  }
+
+
+  public static void main(String[] args) throws IOException {
+    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.sha256";
+    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
+    System.out.println("pp matches() = " + matcher.matches());
+
+    Matcher matcher2 = SNAPSHOT_SHA256_REGEX.matcher(pp);
+    System.out.println("pp sha256 matches() = " + matcher2.matches());
+    System.out.println("matcher2.group(3) = " + matcher2.group(3));
+
   }
 }
