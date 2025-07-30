@@ -17,7 +17,7 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.AtomicFileOutputStream;
-import net.xdob.ratly.util.SHA256FileUtil;
+import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.Types2;
 
 import java.io.File;
@@ -164,7 +164,7 @@ public class RMapSMPlugin implements SMPlugin {
       byte[] bytes = context.getFasts().asBytes(cache);
       out.write(bytes);
     }
-    final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+    final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
     final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
     return Arrays.asList(info);
   }
@@ -180,7 +180,7 @@ public class RMapSMPlugin implements SMPlugin {
       final File snapshotFile = fileInfo.getPath().toFile();
       final String snapshotFileName = snapshotFile.getPath();
       SMPlugin.LOG.info("restore map snapshot from {}", snapshotFileName);
-      final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+      final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
       if (digest.equals(fileInfo.getFileDigest())) {
         byte[] bytes = Files.readAllBytes(snapshotFile.toPath());
         Map<String,CacheObject> old =(Map<String,CacheObject>)context.getFasts().asObject(bytes);

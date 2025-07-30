@@ -4,7 +4,6 @@ import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.xdob.ratly.io.Digest;
-import net.xdob.ratly.io.SHA256Hash;
 import net.xdob.ratly.jdbc.exception.NoSessionException;
 import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.json.Jsons;
@@ -16,10 +15,10 @@ import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
+import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
-import net.xdob.ratly.util.SHA256FileUtil;
+import net.xdob.ratly.util.ZipUtils;
 import org.h2.Driver;
-import org.h2.tools.AutoFix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -417,13 +416,12 @@ public class InnerDb {
     }
   }
 
-  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last, FileInfo dbFileInfo){
-    File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
+  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last, FileInfo dbFileInfo, FileInfo sqlFileInfo){
+    File sqlFile = sqlFileInfo.getPath().toFile();
     File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
     Stopwatch stopwatch = Stopwatch.createStarted();
     // 基于存储目录初始化
     String url = "jdbc:h2:file:" + dbPath.toString()
-        + ";AUTO_SERVER=TRUE"
         + ";QUERY_TIMEOUT=600";
     try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
          Statement statement = connection.createStatement()) {
@@ -432,47 +430,48 @@ public class InnerDb {
     }catch (SQLException e){
       LOG.warn("takeSqlSnapshot error", e);
     }
-    SHA256FileUtil.computeAndSaveDigestForFile(sqlFile);
-    Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
-    dbFileInfo.setFileDigest(digest);
+    Digest digest2 = MD5FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
+    dbFileInfo.setFileDigest(digest2);
+    Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sqlFile);
+    sqlFileInfo.setFileDigest(digest);
     LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
-
   }
 
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
     List<FileInfo> infos = new ArrayList<>();
     Stopwatch stopwatch = Stopwatch.createStarted();
-
     try(Connection connection = dataSource.getConnection();
         Statement stmt = connection.createStatement()){
+      stmt.setQueryTimeout(600);
       //快照前让数据落盘  CHECKPOINT SYNC
       stmt.executeUpdate("checkpoint sync");
     }catch (SQLException e){
       throw new IOException(e);
     }
+
     File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
     Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
     if(!sourceDbFile.toFile().exists()||sourceDbFile.toFile().length()<128){
       throw new IOException(new DbErrorException(dbFile.toString()));
     }
     Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-    LOG.info("Taking a DB snapshot to file {}, use time:{}", dbFile.toString(), stopwatch);
-    AutoFix autoFix = new AutoFix();
-    try {
-      String dbName = getDbName(dbFile);
-      boolean hasError = autoFix.needFix(dbFile.getParent(), dbName, INNER_USER, INNER_PASSWORD);
-      if (hasError) {
-        throw new IOException(new DbErrorException(dbFile.toString()));
-      }
-    } catch (SQLException e) {
-      throw new IOException(new DbErrorException(dbFile.toString(),e));
-    }
-
-    FileInfo dbFileInfo = getFileInfo(dbFile);
+//    File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
+//    // 基于存储目录初始化
+//    String url = "jdbc:h2:file:" + dbPath.toString();
+//    try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
+//         Statement statement = connection.createStatement()) {
+//      statement.execute("show tables;");
+//    }catch (SQLException e){
+//      throw new IOException(new DbErrorException(dbFile.toString(),e));
+//    }
+    FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null);
     infos.add(dbFileInfo);
-    stopwatch.reset().start();
+
+    File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
+    FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
+    infos.add(sqlFileInfo);
     context.getScheduler().submit(()->{
-      takeSqlSnapshot(storage, last, dbFileInfo);
+      takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
     });
     File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
     List<String> sessionIds = sessionMgr.getAllSessions().stream().map(Session::getId)
@@ -482,21 +481,15 @@ public class InnerDb {
     n3Map.put(SESSIONS_KEY, sessionIds);
     String json = Jsons.i.toJson(n3Map);
     Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
-    LOG.info("Taking a DB snapshot to file {}, use time:{}", sessionFile.toString(), stopwatch);
-
     infos.add(getFileInfo(sessionFile));
-
+    LOG.info("{} Taking a DB snapshot, use time:{}", getName(), stopwatch);
     return infos;
   }
 
-  private String getDbName(File dbFile) {
-    String dbFileName = dbFile.getName();
-		return dbFileName.substring(0, dbFileName.length() - DB_EXT.length() -1);
-  }
 
-  private static FileInfo getFileInfo(File file) {
-    final SHA256Hash sha256 = SHA256FileUtil.computeAndSaveDigestForFile(file);
-		return new FileInfo(file.toPath(), sha256);
+  private FileInfo getFileInfo(File file) {
+    final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(file);
+		return new FileInfo(file.toPath(), digest);
   }
 
 
@@ -510,32 +503,23 @@ public class InnerDb {
     FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
     if(dbfileInfo!=null) {
       final File dbFile = dbfileInfo.getPath().toFile();
-      final Digest digest = SHA256FileUtil.computeDigestForFile(dbFile);
-      if (!digest.equals(dbfileInfo.getFileDigest())) {
-        LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
-      }
-      AutoFix autoFix = new AutoFix();
-      boolean hasError = false;
-      try {
-        String dbName = getDbName(dbFile);
-        hasError = autoFix.needFix(dbFile.getParent(), dbName, INNER_USER, INNER_PASSWORD);
-      } catch (SQLException e) {
-        LOG.warn("DB file check failed", e);
-      }
-      if(hasError) {
+      final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
+      if (digest.equals(dbfileInfo.getFileDigest())) {
         LOG.info("restore DB file snapshot from {}", dbFile.getPath());
         closeDs();
         Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
         openDs();
         restoreDb = true;
-
+      }else{
+        LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
       }
     }
+
     if(!restoreDb){
       FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
       if(sqlfileInfo!=null) {
         final File sqlFile = sqlfileInfo.getPath().toFile();
-        final Digest digest = SHA256FileUtil.computeDigestForFile(sqlFile);
+        final Digest digest = MD5FileUtil.computeDigestForFile(sqlFile);
         if (digest.equals(sqlfileInfo.getFileDigest())) {
           LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
           try (Connection connection = dataSource.getConnection();
@@ -554,7 +538,7 @@ public class InnerDb {
     FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
     if(sessionfileInfo!=null) {
       final File sessionFile = sessionfileInfo.getPath().toFile();
-      final Digest digest = SHA256FileUtil.computeDigestForFile(sessionFile);
+      final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
       if (digest.equals(sessionfileInfo.getFileDigest())) {
         byte[] bytes = Files.readAllBytes(sessionFile.toPath());
         N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
@@ -568,7 +552,7 @@ public class InnerDb {
         }
       }
     }
-    LOG.info("restore DB snapshot use time: {}", stopwatch);
+    LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
   }
 
 

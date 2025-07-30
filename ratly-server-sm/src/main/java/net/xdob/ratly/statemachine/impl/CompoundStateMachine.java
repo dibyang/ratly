@@ -6,6 +6,7 @@ import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.client.impl.FastsImpl;
+import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.proto.jdbc.WrapReplyProto;
 import net.xdob.ratly.proto.jdbc.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -237,6 +239,16 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         }
       }
       if(!infos.isEmpty()) {
+        File sumFile = storage.getSnapshotSumFile(last.getTerm(), last.getIndex());
+        StringBuilder lines = new StringBuilder();
+        infos.forEach(info->{
+          lines.append(info.getPath().getFileName()).append("\n");
+        });
+        try (AtomicFileOutputStream afos = new AtomicFileOutputStream(sumFile)) {
+          afos.write(lines.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sumFile);
+        infos.add(new FileInfo(sumFile.toPath(), digest, FileListSnapshotInfo.SUM));
         storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
         return last.getIndex();
       }

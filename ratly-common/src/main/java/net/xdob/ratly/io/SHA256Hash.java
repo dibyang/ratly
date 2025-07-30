@@ -9,7 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 /**
- * MD5工具封装
+ * SHA256工具封装
  */
 public class SHA256Hash implements Digest {
   public static final int SHA256_LEN = 32;

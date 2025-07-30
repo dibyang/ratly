@@ -1,5 +1,6 @@
 package net.xdob.ratly.util;
 
+import com.google.common.base.Stopwatch;
 import net.xdob.ratly.io.SHA256Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ public abstract class SHA256FileUtil {
   // Keep the checksum and data in the same block format instead of individual files.
 
   public static final String SHA256_SUFFIX = ".sha256";
-  private static final String LINE_REGEX = "([0-9a-f]{64}) [ *](.+)";
+  private static final String LINE_REGEX = "([0-9a-f]{65}) [ *](.+)";
   private static final Pattern LINE_PATTERN = Pattern.compile(LINE_REGEX);
 
   static Matcher getMatcher(String sha256) {
@@ -165,7 +166,9 @@ public abstract class SHA256FileUtil {
   }
 
   public static void main(String[] args) {
-    File file = Paths.get("D:/test/log_2328328-2328337").toFile();
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    File file = Paths.get("D:/test/db/benchmark_db.mv.db").toFile();
     SHA256FileUtil.computeAndSaveDigestForFile(file);
+    System.out.println("stopwatch = " + stopwatch);
   }
 }

@@ -1,9 +1,6 @@
 package net.xdob.ratly.statemachine.impl;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -18,6 +15,7 @@ import net.xdob.ratly.util.JavaUtils;
  * 该类实现了 SnapshotInfo 接口，提供了获取 Term 和文件列表等功能。
  */
 public class FileListSnapshotInfo implements SnapshotInfo {
+  public static final String SUM = "sum";
   private final TermIndex termIndex;
   private final List<FileInfo> files;
 
@@ -44,6 +42,10 @@ public class FileListSnapshotInfo implements SnapshotInfo {
   public List<FileInfo> getFiles(String module) {
     return files.stream().filter(e-> Objects.equals(module,e.getModule()))
         .collect(Collectors.toList());
+  }
+
+  public Optional<FileInfo> getSumFile(){
+    return getFiles(SUM).stream().findFirst();
   }
 
   @Override

@@ -1,5 +1,6 @@
 package net.xdob.ratly.util;
 
+import com.google.common.base.Stopwatch;
 import net.xdob.ratly.io.MD5Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.Optional;
@@ -94,7 +96,7 @@ public abstract class MD5FileUtil {
     return new MD5Hash(storedHash);
   }
 
-  private static final Object lock = new Object();
+  //private static final Object lock = new Object();
 
   /**
    * Read dataFile and compute its MD5 checksum.
@@ -102,14 +104,12 @@ public abstract class MD5FileUtil {
   public static MD5Hash computeDigestForFile(File dataFile) throws IOException {
     final int bufferSize = SizeInBytes.ONE_MB.getSizeInt();
     final MessageDigest digester = MD5Hash.getDigester();
-    synchronized (lock) {
-      try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
-        final long fileSize = in.size();
-        for (int offset = 0; offset < fileSize; ) {
-          final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
-          digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
-          offset += readSize;
-        }
+    try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
+      final long fileSize = in.size();
+      for (int offset = 0; offset < fileSize; ) {
+        final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
+        digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
+        offset += readSize;
       }
     }
     return new MD5Hash(digester.digest());
@@ -164,5 +164,12 @@ public abstract class MD5FileUtil {
    */
   public static File getDigestFileForFile(File file) {
     return new File(file.getParentFile(), file.getName() + MD5_SUFFIX);
+  }
+
+  public static void main(String[] args) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    File file = Paths.get("D:/test/db/benchmark_db.mv.db").toFile();
+    MD5FileUtil.computeAndSaveDigestForFile(file);
+    System.out.println("stopwatch = " + stopwatch);
   }
 }

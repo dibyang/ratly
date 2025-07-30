@@ -271,7 +271,7 @@ public class DBSMPlugin implements SMPlugin {
 
     final File snapshotFile =  storage.getSnapshotFile(DBS_JSON, last.getTerm(), last.getIndex());
     saveDbsToFile(snapshotFile,true);
-    final Digest digest = SHA256FileUtil.computeAndSaveDigestForFile(snapshotFile);
+    final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
     final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
     fileInfos.add(info);
     for (InnerDb innerDb : dbMap.values()) {
@@ -294,7 +294,7 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbsFiles.isEmpty()) {
       FileInfo fileInfo = dbsFiles.get(0);
       final File snapshotFile = fileInfo.getPath().toFile();
-      final Digest digest = SHA256FileUtil.computeDigestForFile(snapshotFile);
+      final Digest digest = MD5FileUtil.computeDigestForFile(snapshotFile);
       if (digest.equals(fileInfo.getFileDigest())) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         if(snapshotFile.exists()){

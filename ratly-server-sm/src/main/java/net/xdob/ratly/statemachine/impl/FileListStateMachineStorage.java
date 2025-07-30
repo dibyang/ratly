@@ -10,7 +10,7 @@ import net.xdob.ratly.statemachine.SnapshotRetentionPolicy;
 import net.xdob.ratly.statemachine.StateMachineStorage;
 import net.xdob.ratly.util.AtomicFileOutputStream;
 import net.xdob.ratly.util.FileUtils;
-import net.xdob.ratly.util.SHA256FileUtil;
+import net.xdob.ratly.util.MD5FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static net.xdob.ratly.util.SHA256FileUtil.SHA256_SUFFIX;
 
 /**
  * 用于管理存储在多个文件中的状态机快照。
@@ -42,26 +41,30 @@ public class FileListStateMachineStorage implements StateMachineStorage {
    * 用于标记损坏快照文件的后缀
    */
   static final String CORRUPT_SNAPSHOT_FILE_SUFFIX = ".corrupt";
+
+  public static final Pattern SNAPSHOT_SUM_REGEX =
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(sum$)" );
+
   /**
    * 用于匹配快照文件名的正则表达式，包含了 term 和 index 信息。
    * snapshot.term_index
    */
   public static final Pattern SNAPSHOT_REGEX =
-      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+(?<!\\"+SHA256_SUFFIX+")$)" );
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+(?<!\\"+ MD5FileUtil.MD5_SUFFIX +")$)" );
   /**
    * 用于匹配包含校验的快照文件名的正则表达式
    */
-  public static final Pattern SNAPSHOT_SHA256_REGEX =
-      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+)" + SHA256_SUFFIX +"$");
+  public static final Pattern SNAPSHOT_MD5_REGEX =
+      Pattern.compile(SNAPSHOT_FILE_PREFIX + "\\.(\\d+)_(\\d+)_(.+)" + MD5FileUtil.MD5_SUFFIX +"$");
 
 
   /**
    * 过滤器，用于在目录中查找符合校验规则的文件。
    */
-  private static final DirectoryStream.Filter<Path> SNAPSHOT_SIG_FILTER
+  private static final DirectoryStream.Filter<Path> SNAPSHOT_BLAKE3_FILTER
       = entry -> Optional.ofNullable(entry.getFileName())
       .map(Path::toString)
-      .map(SNAPSHOT_SHA256_REGEX::matcher)
+      .map(SNAPSHOT_MD5_REGEX::matcher)
       .filter(Matcher::matches)
       .isPresent();
   /**
@@ -100,15 +103,22 @@ public class FileListStateMachineStorage implements StateMachineStorage {
       for (Path path : stream) {
         final Path filename = path.getFileName();
         if (filename != null) {
-          final Matcher matcher = SNAPSHOT_REGEX.matcher(filename.toString());
+          final Matcher matcher = SNAPSHOT_SUM_REGEX.matcher(filename.toString());
           if (matcher.matches()) {
             final long term = Long.parseLong(matcher.group(1));
             final long index = Long.parseLong(matcher.group(2));
-            final String module = matcher.group(3);
             TermIndex termIndex = TermIndex.valueOf(term, index);
-            final FileInfo fileInfo = new FileInfo(path, null, module); //No FileDigest here.
             List<FileInfo> fileInfos = map.computeIfAbsent(termIndex, k -> new ArrayList<>());
-            fileInfos.add(fileInfo);
+            fileInfos.add(new FileInfo(path, null, FileListSnapshotInfo.SUM));
+            List<String> lines = Files.readAllLines(path);
+            for (String line : lines) {
+              final Matcher m = SNAPSHOT_REGEX.matcher(line);
+              if(m.matches()) {
+                final String module = m.group(3);
+                final FileInfo fileInfo = new FileInfo(path.resolveSibling(line), null, module); //No FileDigest here.
+                fileInfos.add(fileInfo);
+              }
+            }
           }
         }
       }
@@ -155,9 +165,9 @@ public class FileListStateMachineStorage implements StateMachineStorage {
               })
           );
 
-      // 删除没有对应快照文件的 MD5 文件。
+      // 删除没有对应快照文件的 Digest 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
-          SNAPSHOT_SIG_FILTER)) {
+          SNAPSHOT_BLAKE3_FILTER)) {
         for (Path md5path : stream) {
           Path md5FileNamePath = md5path.getFileName();
           if (md5FileNamePath == null) {
@@ -165,7 +175,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
           }
           final String md5FileName = md5FileNamePath.toString();
           final File snapshotFile = new File(stateMachineDir,
-              md5FileName.substring(0, md5FileName.length() - SHA256_SUFFIX.length()));
+              md5FileName.substring(0, md5FileName.length() - MD5FileUtil.MD5_SUFFIX.length()));
           if (!snapshotFile.exists()) {
             FileUtils.deletePathQuietly(md5path);
           }
@@ -195,6 +205,10 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   public File getSnapshotFile(String module, long term, long endIndex) {
     final File dir = Objects.requireNonNull(stateMachineDir, "stateMachineDir == null");
     return new File(dir, getSnapshotFileName(module, term, endIndex));
+  }
+
+  public File getSnapshotSumFile(long term, long endIndex) {
+    return getSnapshotFile(FileListSnapshotInfo.SUM, term, endIndex);
   }
 
   public File getRootFile() {
@@ -232,10 +246,10 @@ public class FileListStateMachineStorage implements StateMachineStorage {
       }
     }
     List<FileInfo> infos = new ArrayList<>();
-    // read md5
+    // read digest
     for (FileInfo file : latest.getFiles()) {
       final Path path = file.getPath();
-      final Digest digest = SHA256FileUtil.readStoredDigestForFile(path.toFile());
+      final Digest digest = MD5FileUtil.readStoredDigestForFile(path.toFile());
       final FileInfo info = new FileInfo(path, digest, file.getModule());
       infos.add(info);
     }
@@ -244,12 +258,14 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
   public FileListSnapshotInfo updateLatestSnapshot(FileListSnapshotInfo info) {
     return latestSnapshot.updateAndGet(
-        previous -> previous == null || info.getIndex() > previous.getIndex()? info: previous);
+        previous -> previous == null || info.getIndex() >= previous.getIndex()? info: previous);
   }
 
   public static String getSnapshotFileName(String module, long term, long endIndex) {
     return SNAPSHOT_FILE_PREFIX  + "." + term + "_" + endIndex + "_" + module;
   }
+
+
 
   /**
    * 获取当前存储中的最新快照。如果已有缓存，则直接返回缓存中的快照信息，否则加载最新的快照。
@@ -286,13 +302,15 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
 
   public static void main(String[] args) throws IOException {
-    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_db_fspool_aio.zip.sha256";
-    Matcher matcher = SNAPSHOT_REGEX.matcher(pp);
+    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_sum";
+    Matcher matcher = SNAPSHOT_SUM_REGEX.matcher(pp);
     System.out.println("pp matches() = " + matcher.matches());
+    System.out.println("matcher.group(2) = " + matcher.group(2));
+    System.out.println("matcher.group(3) = " + matcher.group(3));
 
-    Matcher matcher2 = SNAPSHOT_SHA256_REGEX.matcher(pp);
+    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
     System.out.println("pp sha256 matches() = " + matcher2.matches());
-    System.out.println("matcher2.group(3) = " + matcher2.group(3));
+
 
   }
 }
