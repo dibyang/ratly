@@ -8,14 +8,17 @@ import org.slf4j.LoggerFactory;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionMgr{
   static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
+  public static final int DEFAULT_MAX_SESSIONS = 16;
 
-  private int maxSessions = 32;
+  private int maxSessions = DEFAULT_MAX_SESSIONS;
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
   private final DbsContext context;
+  private final AtomicBoolean expiredChecking = new AtomicBoolean();
 
 	public DefaultSessionMgr(DbsContext context) {
 		this.context = context;
@@ -26,7 +29,7 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
   public DefaultSessionMgr setMaxSessions(int maxSessions) {
-    this.maxSessions = maxSessions;
+    this.maxSessions = Math.max(maxSessions, DEFAULT_MAX_SESSIONS);
     return this;
   }
 
@@ -41,21 +44,30 @@ public class DefaultSessionMgr implements SessionMgr{
       session = new Session(sessionRequest, connSupplier, this::removeSession);
       sessions.put(session.getId(), session);
       LOG.info("node {} new session={}", context.getPeerId(), sessionId);
-      checkExpiredSessions();
+      if(expiredChecking.compareAndSet(false, true)) {
+        if (sessions.size() > maxSessions) {
+          context.getScheduler().submit(this::checkExpiredSessions);
+        }
+      }
       return session;
     }
   }
 
   public void checkExpiredSessions() {
-    if(sessions.size()>maxSessions){
-      List<Session> expiredSessions = sessions.values().stream()
-          .sorted(Comparator.comparingLong(Session::getUid).reversed())
-          .skip(maxSessions)
-          .collect(Collectors.toList());
+    try {
+      if (sessions.size() > maxSessions) {
+        int left = maxSessions - 6;
+        List<Session> expiredSessions = sessions.values().stream()
+            .sorted(Comparator.comparingLong(Session::getUid).reversed())
+            .skip(left)
+            .collect(Collectors.toList());
 
-      expiredSessions.forEach(s -> {
-        closeSession(s.getId());
-      });
+        expiredSessions.forEach(s -> {
+          closeSession(s.getId());
+        });
+      }
+    } finally {
+      expiredChecking.set(false);
     }
   }
 

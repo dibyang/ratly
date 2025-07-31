@@ -60,14 +60,14 @@ public class InnerDb {
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
   private final ClassCache classCache = new ClassCache();
-  public int maxPoolSize = 32;
+  public int maxPoolSize = 56;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
     this.dbInfo = dbInfo;
     this.context = context;
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
-    sessionMgr = new DefaultSessionMgr(context).setMaxSessions(maxPoolSize);
+    sessionMgr = new DefaultSessionMgr(context).setMaxSessions(maxPoolSize-8);
     transactionMgr = new DefaultTransactionMgr(context);
   }
 
