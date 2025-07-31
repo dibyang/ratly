@@ -13,16 +13,18 @@ import java.net.URL;
 import java.sql.*;
 import java.sql.Date;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class JdbcPreparedStatement extends JdbcStatement implements PreparedStatement {
-  protected Parameters parameters = new Parameters();
-  protected final ArrayList<Parameters> batchParameters = new ArrayList<>();
+
+  protected final List<Parameters> batchParameters = Collections.synchronizedList(new ArrayList<>());
   protected final String sql;
 
   protected SerialResultSetMetaData resultSetMetaData;
   protected SerialParameterMetaData parameterMetaData;
+  protected AtomicReference<Parameters> parametersRef = new AtomicReference<>(new Parameters());
 
   public JdbcPreparedStatement(SqlClient client, String sql) {
     super(client);
@@ -33,7 +35,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   public ResultSet executeQuery() throws SQLException {
     QueryRequest queryRequest = newQueryRequest()
         .setSql(sql)
-        .addParams(parameters);
+        .addParams(parametersRef.get());
     return sendQuery(queryRequest);
   }
 
@@ -54,7 +56,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   public long executeLargeUpdate() throws SQLException {
     UpdateRequest updateRequest = newUpdateRequest()
         .setSql(sql)
-        .addParams(parameters);
+        .addParams(parametersRef.get());
     return sendUpdate(updateRequest);
   }
 
@@ -93,7 +95,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   }
 
   private Parameter getParameter(int parameterIndex) {
-    return parameters.getOrCreate(parameterIndex);
+    return parametersRef.get().getOrCreate(parameterIndex);
   }
 
   @Override
@@ -161,10 +163,6 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
     setObject(parameterIndex, x);
   }
 
-
-
-
-
   @Override
   public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
     String val = new String(Streams4Jdbc.readBytes(x, length));
@@ -184,7 +182,7 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void clearParameters() throws SQLException {
-    parameters.clear();
+    parametersRef.get().clear();
   }
 
   @Override
@@ -210,10 +208,8 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public void addBatch() throws SQLException {
-    synchronized (batchParameters){
-      batchParameters.add(parameters);
-      parameters = new Parameters();
-    }
+    Parameters old = parametersRef.getAndUpdate(e -> new Parameters());
+    batchParameters.add(old);
   }
 
   @Override

@@ -96,7 +96,7 @@ public abstract class MD5FileUtil {
     return new MD5Hash(storedHash);
   }
 
-  //private static final Object lock = new Object();
+  private static final Object lock = new Object();
 
   /**
    * Read dataFile and compute its MD5 checksum.
@@ -104,15 +104,17 @@ public abstract class MD5FileUtil {
   public static MD5Hash computeDigestForFile(File dataFile) throws IOException {
     final int bufferSize = SizeInBytes.ONE_MB.getSizeInt();
     final MessageDigest digester = MD5Hash.getDigester();
-    try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
-      final long fileSize = in.size();
-      for (int offset = 0; offset < fileSize; ) {
-        final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
-        digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
-        offset += readSize;
+    synchronized (lock) {
+      try (FileChannel in = FileUtils.newFileChannel(dataFile, StandardOpenOption.READ)) {
+        final long fileSize = in.size();
+        for (int offset = 0; offset < fileSize; ) {
+          final int readSize = Math.toIntExact(Math.min(fileSize - offset, bufferSize));
+          digester.update(in.map(FileChannel.MapMode.READ_ONLY, offset, readSize));
+          offset += readSize;
+        }
       }
+      return new MD5Hash(digester.digest());
     }
-    return new MD5Hash(digester.digest());
   }
 
   public static MD5Hash computeAndSaveDigestForFile(File dataFile) {

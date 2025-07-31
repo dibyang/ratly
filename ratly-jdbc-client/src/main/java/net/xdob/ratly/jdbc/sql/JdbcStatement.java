@@ -11,10 +11,11 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class JdbcStatement implements Statement {
-  private final ArrayList<String> batchCommands = new ArrayList<>();
+  private final List<String> batchCommands = Collections.synchronizedList(new ArrayList<>());
 
   protected SqlClient sqlClient;
   protected ResultSet resultSet;
