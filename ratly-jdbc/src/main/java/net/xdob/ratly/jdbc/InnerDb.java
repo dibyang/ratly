@@ -430,10 +430,10 @@ public class InnerDb {
     }catch (SQLException e){
       LOG.warn("takeSqlSnapshot error", e);
     }
-    Digest digest2 = MD5FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
-    dbFileInfo.setFileDigest(digest2);
     Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sqlFile);
     sqlFileInfo.setFileDigest(digest);
+    Digest digest2 = MD5FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
+    dbFileInfo.setFileDigest(digest2);
     LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
   }
 

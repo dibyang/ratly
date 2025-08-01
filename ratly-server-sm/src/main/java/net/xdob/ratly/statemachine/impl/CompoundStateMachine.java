@@ -81,7 +81,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     this.peerId = peerId;
     this.serverStateSupport = logQuery;
     if(this.scheduler==null){
-      this.scheduler = Executors.newScheduledThreadPool(8);
+      this.scheduler = Executors.newScheduledThreadPool(6);
     }
     storage.init(raftStorage);
     for (SMPlugin plugin : pluginMap.values()) {
