@@ -109,13 +109,16 @@ public class FileListStateMachineStorage implements StateMachineStorage {
             final long index = Long.parseLong(matcher.group(2));
             TermIndex termIndex = TermIndex.valueOf(term, index);
             List<FileInfo> fileInfos = map.computeIfAbsent(termIndex, k -> new ArrayList<>());
-            fileInfos.add(new FileInfo(path, null, FileListSnapshotInfo.SUM));
+            final Digest digest = MD5FileUtil.readStoredDigestForFile(path.toFile());
+            fileInfos.add(new FileInfo(path, digest, FileListSnapshotInfo.SUM));
             List<String> lines = Files.readAllLines(path);
             for (String line : lines) {
               final Matcher m = SNAPSHOT_REGEX.matcher(line);
               if(m.matches()) {
                 final String module = m.group(3);
-                final FileInfo fileInfo = new FileInfo(path.resolveSibling(line), null, module); //No FileDigest here.
+                Path modPath = path.resolveSibling(line);
+                final Digest modDigest = MD5FileUtil.readStoredDigestForFile(modPath.toFile());
+                final FileInfo fileInfo = new FileInfo(modPath, modDigest, module); //No FileDigest here.
                 fileInfos.add(fileInfo);
               }
             }
@@ -245,15 +248,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
         latest = info;
       }
     }
-    List<FileInfo> infos = new ArrayList<>();
-    // read digest
-    for (FileInfo file : latest.getFiles()) {
-      final Path path = file.getPath();
-      final Digest digest = MD5FileUtil.readStoredDigestForFile(path.toFile());
-      final FileInfo info = new FileInfo(path, digest, file.getModule());
-      infos.add(info);
-    }
-    return new FileListSnapshotInfo(infos, latest.getTerm(), latest.getIndex());
+    return latest;
   }
 
   public FileListSnapshotInfo updateLatestSnapshot(FileListSnapshotInfo info) {

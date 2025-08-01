@@ -17,7 +17,6 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
-import net.xdob.ratly.util.ZipUtils;
 import org.h2.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class InnerDb {
@@ -115,13 +116,12 @@ public class InnerDb {
         dsConfig.setMinimumIdle(5);              // 最小空闲连接
         dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
 
-
-        context.getScheduler()
-            .scheduleAtFixedRate(transactionMgr::checkTimeoutTx,
-                10, 10, TimeUnit.SECONDS);
         openDs();
         context.getScheduler()
-            .scheduleAtFixedRate(sessionMgr::checkExpiredSessions,
+            .scheduleWithFixedDelay(transactionMgr::checkTimeoutTx,
+                10, 10, TimeUnit.SECONDS);
+        context.getScheduler()
+            .scheduleWithFixedDelay(sessionMgr::checkExpiredSessions,
                 20, 20, TimeUnit.SECONDS);
 
         restoreFromSnapshot(context.getLatestSnapshot());
@@ -133,16 +133,14 @@ public class InnerDb {
   }
 
   private void openDs() {
-    if(dataSource==null){
+    if(dataSource == null){
       dataSource = new HikariDataSource(dsConfig);
     }
+    LOG.info("open db ds {} for {}", dataSource, getName());
   }
 
   private void closeDs() {
-    if(dataSource!=null){
-      dataSource.close();
-      dataSource = null;
-    }
+    close();
   }
 
 
@@ -282,8 +280,7 @@ public class InnerDb {
           }
         }
       }
-      openDs();
-      Session session = sessionMgr.newSession(sessionRequest, dataSource::getConnection);
+      Session session = sessionMgr.newSession(sessionRequest, this::getConnection);
       updateReply.setSessionId(session.getId());
     }else if(updateRequest.getType()==UpdateType.closeSession){
       String sessionId = updateRequest.getSession();
@@ -312,6 +309,11 @@ public class InnerDb {
         }
       }
     }
+  }
+
+  private Connection getConnection() throws SQLException {
+    LOG.info("get connection from {}", dataSource);
+    return dataSource.getConnection();
   }
 
 
@@ -440,7 +442,7 @@ public class InnerDb {
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
     List<FileInfo> infos = new ArrayList<>();
     Stopwatch stopwatch = Stopwatch.createStarted();
-    try(Connection connection = dataSource.getConnection();
+    try(Connection connection = getConnection();
         Statement stmt = connection.createStatement()){
       stmt.setQueryTimeout(600);
       //快照前让数据落盘  CHECKPOINT SYNC
@@ -506,9 +508,12 @@ public class InnerDb {
       final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
       if (digest.equals(dbfileInfo.getFileDigest())) {
         LOG.info("restore DB file snapshot from {}", dbFile.getPath());
-        closeDs();
-        Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
-        openDs();
+        try {
+          closeDs();
+          Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
+        }finally {
+          openDs();
+        }
         restoreDb = true;
       }else{
         LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
@@ -522,7 +527,7 @@ public class InnerDb {
         final Digest digest = MD5FileUtil.computeDigestForFile(sqlFile);
         if (digest.equals(sqlfileInfo.getFileDigest())) {
           LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
-          try (Connection connection = dataSource.getConnection();
+          try (Connection connection = getConnection();
                Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(600);
             statement.execute("RUNSCRIPT FROM '" + sqlFile.toString() + "'");
@@ -545,7 +550,7 @@ public class InnerDb {
         List<String> sessionIds = n3Map.getStrings(SESSIONS_KEY);
         for (String sessionId : sessionIds) {
           try {
-            sessionMgr.newSession(SessionRequest.fromSessionId(dbInfo.getName(), sessionId), dataSource::getConnection);
+            sessionMgr.newSession(SessionRequest.fromSessionId(dbInfo.getName(), sessionId), this::getConnection);
           } catch (SQLException e) {
             LOG.warn("node {} newSession error.", context.getPeerId(), e);
           }
@@ -556,9 +561,11 @@ public class InnerDb {
   }
 
 
-  public void close() throws IOException {
-    if (!dataSource.isClosed()) {
+  public void close() {
+    if(dataSource!=null){
+      LOG.info("close db ds {} for {}", dataSource, getName());
       dataSource.close();
+      dataSource = null;
     }
   }
 }

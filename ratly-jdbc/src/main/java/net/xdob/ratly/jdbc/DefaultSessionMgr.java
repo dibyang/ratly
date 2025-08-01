@@ -44,30 +44,27 @@ public class DefaultSessionMgr implements SessionMgr{
       session = new Session(sessionRequest, connSupplier, this::removeSession);
       sessions.put(session.getId(), session);
       LOG.info("node {} new session={}", context.getPeerId(), sessionId);
-      if(expiredChecking.compareAndSet(false, true)) {
-        if (sessions.size() > maxSessions) {
-          context.getScheduler().submit(this::checkExpiredSessions);
-        }
-      }
+      context.getScheduler().submit(this::checkExpiredSessions);
       return session;
     }
   }
 
   public void checkExpiredSessions() {
-    try {
-      if (sessions.size() > maxSessions) {
-        int left = maxSessions - 6;
-        List<Session> expiredSessions = sessions.values().stream()
-            .sorted(Comparator.comparingLong(Session::getUid).reversed())
-            .skip(left)
-            .collect(Collectors.toList());
+    if(expiredChecking.compareAndSet(false, true)) {
+      try {
+        if (sessions.size() >= maxSessions) {
+          List<Session> expiredSessions = sessions.values().stream()
+              .sorted(Comparator.comparingLong(Session::getUid).reversed())
+              .skip(maxSessions)
+              .collect(Collectors.toList());
 
-        expiredSessions.forEach(s -> {
-          closeSession(s.getId());
-        });
+          expiredSessions.forEach(s -> {
+            closeSession(s.getId());
+          });
+        }
+      } finally {
+        expiredChecking.set(false);
       }
-    } finally {
-      expiredChecking.set(false);
     }
   }
 
