@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class Session implements AutoCloseable {
@@ -94,5 +93,6 @@ public class Session implements AutoCloseable {
       closed.accept(id);
     }
   }
+
 
 }

@@ -18,7 +18,7 @@ public final class Driver extends AbstractDriver
 	private static final Logger logger = LoggerFactory.getLogger(Driver.class);
 	static final Driver INSTANCE = new Driver();
 	public static final String START_URL = "jdbc:ratly:";
-	public static final String URL_FORMAT = START_URL+":{db}:group={group};peers={peers}";
+	public static final String URL_FORMAT = START_URL+"//{group}/{db}?peers={peers}&port={port}&vport={vport}";
 
 	private static boolean registered;
 

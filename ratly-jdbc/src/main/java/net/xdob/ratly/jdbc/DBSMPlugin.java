@@ -144,12 +144,7 @@ public class DBSMPlugin implements SMPlugin {
     if(!dbCache.toFile().exists()){
       dbCache.toFile().mkdirs();
     }
-    File[] files = dbCache.toFile().listFiles();
-    if(files!=null) {
-      for (File file : files) {
-        file.delete();
-      }
-    }
+
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
     loadDbs(dbsFile, false);
     for (DbDef dbDef : dbDefs.values()) {
@@ -171,20 +166,21 @@ public class DBSMPlugin implements SMPlugin {
 
   private void loadDbs(File dbsFile, boolean loadAppliedIndex) throws IOException {
     if(dbsFile.exists()&& dbsFile.length()>0){
-      List<DbState> dbs = new ArrayList<>();
+      Map<String,DbState> dbs = new HashMap<>();
       try(BufferedReader br = new BufferedReader(new InputStreamReader(
           FileUtils.newInputStream(dbsFile), StandardCharsets.UTF_8))){
         N3Map map = Jsons.i.fromJson(br, N3Map.class);
         List<DbState> dbStates = map.getValues(DbState.class, DBS);
-        dbs.addAll(dbStates);
+        dbStates.forEach(dbState -> dbs.put(dbState.getName(), dbState));
       }
-      synchronized (dbMap) {
-        for (DbState dbState : dbs) {
-          InnerDb innerDb = dbMap.computeIfAbsent(dbState.getName(), n -> new InnerDb(dbCache, dbState.toDbInfo(), dbsContext));
-          innerDb.initialize();
-          if (loadAppliedIndex) {
-            innerDb.updateAppliedIndexToMax(dbState.getAppliedIndex());
-          }
+      for (DbState dbState : dbs.values()) {
+        InnerDb innerDb = dbMap.computeIfAbsent(dbState.getName(), n -> {
+          InnerDb innerDb2 = new InnerDb(dbCache, dbState.toDbInfo(), dbsContext);
+          innerDb2.initialize();
+          return innerDb2;
+        });
+        if (loadAppliedIndex) {
+          innerDb.updateAppliedIndexToMax(dbState.getAppliedIndex());
         }
       }
     }

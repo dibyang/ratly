@@ -252,6 +252,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
         return last.getIndex();
       }
+    }catch (IOException e){
+      if(last!=null){
+        storage.cleanupSnapshot(last.getTerm(), last.getIndex());
+      }
+      throw e;
     }
     return super.takeSnapshot();
   }

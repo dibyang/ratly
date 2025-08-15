@@ -29,10 +29,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class InnerDb {
@@ -61,6 +59,7 @@ public class InnerDb {
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
   private final ClassCache classCache = new ClassCache();
+
   public int maxPoolSize = 56;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
@@ -70,6 +69,7 @@ public class InnerDb {
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
     sessionMgr = new DefaultSessionMgr(context).setMaxSessions(maxPoolSize-8);
     transactionMgr = new DefaultTransactionMgr(context);
+
   }
 
   public DbInfo getDbInfo() {
@@ -103,7 +103,7 @@ public class InnerDb {
             + ";AUTO_SERVER=TRUE"
             + ";QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
 
-
+        dsConfig.setPoolName(this.context.getPeerId()+"$"+getName());
         dsConfig.setJdbcUrl(url);
         dsConfig.setUsername(INNER_USER);
         dsConfig.setPassword(INNER_PASSWORD);
@@ -115,7 +115,7 @@ public class InnerDb {
         dsConfig.setMaximumPoolSize(maxPoolSize);         // 最大连接数
         dsConfig.setMinimumIdle(5);              // 最小空闲连接
         dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
-
+        dsConfig.setRegisterMbeans(true);
         openDs();
         context.getScheduler()
             .scheduleWithFixedDelay(transactionMgr::checkTimeoutTx,
@@ -140,7 +140,11 @@ public class InnerDb {
   }
 
   private void closeDs() {
-    close();
+    if(dataSource!=null){
+      LOG.info("close db ds {} for {}", dataSource, getName());
+      dataSource.close();
+      dataSource = null;
+    }
   }
 
 
@@ -453,8 +457,11 @@ public class InnerDb {
 
     File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
     Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
-    if(!sourceDbFile.toFile().exists()||sourceDbFile.toFile().length()<128){
-      throw new IOException(new DbErrorException(dbFile.toString()));
+    if(!sourceDbFile.toFile().exists()){
+      throw new IOException(DbErrorException.notExists(sourceDbFile.toString()));
+    }
+    if(sourceDbFile.toFile().length()<128){
+      throw new IOException(DbErrorException.error(sourceDbFile.toString()));
     }
     Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 //    File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
@@ -562,10 +569,9 @@ public class InnerDb {
 
 
   public void close() {
-    if(dataSource!=null){
-      LOG.info("close db ds {} for {}", dataSource, getName());
-      dataSource.close();
-      dataSource = null;
-    }
+    closeDs();
+
   }
+
+
 }

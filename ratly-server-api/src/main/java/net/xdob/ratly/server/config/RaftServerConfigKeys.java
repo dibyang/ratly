@@ -645,7 +645,7 @@ RaftServerConfigKeys {
     }
 
     String RETENTION_FILE_NUM_KEY = PREFIX + ".retention.file.num";
-    int RETENTION_FILE_NUM_DEFAULT = 1;
+    int RETENTION_FILE_NUM_DEFAULT = 3;
 
     static int retentionFileNum(RaftProperties raftProperties) {
       return getInt(raftProperties::getInt, RETENTION_FILE_NUM_KEY, RETENTION_FILE_NUM_DEFAULT, getDefaultLog());
@@ -1080,7 +1080,7 @@ RaftServerConfigKeys {
       }
 
       String WAIT_TIME_MIN_KEY = PREFIX + ".wait-time.min";
-      TimeDuration WAIT_TIME_MIN_DEFAULT = TimeDuration.ONE_MILLISECOND;
+      TimeDuration WAIT_TIME_MIN_DEFAULT = TimeDuration.valueOf(10, TimeUnit.MILLISECONDS);
 
       static TimeDuration waitTimeMin(RaftProperties properties) {
         return getTimeDuration(properties.getTimeDuration(WAIT_TIME_MIN_DEFAULT.getUnit()),
@@ -1093,7 +1093,7 @@ RaftServerConfigKeys {
 
       String RETRY_POLICY_KEY = PREFIX + ".retry.policy";
       /**
-       * The min wait time as 1ms (0 is not allowed) for first 10,
+       * The min wait time as 50ms (0 is not allowed) for first 10,
        * (5 iteration with 2 times grpc client retry)
        * next wait 1sec for next 20 retry (10 iteration with 2 times grpc client)
        * further wait for 5sec for max times ((5sec*980)/2 times ~= 40min)

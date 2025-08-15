@@ -15,10 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -61,7 +63,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   /**
    * 过滤器，用于在目录中查找符合校验规则的文件。
    */
-  private static final DirectoryStream.Filter<Path> SNAPSHOT_BLAKE3_FILTER
+  private static final DirectoryStream.Filter<Path> SNAPSHOT_MD5_FILTER
       = entry -> Optional.ofNullable(entry.getFileName())
       .map(Path::toString)
       .map(SNAPSHOT_MD5_REGEX::matcher)
@@ -75,6 +77,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
    * 使用 AtomicReference 存储最新的快照信息，确保线程安全。
    */
   private final AtomicReference<FileListSnapshotInfo> latestSnapshot = new AtomicReference<>();
+
 
   /**
    * 初始化状态机存储目录，并尝试加载最新的快照。
@@ -170,7 +173,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
       // 删除没有对应快照文件的 Digest 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
-          SNAPSHOT_BLAKE3_FILTER)) {
+          SNAPSHOT_MD5_FILTER)) {
         for (Path md5path : stream) {
           Path md5FileNamePath = md5path.getFileName();
           if (md5FileNamePath == null) {
@@ -180,6 +183,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
           final File snapshotFile = new File(stateMachineDir,
               md5FileName.substring(0, md5FileName.length() - MD5FileUtil.MD5_SUFFIX.length()));
           if (!snapshotFile.exists()) {
+            LOG.info("Deleting old snapshot digest file at {}", md5path.toAbsolutePath());
             FileUtils.deletePathQuietly(md5path);
           }
         }
@@ -187,7 +191,21 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     }
   }
 
-
+  public void cleanupSnapshot(long term, long endIndex) throws IOException {
+    String snapshotFileName = getSnapshotFileName("", term, endIndex);
+    DirectoryStream.Filter<Path> filter
+        = entry -> Optional.ofNullable(entry.getFileName())
+        .map(Path::toString)
+        .filter(s->s.startsWith(snapshotFileName))
+        .isPresent();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
+        filter)) {
+      for (Path path : stream) {
+        LOG.info("Deleting file at {}", path.toAbsolutePath());
+        FileUtils.deletePathQuietly(path);
+      }
+    }
+  }
 
   /**
    * 生成临时快照文件名。
@@ -297,15 +315,15 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
 
   public static void main(String[] args) throws IOException {
-    String pp= SNAPSHOT_FILE_PREFIX + ".1_567_sum";
-    Matcher matcher = SNAPSHOT_SUM_REGEX.matcher(pp);
-    System.out.println("pp matches() = " + matcher.matches());
-    System.out.println("matcher.group(2) = " + matcher.group(2));
-    System.out.println("matcher.group(3) = " + matcher.group(3));
-
-    Matcher matcher2 = SNAPSHOT_MD5_REGEX.matcher(pp);
-    System.out.println("pp sha256 matches() = " + matcher2.matches());
-
-
+    FileListStateMachineStorage storage = new FileListStateMachineStorage();
+    storage.stateMachineDir = Paths.get("E:\\test\\evo4x\\sm").toFile();
+    FileListSnapshotInfo latestSnapshot1 = storage.getLatestSnapshot();
+    System.out.println("latestSnapshot1 = " + latestSnapshot1);
+    storage.cleanupOldSnapshots(new SnapshotRetentionPolicy() {
+      @Override
+      public int getNumSnapshotsRetained() {
+        return 3;
+      }
+    });
   }
 }
