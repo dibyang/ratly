@@ -3,7 +3,7 @@ option java_package = "net.xdob.ratly.proto.raft";
 option java_multiple_files = true;
 option java_generate_equals_and_hash = true;
 
-package ratly.raft;
+package raft;
 
 message RaftPeerIdProto {
   // id of the peer

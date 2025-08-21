@@ -4,7 +4,7 @@ option java_package = "net.xdob.ratly.proto.grpc";
 option java_multiple_files = true;
 option java_generate_equals_and_hash = true;
 
-package ratly.grpc;
+package grpc;
 
 import "Raft.proto";
 
@@ -14,60 +14,60 @@ import "Raft.proto";
 // 客户端可以使用这些方法发送多个请求，并接收多个回复。
 service RaftClientProtocolService {
   // 一个客户端到服务器的流式 RPC，确保请求顺序异步处理。
-  rpc ordered(stream ratly.raft.RaftClientRequestProto)
-      returns (stream ratly.raft.RaftClientReplyProto) {}
+  rpc ordered(stream raft.RaftClientRequestProto)
+      returns (stream raft.RaftClientReplyProto) {}
 
   // 一个客户端到服务器的流式 RPC，请求可以无序异步处理。
-  rpc unordered(stream ratly.raft.RaftClientRequestProto)
-      returns (stream ratly.raft.RaftClientReplyProto) {}
+  rpc unordered(stream raft.RaftClientRequestProto)
+      returns (stream raft.RaftClientReplyProto) {}
 }
 
 // Raft 服务器协议服务
 // 负责 Raft 协议中的核心操作，如投票、日志复制、快照安装等。
 service RaftServerProtocolService {
   // 处理投票请求，用于选举过程中请求其他节点投票。
-  rpc requestVote(ratly.raft.RequestVoteRequestProto)
-      returns(ratly.raft.RequestVoteReplyProto) {}
+  rpc requestVote(raft.RequestVoteRequestProto)
+      returns(raft.RequestVoteReplyProto) {}
   // 启动领导者选举请求。
-  rpc startLeaderElection(ratly.raft.StartLeaderElectionRequestProto)
-      returns(ratly.raft.StartLeaderElectionReplyProto) {}
+  rpc startLeaderElection(raft.StartLeaderElectionRequestProto)
+      returns(raft.StartLeaderElectionReplyProto) {}
   // 用于领导者发送日志条目给追随者，确保日志的一致性。
-  rpc appendEntries(stream ratly.raft.AppendEntriesRequestProto)
-      returns(stream ratly.raft.AppendEntriesReplyProto) {}
+  rpc appendEntries(stream raft.AppendEntriesRequestProto)
+      returns(stream raft.AppendEntriesReplyProto) {}
   // 用于安装快照数据。
-  rpc installSnapshot(stream ratly.raft.InstallSnapshotRequestProto)
-      returns(stream ratly.raft.InstallSnapshotReplyProto) {}
+  rpc installSnapshot(stream raft.InstallSnapshotRequestProto)
+      returns(stream raft.InstallSnapshotReplyProto) {}
   // 用于获取一个用于强一致性的读取索引
-  rpc readIndex(ratly.raft.ReadIndexRequestProto)
-      returns(ratly.raft.ReadIndexReplyProto) {}
+  rpc readIndex(raft.ReadIndexRequestProto)
+      returns(raft.ReadIndexReplyProto) {}
 }
 
 // 管理协议服务
 // 提供集群管理操作，包括配置、选举和组管理等。
 service AdminProtocolService {
   // 设置新的 Raft 配置，例如添加或移除节点。
-  rpc setConfiguration(ratly.raft.SetConfigurationRequestProto)
-      returns(ratly.raft.RaftClientReplyProto) {}
+  rpc setConfiguration(raft.SetConfigurationRequestProto)
+      returns(raft.RaftClientReplyProto) {}
   // 转移领导权给新的节点。
-  rpc transferLeadership(ratly.raft.TransferLeadershipRequestProto)
-      returns(ratly.raft.RaftClientReplyProto) {}
+  rpc transferLeadership(raft.TransferLeadershipRequestProto)
+      returns(raft.RaftClientReplyProto) {}
 
   // 管理 Raft 集群中的组，例如添加或移除组。
-  rpc groupManagement(ratly.raft.GroupManagementRequestProto)
-      returns(ratly.raft.RaftClientReplyProto) {}
+  rpc groupManagement(raft.GroupManagementRequestProto)
+      returns(raft.RaftClientReplyProto) {}
   // 管理快照操作。
-  rpc snapshotManagement(ratly.raft.SnapshotManagementRequestProto)
-      returns(ratly.raft.RaftClientReplyProto) {}
+  rpc snapshotManagement(raft.SnapshotManagementRequestProto)
+      returns(raft.RaftClientReplyProto) {}
   // 管理领导者选举的暂停和恢复。
-  rpc leaderElectionManagement(ratly.raft.LeaderElectionManagementRequestProto)
-      returns(ratly.raft.RaftClientReplyProto) {}
+  rpc leaderElectionManagement(raft.LeaderElectionManagementRequestProto)
+      returns(raft.RaftClientReplyProto) {}
   // 查询所有的 Raft 集群组。
-  rpc groupList(ratly.raft.GroupListRequestProto)
-      returns(ratly.raft.GroupListReplyProto) {}
+  rpc groupList(raft.GroupListRequestProto)
+      returns(raft.GroupListReplyProto) {}
   // 查询指定组的信息。
-  rpc groupInfo(ratly.raft.GroupInfoRequestProto)
-      returns(ratly.raft.GroupInfoReplyProto) {}
+  rpc groupInfo(raft.GroupInfoRequestProto)
+      returns(raft.GroupInfoReplyProto) {}
   // 指定节点的远程调用。
-  rpc invokeRpc(ratly.raft.DRpcRequestProto)
-      returns(ratly.raft.DRpcReplyProto) {}
+  rpc invokeRpc(raft.DRpcRequestProto)
+      returns(raft.DRpcReplyProto) {}
 }

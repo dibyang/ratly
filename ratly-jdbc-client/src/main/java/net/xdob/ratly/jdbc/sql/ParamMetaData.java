@@ -1,5 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
+import net.xdob.ratly.proto.jdbc.ParameterMetaProto;
+
 import java.io.Serializable;
 
 public class ParamMetaData implements Serializable {
@@ -72,5 +74,33 @@ public class ParamMetaData implements Serializable {
   public ParamMetaData setParameterClassName(String parameterClassName) {
     this.parameterClassName = parameterClassName;
     return this;
+  }
+
+  public ParameterMetaProto.Parameter toProto(){
+    return toProto(this);
+  }
+
+  public static ParamMetaData from(ParameterMetaProto.Parameter proto){
+    ParamMetaData metaData = new ParamMetaData();
+    metaData.setNullable(proto.getNullable())
+        .setParameterClassName(proto.getParameterClassName())
+        .setPrecision(proto.getPrecision())
+        .setScale(proto.getScale())
+        .setParameterMode(proto.getParameterMode())
+        .setParameterType(proto.getParameterType())
+        .setParameterTypeName(proto.getParameterTypeName());
+    return metaData;
+  }
+
+  public static ParameterMetaProto.Parameter toProto(ParamMetaData metaData){
+    return ParameterMetaProto.Parameter.newBuilder()
+        .setNullable(metaData.isNullable())
+        .setParameterClassName(metaData.getParameterClassName())
+        .setPrecision(metaData.getPrecision())
+        .setScale(metaData.getScale())
+        .setParameterMode(metaData.getParameterMode())
+        .setParameterType(metaData.getParameterType())
+        .setParameterTypeName(metaData.getParameterTypeName())
+        .build();
   }
 }

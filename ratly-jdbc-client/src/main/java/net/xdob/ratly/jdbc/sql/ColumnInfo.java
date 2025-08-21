@@ -1,5 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
+import net.xdob.ratly.proto.jdbc.ResultSetProto;
+
 import java.io.Serializable;
 
 public final class ColumnInfo implements Serializable {
@@ -99,13 +101,36 @@ public final class ColumnInfo implements Serializable {
 
   @Override
   public String toString() {
-    return "{" +
-        "name='" + name + '\'' +
-        ", label='" + label + '\'' +
-        ", type=" + type +
-        ", typeName='" + typeName + '\'' +
-        ", precision=" + precision +
-        ", scale=" + scale +
-        '}';
+    return name;
+  }
+
+  public ResultSetProto.ColumnMetaProto toProto(){
+    return toProto(this);
+  }
+
+  public static ColumnInfo from(ResultSetProto.ColumnMetaProto colMeta) {
+    ColumnInfo info = new ColumnInfo(
+        colMeta.getName(),
+        colMeta.getJdbcType(),
+        colMeta.getTypeName(),
+        colMeta.getPrecision(),
+        colMeta.getScale());
+    info.setLabel(colMeta.getLabel());
+    return info;
+  }
+
+  public static ResultSetProto.ColumnMetaProto toProto(ColumnInfo info) {
+    ResultSetProto.ColumnMetaProto.Builder builder = ResultSetProto.ColumnMetaProto.newBuilder()
+        .setJdbcType(info.getType())
+        .setTypeName(info.getTypeName())
+        .setPrecision(info.getPrecision())
+        .setScale(info.getScale());
+    if(info.getName()!=null){
+      builder.setName(info.getName());
+    }
+    if(info.getLabel()!=null){
+      builder.setLabel(info.getLabel());
+    }
+    return builder.build();
   }
 }

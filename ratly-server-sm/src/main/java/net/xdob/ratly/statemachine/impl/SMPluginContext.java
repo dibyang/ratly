@@ -14,14 +14,6 @@ public interface SMPluginContext {
   RaftPeerId getPeerId();
   ScheduledExecutorService getScheduler();
   SnapshotInfo getLatestSnapshot();
-  SerialSupport getFasts();
-  Object asObject(byte[] bytes);
-  Object asObject(ByteString byteString);
-  ByteString getByteString(Object value);
-  Object asObject(AbstractMessage msg);
-  <T> T as(byte[] bytes);
-  <T> T as(ByteString byteString);
-  <T> T as(AbstractMessage msg);
   ServerStateSupport getServerStateSupport();
   boolean isLeader();
   PasswordEncoder getPasswordEncoder();

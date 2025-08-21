@@ -1,0 +1,26 @@
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto.sm";
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+
+package ratly.sm;
+
+import "Jdbc.proto";
+
+
+message WrapRequestProto{
+  string type = 1;
+  oneof request {
+    bytes body = 10;
+    jdbc.JdbcRequestProto jdbc_request = 11;
+  }
+}
+
+message WrapReplyProto{
+  string type = 1;
+  int32 error = 2;
+  oneof relay{
+    bytes body = 10;
+    jdbc.JdbcResponseProto jdbc_response = 11;
+  }
+}

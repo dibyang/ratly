@@ -1,12 +1,13 @@
 package net.xdob.ratly.jdbc.sql;
 
 import net.xdob.ratly.client.RaftClient;
-import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcFactory;
-import net.xdob.ratly.jdbc.*;
+import net.xdob.ratly.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.proto.jdbc.*;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.retry.RetryPolicies;
 import net.xdob.ratly.retry.RetryPolicy;
@@ -22,6 +23,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class JdbcConnection implements Connection {
   static final Logger LOG = LoggerFactory.getLogger(JdbcConnection.class);
@@ -30,13 +32,13 @@ public class JdbcConnection implements Connection {
   private final String url;
   private final JdbcConnectionInfo ci;
   private final RaftClient client;
-  private final SerialSupport fasts = new FastsImpl();
+  //private final SerialSupport fasts = new FastsImpl();
   private boolean autoCommit;
   private String tx = UUID.randomUUID().toString();
   private final AtomicInteger updateCount = new AtomicInteger();
   private final Properties properties = new Properties();
   private final RsaHelper rsaHelper = new RsaHelper();
-  private final String session;
+  private final AtomicReference<String> sessionId = new AtomicReference<>();
 
   public JdbcConnection(JdbcConnectionInfo ci) throws SQLException {
     this.url = ci.getUrl();
@@ -52,57 +54,33 @@ public class JdbcConnection implements Connection {
     builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
     client = builder.build();
-    session = openSession();
+    sessionId.set(openSession());
+    LOG.info("open session: {}", sessionId.get());
   }
 
   private String openSession() throws SQLException {
-    UpdateRequest updateRequest = new UpdateRequest()
+    ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.openSession);
+    JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
         .setDb(ci.getDb())
-        .setSender(Sender.connection)
-        .setType(UpdateType.openSession)
-        .setUser(ci.getUser())
-        .setPassword(rsaHelper.encrypt(ci.getPassword()));
-    UpdateReply updateReplyProto = sendUpdate(updateRequest);
-    if(updateReplyProto.getEx()!=null){
-      throw updateReplyProto.getEx();
-    }
-		return updateReplyProto.getSessionId();
+        .setConnRequest(connReqBuilder.build())
+        .setOpenSession(OpenSessionProto.newBuilder()
+            .setUser(ci.getUser())
+            .setPassword(rsaHelper.encrypt(ci.getPassword())))
+        .build();
+    JdbcResponseProto responseProto = send(requestProto);
+
+    return responseProto.getSessionId();
   }
 
-
-  QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
-    try {
-      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DB)
-          .setMsg( fasts.asByteString(queryRequest))
-          .build();
-      RaftClientReply reply =
-          client.io().sendReadOnly(Message.valueOf(msgProto));
-      if(reply.getException()==null){
-        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-        if(!replyProto.getEx().isEmpty()){
-          throw (SQLException) fasts.as(replyProto.getEx());
-        }
-        return fasts.as(replyProto.getRelay());
-      }else {
-        throw reply.getException();
-      }
-    } catch (IOException e) {
-      throw new SQLException(e);
-    }
-  }
 
   public String getSession() {
-    return session;
+    return sessionId.get();
   }
 
   public AtomicInteger getUpdateCount() {
     return updateCount;
   }
 
-  public SerialSupport getFasts() {
-    return fasts;
-  }
 
   public String getTx() {
     return tx;
@@ -153,10 +131,13 @@ public class JdbcConnection implements Connection {
 
   @Override
   public void commit() throws SQLException {
+    this.checkClose();
     if(updateCount.get()>0) {
-      UpdateRequest builder = newUpdateRequestBuilder()
-          .setType(UpdateType.commit);
-      sendUpdate(builder);
+      ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.commit);
+      JdbcRequestProto requestProto = newJdbcRequestBuilder()
+          .setConnRequest(connReqBuilder.build())
+          .build();
+      send(requestProto);
       this.tx = UUID.randomUUID().toString();
       updateCount.set(0);
     }
@@ -169,29 +150,33 @@ public class JdbcConnection implements Connection {
     }
   }
 
-  protected UpdateReply sendUpdate(UpdateRequest updateRequest) throws SQLException {
-    checkClose();
+
+  private JdbcRequestProto.Builder newJdbcRequestBuilder() {
+		return JdbcRequestProto.newBuilder()
+				.setDb(ci.getDb())
+				.setSessionId(sessionId.get());
+  }
+  private  ConnRequestProto.Builder newConnRequestBuilder(ConnRequestType type) {
+    ConnRequestProto.Builder builder = ConnRequestProto.newBuilder()
+        .setType( type);
+    builder.setTx(tx);
+    return builder;
+  }
+
+  protected JdbcResponseProto send(JdbcRequestProto request) throws SQLException {
     try {
-      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
-          .setType(DB)
-          .setMsg(fasts.asByteString(updateRequest))
+      WrapRequestProto wrap = WrapRequestProto.newBuilder()
+          .setType(JdbcConnection.DB)
+          .setJdbcRequest(request)
           .build();
       RaftClientReply reply =
-          client.io().send(Message.valueOf(msgProto));
-      if(reply.getException()==null) {
-        WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-        if (!replyProto.getEx().isEmpty()) {
-          throw (SQLException) fasts.as(replyProto.getEx());
-        }
-        UpdateReply updateReply = fasts.as(replyProto.getRelay());
-        if (updateReply.getEx() != null) {
-          throw updateReply.getEx();
-        } else {
-          return updateReply;
-        }
-      }else{
-        throw reply.getException();
+          client.io().send(Message.valueOf(wrap));
+      WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+      JdbcResponseProto response = replyProto.getJdbcResponse();
+      if(response.hasEx()){
+        throw SqlExConverter.fromProto(response.getEx());
       }
+      return response;
     } catch (IOException e) {
       throw new SQLException(e);
     }
@@ -200,22 +185,18 @@ public class JdbcConnection implements Connection {
 
   @Override
   public void rollback() throws SQLException {
+    this.checkClose();
     if(updateCount.get()>0) {
-      UpdateRequest builder = newUpdateRequestBuilder()
-          .setType(UpdateType.rollback);
-      sendUpdate(builder);
+      ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.rollback);
+      JdbcRequestProto requestProto = newJdbcRequestBuilder()
+          .setConnRequest(connReqBuilder.build())
+          .build();
+      send(requestProto);
       this.tx = UUID.randomUUID().toString();
       updateCount.set(0);
     }
   }
 
-  private UpdateRequest newUpdateRequestBuilder() {
-    return new UpdateRequest()
-        .setDb(ci.getDb())
-        .setSender(Sender.connection)
-        .setSession(session)
-        .setTx(tx);
-  }
 
   @Override
   public void close() throws SQLException {
@@ -226,18 +207,23 @@ public class JdbcConnection implements Connection {
         // ignore SQLException
       }
     }
-    if(session!=null&&!session.isEmpty()) {
-      try {
-        UpdateRequest updateRequest = new UpdateRequest()
-            .setDb(ci.getDb())
-            .setSender(Sender.connection)
-            .setType(UpdateType.closeSession)
-            .setSession(session);
-        sendUpdate(updateRequest);
-      }catch (Exception e){
-        // ignore SQLException
+    sessionId.getAndUpdate(s->{
+      if(s!=null) {
+        try {
+          ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.closeSession);
+          JdbcRequestProto requestProto = newJdbcRequestBuilder()
+              .setSessionId(s)
+              .setConnRequest(connReqBuilder.build())
+              .build();
+          send(requestProto);
+        } catch (Exception e) {
+          // ignore SQLException
+        }
       }
-    }
+      return null;
+    });
+
+
     try {
       client.close();
     } catch (IOException e) {
@@ -339,29 +325,35 @@ public class JdbcConnection implements Connection {
 
   @Override
   public Savepoint setSavepoint(String name) throws SQLException {
-    UpdateRequest builder = newUpdateRequestBuilder()
-        .setType(UpdateType.savepoint);
-    if(name!=null){
-      builder.setSql(name);
-    }
-    UpdateReply updateReply = sendUpdate(builder);
-    return updateReply.getSavepoint();
+    this.checkClose();
+    ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.savepoint);
+    connReqBuilder.setSavepoint(JdbcSavepoint.toProto(new JdbcSavepoint(0, name)));
+    JdbcRequestProto requestProto = newJdbcRequestBuilder()
+        .setConnRequest(connReqBuilder.build())
+        .build();
+    JdbcResponseProto responseProto = send(requestProto);
+    return JdbcSavepoint.from(responseProto.getSavepoint());
   }
 
   @Override
   public void rollback(Savepoint savepoint) throws SQLException {
-    UpdateRequest builder = newUpdateRequestBuilder()
-        .setType(UpdateType.rollbackSavepoint)
-        .setSavepoint(JdbcSavepoint.of(savepoint));
-    sendUpdate(builder);
+    this.checkClose();
+    ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.rollbackSavepoint);
+    JdbcRequestProto requestProto = newJdbcRequestBuilder()
+        .setConnRequest(connReqBuilder.build())
+        .build();
+    send(requestProto);
   }
 
   @Override
   public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-    UpdateRequest builder = newUpdateRequestBuilder()
-        .setType(UpdateType.releaseSavepoint)
-        .setSavepoint(JdbcSavepoint.of(savepoint));
-    sendUpdate(builder);
+    this.checkClose();
+    ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.releaseSavepoint);
+    connReqBuilder.setSavepoint(JdbcSavepoint.toProto(savepoint));
+    JdbcRequestProto requestProto = newJdbcRequestBuilder()
+        .setConnRequest(connReqBuilder.build())
+        .build();
+    send(requestProto);
   }
 
   @Override

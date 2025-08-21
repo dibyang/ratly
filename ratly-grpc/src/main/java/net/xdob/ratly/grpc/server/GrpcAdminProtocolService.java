@@ -2,7 +2,6 @@ package net.xdob.ratly.grpc.server;
 
 import net.xdob.ratly.client.impl.ClientProtoUtils;
 import net.xdob.ratly.client.impl.FastsImpl;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.grpc.GrpcUtil;
 import net.xdob.ratly.proto.raft.*;
 import net.xdob.ratly.protocol.*;

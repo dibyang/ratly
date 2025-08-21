@@ -2,13 +2,10 @@ package net.xdob.ratly.statemachine.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.AbstractMessage;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.io.Digest;
-import net.xdob.ratly.proto.jdbc.WrapReplyProto;
-import net.xdob.ratly.proto.jdbc.WrapRequestProto;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.security.crypto.factory.PasswordEncoderFactories;
@@ -28,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -37,7 +33,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   static final Logger LOG = LoggerFactory.getLogger(CompoundStateMachine.class);
 
 
-  private final FastsImpl fasts = new FastsImpl();
+
   private final List<LeaderChangedListener> leaderChangedListeners = new ArrayList<>();
 
   private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -149,23 +145,22 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public CompletableFuture<Message> query(Message request) {
 
-    WrapReplyProto.Builder builder = WrapReplyProto.newBuilder();
+    WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
+    response.setError(0);
     try(AutoCloseableLock readLock = readLock()) {
-      WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(request.getContent());
-      String pluginId = wrapMsgProto.getType();
+      WrapRequestProto requestProto = WrapRequestProto.parseFrom(request.getContent());
+      String pluginId = requestProto.getType();
       SMPlugin smPlugin = pluginMap.get(pluginId);
       if(smPlugin!=null) {
-        Object reply = smPlugin.query(Message.valueOf(wrapMsgProto.getMsg()));
-        builder.setRelay(fasts.asByteString(reply));
+        smPlugin.query(requestProto, response);
       }else {
-        throw new SQLException("plugin " + pluginId + " not find.");
+        response.setError(404);
       }
-    } catch (SQLException e) {
-      builder.setEx(fasts.asByteString(e));
     } catch (Exception e) {
+      response.setError(500);
       LOG.warn("", e);
     }
-    return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
+    return CompletableFuture.completedFuture(Message.valueOf(response.build()));
   }
 
 
@@ -174,7 +169,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
 
-    WrapReplyProto.Builder builder = WrapReplyProto.newBuilder();
+    WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
+    response.setError(0);
     ReferenceCountedObject<LogEntryProto> logEntryRef = trx.getLogEntryRef();
     try(AutoCloseableLock writeLock = writeLock()) {
       LogEntryProto entry = logEntryRef.retain();
@@ -185,26 +181,28 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         if(smPlugin!=null) {
           //跳过已应用过的日志
           if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
-            builder.setRelay(fasts.asByteString(null));
+            response.setError(302);
           }else {
-            Object reply = smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto.getMsg());
+            smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto, response);
             updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
-            builder.setRelay(fasts.asByteString(reply));
+
           }
         }else {
-          throw new SQLException("plugin ["+pluginId+"] not find.");
+          response.setError(404);
         }
       }else{
-        builder.setRelay(fasts.asByteString(null));
+        response.setError(302);
       }
     } catch (InvalidProtocolBufferException e) {
+      response.setError(400);
       LOG.warn("", e);
-    } catch (SQLException e) {
-      builder.setEx(fasts.asByteString(e));
+    } catch (Exception e) {
+      response.setError(500);
+      LOG.warn("", e);
     } finally {
       logEntryRef.release();
     }
-    return CompletableFuture.completedFuture(Message.valueOf(builder.build()));
+    return CompletableFuture.completedFuture(Message.valueOf(response.build()));
   }
 
   private void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException {
@@ -263,14 +261,14 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   /**
    * 获取最小插件事务阶段性索引
-   * @return 最小插件事务阶段性索引
+   * @return 最大插件事务阶段性索引
    */
   private TermIndex getLastPluginAppliedTermIndex() {
     TermIndex last = getLastAppliedTermIndex();
     Long lastPluginAppliedIndex = pluginMap.values().stream()
         .map(SMPlugin::getLastPluginAppliedIndex)
         .filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-        .min(Comparator.comparingLong(e->e))
+        .max(Comparator.comparingLong(e->e))
         .orElse(RaftLog.INVALID_LOG_INDEX);
     if(lastPluginAppliedIndex>RaftLog.INVALID_LOG_INDEX){
       last = serverStateSupport.get().getTermIndex(lastPluginAppliedIndex.longValue());
@@ -302,45 +300,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public ScheduledExecutorService getScheduler() {
     return scheduler;
-  }
-
-  @Override
-  public SerialSupport getFasts() {
-    return fasts;
-  }
-
-  @Override
-  public Object asObject(byte[] bytes) {
-    return fasts.asObject(bytes);
-  }
-
-  @Override
-  public Object asObject(ByteString byteString) {
-    return fasts.asObject(byteString);
-  }
-
-  public ByteString getByteString(Object value) {
-    return fasts.asByteString(value);
-  }
-
-  @Override
-  public Object asObject(AbstractMessage msg) {
-    return fasts.asObject(msg);
-  }
-
-  @Override
-  public <T> T as(byte[] bytes) {
-    return fasts.as(bytes);
-  }
-
-  @Override
-  public <T> T as(ByteString byteString) {
-    return fasts.as(byteString);
-  }
-
-  @Override
-  public <T> T as(AbstractMessage msg) {
-    return fasts.as(msg);
   }
 
   @Override

@@ -1,8 +1,8 @@
 package net.xdob.ratly.statemachine.impl;
 
 import com.google.common.collect.Lists;
-import com.google.protobuf.ByteString;
-import net.xdob.ratly.protocol.Message;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.server.RaftServer;
@@ -16,9 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public interface SMPlugin extends Closeable {
   Logger LOG = LoggerFactory.getLogger(SMPlugin.class);
@@ -30,12 +28,12 @@ public interface SMPlugin extends Closeable {
   default void reinitialize() throws IOException{
 
   }
-  default Object query(Message request) throws SQLException {
-    return null;
+  default void query(WrapRequestProto request, WrapReplyProto.Builder reply) {
+
   }
 
-  default Object applyTransaction(TermIndex termIndex, ByteString msg) throws SQLException {
-    return null;
+  default void applyTransaction(TermIndex termIndex, WrapRequestProto request, WrapReplyProto.Builder reply)  {
+
   }
 
 

@@ -6,7 +6,11 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.jdbc.exception.NoDatabaseException;
+import net.xdob.ratly.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.json.Jsons;
+import net.xdob.ratly.proto.jdbc.*;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeerId;
@@ -89,11 +93,6 @@ public class DBSMPlugin implements SMPlugin {
       @Override
       public SnapshotInfo getLatestSnapshot() {
         return context.getLatestSnapshot();
-      }
-
-      @Override
-      public SerialSupport getFasts() {
-        return context.getFasts();
       }
 
       @Override
@@ -213,45 +212,53 @@ public class DBSMPlugin implements SMPlugin {
   }
 
   @Override
-  public Object query(Message request) throws SQLException {
-    QueryReply queryReply = new QueryReply();
-    QueryRequest queryRequest = context.as(request.getContent());
-    String db = queryRequest.getDb();
+  public void query(WrapRequestProto request, WrapReplyProto.Builder reply)  {
+    JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
+    JdbcRequestProto jdbcRequest = request.getJdbcRequest();
+    String db = jdbcRequest.getDb();
     InnerDb innerDb = dbMap.get(db);
-    if(innerDb!=null){
-      try {
-        innerDb.query(queryRequest, queryReply);
-      } catch (SQLException e) {
-        queryReply.setEx(e);
+    try {
+      if(innerDb!=null){
+        innerDb.query(jdbcRequest, response);
+      } else {
+        throw new NoDatabaseException(db);
       }
-    } else {
-      throw new NoDatabaseException(db);
+    } catch (SQLException e) {
+      LOG.warn("", e);
+      response.setEx(SqlExConverter.toProto(e));
     }
-    return queryReply;
+    reply.setJdbcResponse(response);
   }
 
   @Override
-  public Object applyTransaction(TermIndex termIndex, ByteString msg) throws SQLException {
+  public void applyTransaction(TermIndex termIndex, WrapRequestProto request, WrapReplyProto.Builder reply)  {
 
-    UpdateReply updateReply = new UpdateReply();
-    UpdateRequest updateRequest = context.as(msg);
-    String db = updateRequest.getDb();
+    JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
+    JdbcRequestProto jdbcRequest = request.getJdbcRequest();
+    String db = jdbcRequest.getDb();
     InnerDb innerDb = dbMap.get(db);
     if(innerDb==null&&dynamicCreate
-        &&(updateRequest.getType()==UpdateType.openSession)){
-      String user = updateRequest.getUser();
-      String password = rsaHelper.decrypt(updateRequest.getPassword());
+        &&jdbcRequest.hasConnRequest()
+        &&jdbcRequest.getConnRequest().getType()==ConnRequestType.openSession){
+      OpenSessionProto openSession = jdbcRequest.getOpenSession();
+      String user = openSession.getUser();
+      String password = rsaHelper.decrypt(openSession.getPassword());
       this.addDbIfAbsent(db, user, password);
       addDbIfAbsent(dbDefs.get(db));
       saveDbs();
       innerDb = dbMap.get(db);
     }
-    if(innerDb!=null){
-      innerDb.applyTransaction(updateRequest, termIndex, updateReply);
-    } else{
-      throw new NoDatabaseException(db);
+    try {
+      if(innerDb!=null){
+        innerDb.applyTransaction(termIndex, jdbcRequest, response);
+      } else{
+        throw new NoDatabaseException(db);
+      }
+    } catch (SQLException e) {
+      LOG.warn("", e);
+      response.setEx(SqlExConverter.toProto(e));
     }
-    return updateReply;
+    reply.setJdbcResponse(response);
   }
 
   public DBSMPlugin addDbIfAbsent(String db, String user, String password){
@@ -319,7 +326,7 @@ public class DBSMPlugin implements SMPlugin {
     Long lastDbAppliedIndex = dbMap.values().stream()
         .map(InnerDb::getLastPluginAppliedIndex)
         .filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-        .min(Comparator.comparingLong(e->e))
+        .max(Comparator.comparingLong(e->e))
         .orElse(RaftLog.INVALID_LOG_INDEX);
     if(lastDbAppliedIndex > RaftLog.INVALID_LOG_INDEX){
       return lastDbAppliedIndex;

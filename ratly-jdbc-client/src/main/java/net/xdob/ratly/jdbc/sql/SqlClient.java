@@ -32,9 +32,6 @@ public class SqlClient {
     return ci;
   }
 
-  public SerialSupport getFasts() {
-    return connection.getFasts();
-  }
 
   public JdbcConnection getConnection() {
     return connection;

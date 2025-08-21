@@ -1,5 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
+import net.xdob.ratly.proto.jdbc.SavepointProto;
+
 import java.io.Serializable;
 import java.sql.SQLException;
 import java.sql.Savepoint;
@@ -36,10 +38,25 @@ public class JdbcSavepoint implements Savepoint, Serializable {
     return name;
   }
 
+  public SavepointProto toProto() throws SQLException {
+    return toProto( this);
+  }
+
   public static JdbcSavepoint of(Savepoint savepoint) throws SQLException {
     if(savepoint instanceof JdbcSavepoint){
       return (JdbcSavepoint) savepoint;
     }
     return new JdbcSavepoint(savepoint.getSavepointId(), savepoint.getSavepointName());
+  }
+
+  public static Savepoint from(SavepointProto savepoint) throws SQLException {
+    return new JdbcSavepoint(savepoint.getId(), savepoint.getName());
+  }
+
+  public static SavepointProto toProto(Savepoint savepoint) throws SQLException {
+    return SavepointProto.newBuilder()
+        .setId(savepoint.getSavepointId())
+        .setName(savepoint.getSavepointName())
+        .build();
   }
 }

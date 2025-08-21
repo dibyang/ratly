@@ -3,6 +3,7 @@ package net.xdob.ratly.jdbc.sql;
 
 import net.xdob.ratly.jdbc.*;
 import net.xdob.ratly.jdbc.util.Streams4Jdbc;
+import net.xdob.ratly.proto.jdbc.*;
 
 import javax.sql.rowset.serial.SerialBlob;
 import javax.sql.rowset.serial.SerialClob;
@@ -15,7 +16,7 @@ import java.sql.Date;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 
 public class JdbcPreparedStatement extends JdbcStatement implements PreparedStatement {
 
@@ -32,47 +33,43 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
   }
 
   @Override
+  protected SqlRequestProto.Builder newSqlRequestBuilder(SqlRequestType type) {
+    return super.newSqlRequestBuilder(type)
+        .setStmtType(StmtType.prepared);
+  }
+
+  @Override
   public ResultSet executeQuery() throws SQLException {
-    QueryRequest queryRequest = newQueryRequest()
-        .setSql(sql)
-        .addParams(parametersRef.get());
-    return sendQuery(queryRequest);
+    SqlRequestProto.Builder sqlBuilder = newSqlRequestBuilder(SqlRequestType.query);
+    sqlBuilder.setSql( sql);
+    sqlBuilder.setParams(parametersRef.get().toProto());
+    return sendQuery(sqlBuilder);
   }
-
-  @Override
-  protected QueryRequest newQueryRequest() {
-    return super.newQueryRequest()
-        .setSender(Sender.prepared);
-  }
-
-  @Override
-  protected UpdateRequest newUpdateRequest() {
-    return super.newUpdateRequest()
-        .setSender(Sender.prepared);
-  }
-
 
   @Override
   public long executeLargeUpdate() throws SQLException {
-    UpdateRequest updateRequest = newUpdateRequest()
-        .setSql(sql)
-        .addParams(parametersRef.get());
-    return sendUpdate(updateRequest);
+    SqlRequestProto.Builder sqlBuilder = newSqlRequestBuilder(SqlRequestType.update);
+    sqlBuilder.setSql( sql);
+    sqlBuilder.setParams(parametersRef.get().toProto());
+    return sendUpdate(sqlBuilder);
   }
 
   @Override
   public long[] executeLargeBatch() throws SQLException {
     List<Long> batchCounts = new ArrayList<>();
     int start = 0;
-    UpdateRequest updateRequest = newUpdateRequest()
-        .setSql(sql);
+    SqlRequestProto.Builder sqlBuilder = newSqlRequestBuilder(SqlRequestType.update);
+    sqlBuilder.setSql( sql);
     while (start < batchParameters.size()) {
-      updateRequest.getBatchParams().clear();
-      batchParameters.stream().skip(start)
+      sqlBuilder.clearBatchParams();
+      List<Parameters> parameters = batchParameters.stream().skip(start)
           .limit(limit)
-          .forEach(updateRequest::addBatchParams);
-      start += updateRequest.getBatchParams().size();
-      long[] counts = sendUpdateBatch(updateRequest);
+          .collect(Collectors.toList());
+      for (Parameters parameter : parameters) {
+        sqlBuilder.addBatchParams(parameter.toProto());
+      }
+      start += sqlBuilder.getBatchParamsCount();
+      long[] counts = sendUpdateBatch(sqlBuilder);
       for (long count : counts) {
         batchCounts.add(count);
       }
@@ -256,28 +253,15 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public ResultSetMetaData getMetaData() throws SQLException {
-    if(resultSetMetaData==null) {
-      getMeta();
-    }
-    return this.resultSetMetaData;
+    SqlRequestProto.Builder sqlRequestBuilder = newSqlRequestBuilder(SqlRequestType.resultSetMetaData);
+    JdbcRequestProto requestProto = newRequestBuilder()
+        .setSqlRequest(sqlRequestBuilder)
+        .build();
+    JdbcResponseProto responseProto = sendReadOnly(requestProto);
+
+    return SerialResultSetMetaData.from(responseProto.getResultSet().getColumnsList());
   }
 
-  private void getMeta() throws SQLException {
-    QueryRequest queryRequest = new QueryRequest()
-        .setSender(Sender.prepared)
-        .setTx(sqlClient.getTx())
-        .setDb(sqlClient.getCi().getDb())
-        .setType(QueryType.meta).setSql(sql);
-    QueryReply queryReply = sendQueryRequest(queryRequest);
-    if (queryReply.getEx()==null) {
-      if(queryReply.getRsMeta()!=null) {
-        resultSetMetaData = (SerialResultSetMetaData) queryReply.getRsMeta();
-      }
-      parameterMetaData = (SerialParameterMetaData) queryReply.getParamMeta();
-    } else {
-      throw queryReply.getEx();
-    }
-  }
 
   @Override
   public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
@@ -306,10 +290,13 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public ParameterMetaData getParameterMetaData() throws SQLException {
-    if(parameterMetaData==null) {
-      getMeta();
-    }
-    return this.parameterMetaData;
+    SqlRequestProto.Builder sqlRequestBuilder = newSqlRequestBuilder(SqlRequestType.parameterMeta);
+    JdbcRequestProto requestProto = newRequestBuilder()
+        .setSqlRequest(sqlRequestBuilder)
+        .build();
+    JdbcResponseProto responseProto = sendReadOnly(requestProto);
+
+    return SerialParameterMetaData.from(responseProto.getParameterMeta());
   }
 
   @Override

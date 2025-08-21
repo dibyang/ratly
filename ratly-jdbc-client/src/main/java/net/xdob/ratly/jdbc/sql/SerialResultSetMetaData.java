@@ -1,6 +1,7 @@
 package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Lists;
+import net.xdob.ratly.proto.jdbc.ResultSetProto;
 import org.h2.message.DbException;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -78,9 +79,9 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Serializable 
     }
   }
 
-  public ColumnInfo getColumn(int i) throws SQLException {
-    checkColumnIndex(i + 1);
-    return columns.get(i);
+  public ColumnInfo getColumn(int index) throws SQLException {
+    checkColumnIndex(index + 1);
+    return columns.get(index);
   }
 
   /**
@@ -315,6 +316,7 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Serializable 
     return "";
   }
 
+
   /**
    * Return an object of this class if possible.
    *
@@ -343,5 +345,29 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Serializable 
   @Override
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return iface != null && iface.isAssignableFrom(getClass());
+  }
+
+  public List<ResultSetProto.ColumnMetaProto> toProto() throws SQLException {
+    return toProto( this);
+  }
+
+  public static SerialResultSetMetaData from(List<ResultSetProto.ColumnMetaProto> colMetas) {
+    SerialResultSetMetaData rsMeta = new SerialResultSetMetaData();
+
+    for (ResultSetProto.ColumnMetaProto colMeta : colMetas) {
+      rsMeta.columns.add(ColumnInfo.from(colMeta));
+    }
+    return rsMeta;
+  }
+
+  public static List<ResultSetProto.ColumnMetaProto> toProto(ResultSetMetaData metaData) throws SQLException {
+    List<ResultSetProto.ColumnMetaProto> colMetas = Lists.newArrayList();
+    for (int i = 1; i <= metaData.getColumnCount(); i++) {
+      ColumnInfo columnInfo = new ColumnInfo(metaData.getColumnName(i),
+          metaData.getColumnType(i), metaData.getColumnTypeName(i), metaData.getPrecision(i), metaData.getScale(i));
+      columnInfo.setLabel(metaData.getColumnLabel(i));
+      colMetas.add(columnInfo.toProto());
+    }
+    return colMetas;
   }
 }

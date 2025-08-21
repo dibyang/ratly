@@ -11,7 +11,6 @@ public interface DbsContext {
   String getPeerId();
   ScheduledExecutorService getScheduler();
   SnapshotInfo getLatestSnapshot();
-  SerialSupport getFasts();
   boolean isLeader();
   PasswordEncoder getPasswordEncoder();
   RsaHelper getRsaHelper();

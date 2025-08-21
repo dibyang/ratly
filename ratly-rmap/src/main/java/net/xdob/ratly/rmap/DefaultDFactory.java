@@ -5,8 +5,8 @@ import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcFactory;
-import net.xdob.ratly.proto.jdbc.WrapReplyProto;
-import net.xdob.ratly.proto.jdbc.WrapRequestProto;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.util.IOUtils;
 
@@ -63,15 +63,13 @@ public class DefaultDFactory implements DFactory, DContext{
   public PutReply sendPutRequest(PutRequest putRequest) throws IOException {
     WrapRequestProto msgProto = WrapRequestProto.newBuilder()
         .setType(RMapSMPlugin.RMAP)
-        .setMsg(fasts.asByteString(putRequest))
+        .setBody(fasts.asByteString(putRequest))
         .build();
     RaftClientReply reply = client.io().send(Message.valueOf(msgProto));
     if(reply.getException()==null) {
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if (!replyProto.getEx().isEmpty()) {
-        throw (IOException) fasts.as(replyProto.getEx());
-      }
-      PutReply putReply = fasts.as(reply.getMessage().getContent());
+
+      PutReply putReply = fasts.as(replyProto.getBody());
       if (putReply.hasEx()) {
         throw IOUtils.asIOException(putReply.getEx());
       }
@@ -84,14 +82,12 @@ public class DefaultDFactory implements DFactory, DContext{
   public GetReply sendGetRequest(GetRequest getRequest) throws IOException {
     WrapRequestProto msgProto = WrapRequestProto.newBuilder()
         .setType(RMapSMPlugin.RMAP)
-        .setMsg(fasts.asByteString(getRequest))
+        .setBody(fasts.asByteString(getRequest))
         .build();
     RaftClientReply reply = client.io().sendReadOnly(Message.valueOf(msgProto));
     WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-    if(!replyProto.getEx().isEmpty()){
-      throw (IOException) fasts.as(replyProto.getEx());
-    }
-    GetReply getReply = fasts.as(reply.getMessage().getContent());
+
+    GetReply getReply = fasts.as(replyProto.getBody());
     if(getReply.hasEx()){
       throw IOUtils.asIOException(getReply.getEx());
     }

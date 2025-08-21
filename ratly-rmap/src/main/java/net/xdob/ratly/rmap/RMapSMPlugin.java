@@ -1,10 +1,11 @@
 package net.xdob.ratly.rmap;
 
-import com.google.protobuf.ByteString;
+import net.xdob.ratly.client.impl.FastsImpl;
 import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.RaftPeerId;
 import net.xdob.ratly.rmap.exception.NotFindCacheException;
-import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -36,7 +37,7 @@ public class RMapSMPlugin implements SMPlugin {
   final Map<String, CacheObject> cache = Collections.synchronizedMap(new HashMap<>());
   private final RaftLogIndex appliedIndex =new RaftLogIndex("RmapAppliedIndex", RaftLog.INVALID_LOG_INDEX);
   private SMPluginContext context;
-
+  private final FastsImpl fasts = new FastsImpl();
 
   @Override
   public String getId() {
@@ -60,10 +61,10 @@ public class RMapSMPlugin implements SMPlugin {
   }
 
   @Override
-  public Object query(Message request) {
+  public void query(WrapRequestProto request, WrapReplyProto.Builder response) {
     GetReply getReply =  new GetReply();
     try {
-      GetRequest getRequest = context.as(request.getContent());
+      GetRequest getRequest = fasts.as(request.getBody());
       String name = getRequest.getName();
       if(getRequest.getMethod().equals(GetMethod.size)){
         if(getRequest.getName()==null||getRequest.getName().isEmpty()){
@@ -101,15 +102,15 @@ public class RMapSMPlugin implements SMPlugin {
     } catch (IOException e) {
       getReply.setEx(e);
     }
-    return getReply;
+    response.setBody(fasts.asByteString(getReply));
   }
 
   @Override
-  public Object applyTransaction(TermIndex termIndex, ByteString data) {
+  public void applyTransaction(TermIndex termIndex, WrapRequestProto request, WrapReplyProto.Builder response) {
     PutReply putReply = new PutReply();
 
     try {
-      PutRequest putRequest = context.as(data);
+      PutRequest putRequest = fasts.as(request.getBody());
       String name = putRequest.getName();
       String key = putRequest.getKey();
       if(putRequest.getMethod().equals(PutMethod.create)){
@@ -145,7 +146,7 @@ public class RMapSMPlugin implements SMPlugin {
     } catch (IOException e) {
       putReply.setEx(e);
     }
-    return putReply;
+    response.setBody(fasts.asByteString(putReply));
   }
 
   private void updateAppliedIndexToMax(long index) {
@@ -161,7 +162,7 @@ public class RMapSMPlugin implements SMPlugin {
     CacheObject cacheObject = cache.computeIfAbsent(RMAP_KEY, CacheObject::new);
     cacheObject.getMap().put(APPLIED_INDEX, appliedIndex.get());
     try (FilterOutputStream out = new AtomicFileOutputStream(snapshotFile)) {
-      byte[] bytes = context.getFasts().asBytes(cache);
+      byte[] bytes = fasts.asBytes(cache);
       out.write(bytes);
     }
     final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
@@ -183,7 +184,7 @@ public class RMapSMPlugin implements SMPlugin {
       final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
       if (digest.equals(fileInfo.getFileDigest())) {
         byte[] bytes = Files.readAllBytes(snapshotFile.toPath());
-        Map<String,CacheObject> old =(Map<String,CacheObject>)context.getFasts().asObject(bytes);
+        Map<String,CacheObject> old =(Map<String,CacheObject>)fasts.asObject(bytes);
         CacheObject removed = old.remove(RMAP_KEY);
         if(removed!=null){
           Types2.cast(removed.getMap().get(APPLIED_INDEX),Long.class)

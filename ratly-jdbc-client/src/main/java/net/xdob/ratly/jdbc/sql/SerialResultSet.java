@@ -1,6 +1,8 @@
 package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Lists;
+import net.xdob.ratly.jdbc.proto.JdbcValue;
+import net.xdob.ratly.proto.jdbc.ResultSetProto;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.*;
@@ -30,11 +32,6 @@ public class SerialResultSet implements ResultSet, Serializable {
   private transient boolean wasNull;
   private transient boolean autoClose = true;
   private transient boolean closed = true;
-
-
-  public SerialResultSet() {
-
-  }
 
   public SerialResultSet(ResultSetMetaData resultSetMetaData) throws SQLException {
     this.resultSetMetaData.fill(resultSetMetaData);
@@ -2176,10 +2173,45 @@ public class SerialResultSet implements ResultSet, Serializable {
 
   @Override
   public String toString() {
-    return "SerialResultSet{" +
+    return "{" +
         "rowId=" + rowId +
         ", resultSetMetaData=" + resultSetMetaData +
         ", rows=" + rows +
         '}';
+  }
+
+  public ResultSetProto toProto() throws SQLException {
+    return toProto(this);
+  }
+
+  public static SerialResultSet from(ResultSetProto rs) throws SQLException {
+    SerialResultSet serialResultSet = new SerialResultSet(SerialResultSetMetaData.from(rs.getColumnsList()));
+    for (ResultSetProto.RowProto row : rs.getRowsList()) {
+      serialResultSet.rows.add(SerialRow.from(row));
+    }
+    return serialResultSet;
+  }
+
+  public static ResultSetProto toProto(ResultSet rs) throws SQLException {
+    ResultSetProto.Builder builder = ResultSetProto.newBuilder();
+    SerialResultSet serialResultSet = new SerialResultSet(rs);
+
+    builder.addAllColumns(serialResultSet.resultSetMetaData.toProto());
+    for (SerialRow row : serialResultSet.rows) {
+      builder.addRows(SerialRow.toProto(row));
+    }
+    return builder.build();
+  }
+
+  public static void main(String[] args) throws SQLException {
+    SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData();
+    resultSetMetaData.addColumn("val1", JDBCType.INTEGER.getVendorTypeNumber(), 10, 0);
+    resultSetMetaData.addColumn("name", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
+    resultSetMetaData.addColumn("val2", JDBCType.INTEGER.getVendorTypeNumber(), 10, 0);
+    SerialResultSet resultSet = new SerialResultSet(resultSetMetaData);
+    resultSet.addRows(new SerialRow(3).setValue(0,1).setValue(1,"ok").setValue(2,3));
+    resultSet.next();
+    System.out.println(resultSet.getInt(1));
+    System.out.println(resultSet.getInt(3));
   }
 }

@@ -1,7 +1,11 @@
 package net.xdob.ratly.jdbc.sql;
 
 
+import net.xdob.ratly.jdbc.proto.JdbcValue;
+import net.xdob.ratly.proto.jdbc.ParameterProto;
+
 import java.io.Serializable;
+import java.sql.SQLException;
 
 
 public class Parameter implements Serializable {
@@ -25,6 +29,21 @@ public class Parameter implements Serializable {
     return this;
   }
 
+  public ParameterProto toProto() throws SQLException {
+    return toProto(this);
+  }
+
+  public static Parameter from(ParameterProto parameterProto) throws SQLException {
+    return new Parameter(parameterProto.getIndex())
+        .setValue(JdbcValue.toJavaObject(parameterProto.getValue()));
+  }
+
+  public static ParameterProto toProto(Parameter parameter) throws SQLException {
+    return ParameterProto.newBuilder()
+        .setIndex(parameter.getIndex())
+        .setValue(JdbcValue.toValueProto(parameter.getValue()))
+        .build();
+  }
 
   public static Parameter c(int parameterIndex){
     return new Parameter(parameterIndex);

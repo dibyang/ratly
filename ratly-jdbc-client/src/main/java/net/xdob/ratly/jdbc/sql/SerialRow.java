@@ -1,7 +1,10 @@
 package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Lists;
+import net.xdob.ratly.jdbc.proto.JdbcValue;
 import net.xdob.ratly.jdbc.util.Streams4Jdbc;
+import net.xdob.ratly.proto.jdbc.JdbcValueProto;
+import net.xdob.ratly.proto.jdbc.ResultSetProto;
 
 import java.io.*;
 import java.sql.Blob;
@@ -43,7 +46,7 @@ public class SerialRow implements Serializable {
   }
 
   public SerialRow setValue(int index, Object value) throws SQLException {
-    if(index>= getColumns()){
+    if(index >= getColumns()){
       setColumns(index+1);
     }
     values.set(index, getValue(value));
@@ -65,5 +68,21 @@ public class SerialRow implements Serializable {
   @Override
   public String toString() {
     return values.toString();
+  }
+
+  public static SerialRow from(ResultSetProto.RowProto row) throws SQLException {
+    SerialRow serialRow = new SerialRow(row.getValuesCount());
+    for (int i = 0; i < row.getValuesCount(); i++) {
+      serialRow.setValue(i, JdbcValue.toJavaObject(row.getValues(i)));
+    }
+    return serialRow;
+  }
+
+  public static ResultSetProto.RowProto toProto(SerialRow row) throws SQLException {
+    ResultSetProto.RowProto.Builder builder = ResultSetProto.RowProto.newBuilder();
+    for (int i = 0; i < row.getColumns(); i++) {
+      builder.addValues(i, JdbcValue.toValueProto(row.getValue(i)));
+    }
+    return builder.build();
   }
 }

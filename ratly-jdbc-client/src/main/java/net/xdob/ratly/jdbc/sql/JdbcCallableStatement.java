@@ -1,6 +1,10 @@
 package net.xdob.ratly.jdbc.sql;
 
 
+import net.xdob.ratly.proto.jdbc.SqlRequestProto;
+import net.xdob.ratly.proto.jdbc.SqlRequestType;
+import net.xdob.ratly.proto.jdbc.StmtType;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -13,6 +17,12 @@ public class JdbcCallableStatement extends JdbcPreparedStatement implements Call
 
   public JdbcCallableStatement(SqlClient client, String sql) {
     super(client, sql);
+  }
+
+  @Override
+  protected SqlRequestProto.Builder newSqlRequestBuilder(SqlRequestType type) {
+    return super.newSqlRequestBuilder(type)
+        .setStmtType(StmtType.callable);
   }
 
   @Override

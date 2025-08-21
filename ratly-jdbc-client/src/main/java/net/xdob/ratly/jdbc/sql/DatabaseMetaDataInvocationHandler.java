@@ -2,7 +2,11 @@ package net.xdob.ratly.jdbc.sql;
 
 import com.google.common.collect.Maps;
 import net.xdob.ratly.jdbc.*;
+import net.xdob.ratly.jdbc.proto.JdbcValue;
+import net.xdob.ratly.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.proto.jdbc.*;
+import net.xdob.ratly.proto.sm.WrapReplyProto;
+import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import org.slf4j.Logger;
@@ -58,47 +62,48 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
 
 
   public ResultSet queryMeta(Method method, Object... args) throws SQLException {
-    QueryRequest queryRequest = new QueryRequest()
-        .setSender(Sender.databaseMetaData)
-        .setType(QueryType.invoke)
-        .setSession(client.getConnection().getSession())
-        .setTx(client.getTx())
-        .setDb(client.getCi().getDb());
-
-    queryRequest.setMethodName(method.getName());
-    queryRequest.setParametersTypes(method.getParameterTypes());
-    queryRequest.setArgs(args);
-
-    return sendQuery(queryRequest);
-  }
-
-
-  protected ResultSet sendQuery(QueryRequest queryRequest) throws SQLException {
-    QueryReply queryReply = sendQueryRequest(queryRequest);
-    if(queryReply.getEx()==null) {
-      ResultSet rs =  (ResultSet)queryReply.getRs();
-      if(rs instanceof SerialResultSet) {
-        ((SerialResultSet)rs).resetResult();
-      }
-      return rs;
-    }else{
-      throw queryReply.getEx();
+    DatabaseMetaRequestProto.Builder metaReqBuilder = DatabaseMetaRequestProto.newBuilder();
+    metaReqBuilder.setMethod(method.getName());
+    for (Class<?> parameterType : method.getParameterTypes()) {
+      metaReqBuilder.addParametersTypes(parameterType.getName());
     }
+    if(args!=null) {
+      for (Object arg : args) {
+        metaReqBuilder.addArgs(JdbcValue.toValueProto(arg));
+      }
+    }
+    ConnRequestProto.Builder request = ConnRequestProto.newBuilder()
+        .setType(ConnRequestType.databaseMeta)
+        .setDatabaseMetaRequest(metaReqBuilder);
+    JdbcRequestProto.Builder builder = JdbcRequestProto.newBuilder();
+    builder.setDb(client.getCi().getDb())
+        .setSessionId(client.getConnection().getSession())
+        .setTimeoutSeconds(3)
+        .setConnRequest(request);
+    return sendJdbcRequest(builder.build());
   }
 
-  protected QueryReply sendQueryRequest(QueryRequest queryRequest) throws SQLException {
+
+  protected ResultSet sendJdbcRequest(JdbcRequestProto queryRequest) throws SQLException {
+    JdbcResponseProto response = sendReadOnly(queryRequest);
+    ResultSetProto resultSet = response.getResultSet();
+    return SerialResultSet.from(resultSet);
+  }
+
+  protected JdbcResponseProto sendReadOnly(JdbcRequestProto request) throws SQLException {
     try {
-      WrapRequestProto msgProto = WrapRequestProto.newBuilder()
+      WrapRequestProto wrap = WrapRequestProto.newBuilder()
           .setType(JdbcConnection.DB)
-          .setMsg(client.getFasts().asByteString(queryRequest))
+          .setJdbcRequest(request)
           .build();
       RaftClientReply reply =
-          client.getClient().io().sendReadOnly(Message.valueOf(msgProto));
+          client.getClient().io().sendReadOnly(Message.valueOf(wrap));
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-      if(!replyProto.getEx().isEmpty()){
-        throw (SQLException) client.getFasts().as(replyProto.getEx());
+      JdbcResponseProto response = replyProto.getJdbcResponse();
+      if(response.hasEx()){
+        throw SqlExConverter.fromProto(response.getEx());
       }
-      return client.getFasts().as(replyProto.getRelay());
+      return response;
     } catch (IOException e) {
       throw new SQLException(e);
     }

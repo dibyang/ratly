@@ -2,15 +2,21 @@ package net.xdob.ratly.client.impl;
 
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
-import net.xdob.ratly.fasts.serialization.FSTConfiguration;
 import net.xdob.ratly.protocol.SerialSupport;
 
+import java.io.*;
+
 public class FastsImpl implements SerialSupport {
-  private final FSTConfiguration fasts = FSTConfiguration.createDefaultConfiguration();
 
   @Override
   public byte[] asBytes(Object obj) {
-    return fasts.asByteArray(obj);
+    try(ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+      ObjectOutputStream out = new ObjectOutputStream(bos);
+      out.writeObject(obj);
+      return bos.toByteArray();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -23,8 +29,13 @@ public class FastsImpl implements SerialSupport {
     if(bytes==null||bytes.length==0){
       return null;
     }
-    return fasts.asObject(bytes);
-  }
+		try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes)){
+      ObjectInputStream in = new ObjectInputStream(bis);
+			return in.readObject();
+		} catch (ClassNotFoundException|IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
 
   @Override
   public Object asObject(ByteString byteString) {

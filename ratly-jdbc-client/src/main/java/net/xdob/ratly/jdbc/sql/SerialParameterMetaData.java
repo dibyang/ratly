@@ -1,6 +1,8 @@
 package net.xdob.ratly.jdbc.sql;
 
 
+import net.xdob.ratly.proto.jdbc.ParameterMetaProto;
+
 import java.io.Serializable;
 import java.sql.ParameterMetaData;
 import java.sql.SQLException;
@@ -10,6 +12,8 @@ import java.util.List;
 public class SerialParameterMetaData implements ParameterMetaData, Serializable {
   private final List<ParamMetaData> parameters = new ArrayList<>();
 
+  public SerialParameterMetaData() {
+  }
 
   public SerialParameterMetaData(ParameterMetaData metaData) throws SQLException {
     fill(metaData);
@@ -100,4 +104,26 @@ public class SerialParameterMetaData implements ParameterMetaData, Serializable 
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return iface != null && iface.isAssignableFrom(getClass());
   }
+
+  public List<ParameterMetaProto.Parameter> toProto() throws SQLException {
+    return toProto(this);
+  }
+
+  public static ParameterMetaData from(ParameterMetaProto  proto){
+    SerialParameterMetaData metaData = new SerialParameterMetaData();
+    for (ParameterMetaProto.Parameter parameter : proto.getParametersList()) {
+      metaData.parameters.add(ParamMetaData.from(parameter));
+    }
+    return metaData;
+  }
+
+  public static List<ParameterMetaProto.Parameter> toProto(ParameterMetaData parameterMetaData) throws SQLException {
+    List<ParameterMetaProto.Parameter> parameters = new ArrayList<>();
+    SerialParameterMetaData metaData = new SerialParameterMetaData(parameterMetaData);
+    for (ParamMetaData parameter : metaData.parameters) {
+      parameters.add(ParamMetaData.toProto(parameter));
+    }
+    return parameters;
+  }
+
 }

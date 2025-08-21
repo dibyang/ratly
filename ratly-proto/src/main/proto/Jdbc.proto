@@ -3,14 +3,317 @@ option java_package = "net.xdob.ratly.proto.jdbc";
 option java_multiple_files = true;
 option java_generate_equals_and_hash = true;
 
-package ratly.jdbc;
+package jdbc;
 
-message WrapRequestProto{
-  string type = 1;
-  bytes msg = 2;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/any.proto";
+
+message SqlEx {
+  string message = 1;           // 异常消息
+  string sql_state = 2;         // SQL状态码
+  int32 error_code = 3;         // 供应商特定的错误代码
+  repeated SqlEx causes = 4;  // 原因异常链（嵌套异常）
 }
 
-message WrapReplyProto{
-  bytes relay = 2;
-  bytes ex = 3;
+// 覆盖所有 JDBC 参数类型的消息
+message JdbcValueProto {
+  // 主类型选择器
+  oneof value {
+    // 基本数据类型
+    bool boolean_value = 1;
+    int32 int_value = 2;
+    int64 long_value = 3;
+    float float_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+
+    // 时间日期类型
+    google.protobuf.Timestamp timestamp_value = 8;
+    Date date_value = 9;
+    Time time_value = 10;
+
+    // 精确数值类型
+    string decimal_value = 11;  // 使用字符串保持精度
+
+    // 特殊 SQL 类型
+    NullValue null_value = 12;
+    Ref ref_value = 13;
+    Blob blob_value = 14;
+    Clob clob_value = 15;
+    Array array_value = 16;
+    Struct struct_value = 17;
+    RowId row_id_value = 18;
+    NClob nclob_value = 19;
+    SQLXML sqlxml_value = 20;
+    Json json_value = 21;
+    Url url_value = 22;
+
+    // 可空包装器
+    google.protobuf.BoolValue nullable_bool = 30;
+    google.protobuf.Int32Value nullable_int = 31;
+    google.protobuf.Int64Value nullable_long = 32;
+    google.protobuf.FloatValue nullable_float = 33;
+    google.protobuf.DoubleValue nullable_double = 34;
+    google.protobuf.StringValue nullable_string = 35;
+    google.protobuf.BytesValue nullable_bytes = 36;
+
+    // 自定义对象
+    CustomObject custom_value = 40;
+
+    // 特殊数据库类型
+    Interval interval_value = 41;
+    Uuid uuid_value = 42;
+  }
+
+  // SQL DATE 类型（不含时间）
+  message Date {
+    int32 year = 1;
+    int32 month = 2;  // 1-12
+    int32 day = 3;    // 1-31
+  }
+
+  // SQL TIME 类型（不含日期）
+  message Time {
+    int32 hour = 1;   // 0-23
+    int32 minute = 2; // 0-59
+    int32 second = 3; // 0-59
+    int32 nanos = 4;  // 0-999999999
+  }
+
+  // SQL INTERVAL 类型
+  message Interval {
+    int64 years = 1;
+    int64 months = 2;
+    int64 days = 3;
+    int64 hours = 4;
+    int64 minutes = 5;
+    int64 seconds = 6;
+    int64 nanos = 7;
+    bool is_negative = 8;
+    string iso_string = 9;  // ISO 8601 格式
+  }
+
+  // 引用类型
+  message Ref {
+    string ref_cursor_name = 1; // 游标名
+  }
+
+  // BLOB 类型
+  message Blob {
+    bytes data = 1;
+  }
+
+  // CLOB 类型
+  message Clob {
+    string data = 1;
+  }
+
+  // NCLOB 类型
+  message NClob {
+    string data = 1;
+  }
+
+  // SQLXML 类型
+  message SQLXML {
+    string xml = 1;
+  }
+
+  // JSON 类型
+  message Json {
+    string json = 1;
+  }
+
+  // URL 类型
+  message Url {
+    string url = 1;
+  }
+
+  // UUID 类型
+  message Uuid {
+    string string_value = 1;  // 标准 UUID 字符串格式
+    bytes binary_value = 2;   // 16字节二进制格式
+  }
+
+  // 数组类型
+  message Array {
+    repeated JdbcValueProto elements = 1;
+    string element_type_name = 2; // 数组元素类型的 SQL 名称
+  }
+
+  // 结构类型 (STRUCT)
+  message Struct {
+    message Attribute {
+      string name = 1;
+      JdbcValueProto value = 2;
+    }
+
+    repeated Attribute attributes = 1;
+    string struct_type_name = 2; // 结构类型的 SQL 名称
+  }
+
+  // ROWID 类型
+  message RowId {
+    bytes row_id = 1;
+  }
+
+  // 自定义对象
+  message CustomObject {
+    string class_name = 1;  // Java 类名
+    bytes serialized_data = 2; // 序列化对象数据
+  }
+
+  // NULL 值表示
+  enum NullValue {
+    NULL_VALUE = 0;
+  }
 }
+
+
+enum ConnRequestType{
+  openSession = 0;
+  closeSession = 1;
+
+  databaseMeta = 8;
+
+  commit = 10;
+  rollback = 11;
+  savepoint = 12;
+  releaseSavepoint = 13;
+  rollbackSavepoint = 14;
+}
+
+enum SqlRequestType{
+  query = 0;
+  update = 1;
+
+  parameterMeta = 10;
+  resultSetMetaData = 11;
+}
+
+
+message SavepointProto{
+  int32 id = 1;
+  string name = 2;
+}
+
+message OpenSessionProto{
+  string user = 1;
+  string password = 2;
+}
+
+message DatabaseMetaRequestProto{
+  string method = 1;
+  repeated string parametersTypes = 2;
+  repeated JdbcValueProto args = 3;
+}
+
+message ConnRequestProto{
+  ConnRequestType type = 1;
+  string tx = 2;
+  SavepointProto savepoint = 3;
+  DatabaseMetaRequestProto databaseMetaRequest = 10;
+}
+
+message ParameterProto{
+  int32 index = 1;
+  JdbcValueProto value = 2;
+}
+
+message ParametersProto{
+  repeated ParameterProto param = 1;
+}
+
+enum StmtType{
+  statement = 0;
+  prepared = 1;
+  callable = 2;
+}
+
+message SqlRequestProto{
+  SqlRequestType type = 1;
+  string tx = 2;
+  string sql = 3;
+  ParametersProto params = 4;
+  repeated string batchSql = 5;
+  repeated ParametersProto batchParams = 6;
+  optional int32 fetch_direction = 7;
+  optional int32 fetch_size = 8;
+  StmtType stmt_type = 9;
+  // 分页参数
+  int32 start = 20;
+  optional int32 limit = 21;
+}
+
+// JDBC 请求消息
+message JdbcRequestProto {
+  string db = 1;
+  int32 timeout_seconds = 4;  // 执行超时时间
+  oneof session_request {
+    OpenSessionProto openSession = 10;
+    string sessionId = 11;
+  }
+  oneof request {
+    ConnRequestProto connRequest = 17;
+    SqlRequestProto sqlRequest = 18;
+  }
+}
+
+message ResultSetProto {
+  message ColumnMetaProto {
+    string name = 1;
+    int32 jdbc_type = 2;  // java.sql.Types 值
+    string type_name = 3;
+    int32 precision = 4;
+    int32 scale = 5;
+    string label = 6;
+  }
+
+  message RowProto {
+    repeated JdbcValueProto values = 1;
+  }
+
+  repeated ColumnMetaProto columns = 1;
+  repeated RowProto rows = 2;
+  // 分页参数
+  int32 start = 10;
+  int32 limit = 11;
+  int32 total = 12;
+}
+
+message UpdateCounts{
+  repeated int64 update_count = 1;
+}
+
+// JDBC 响应消息
+message JdbcResponseProto {
+  string db = 1;
+  string session_id = 4;
+  oneof result {
+    int64 update_count = 11;  // 更新操作影响的行数
+    UpdateCounts update_counts = 12;
+    ResultSetProto result_set = 13; // 查询结果集
+    ParameterMetaProto parameter_meta = 14; // 参数元数据
+    SavepointProto savepoint = 15;
+  }
+
+  bool success = 20;
+  SqlEx ex = 21;
+}
+
+message ParameterMetaProto {
+  repeated Parameter parameters = 1;
+  message Parameter{
+    int32 nullable = 1;
+    int32 precision = 2;
+    int32 scale = 3;
+    int32 parameterMode = 4;
+    int32 parameterType = 5;
+    string parameterTypeName =  10;
+    string parameterClassName = 11;
+  }
+}
+
+
