@@ -265,4 +265,13 @@ public interface StateMachine extends Closeable {
   default String toStateMachineLogEntryString(StateMachineLogEntryProto proto) {
     return JavaUtils.getClassSimpleName(proto.getClass()) +  ":" + ClientInvocationId.valueOf(proto);
   }
+
+  /**
+   * 获取最小插件事务阶段性索引
+   * @return 最大插件事务阶段性索引
+   */
+  default TermIndex getLastPluginAppliedTermIndex(){
+    return this.getLastAppliedTermIndex();
+  }
+
 }

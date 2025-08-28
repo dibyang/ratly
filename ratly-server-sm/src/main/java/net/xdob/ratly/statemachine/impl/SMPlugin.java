@@ -55,4 +55,5 @@ public interface SMPlugin extends Closeable {
   default long getLastPluginAppliedIndex(){
     return RaftLog.INVALID_LOG_INDEX;
   }
+
 }

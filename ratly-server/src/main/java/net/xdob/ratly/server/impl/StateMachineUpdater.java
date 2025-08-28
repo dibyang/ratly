@@ -341,8 +341,11 @@ class StateMachineUpdater implements Runnable {
     } else if (shouldStop()) {
       return shouldTakeSnapshotAtStop() && getLastAppliedIndex() - snapshotIndex.get() > 0;
     }
+
+//    return state == State.RUNNING &&
+//        getStateMachineLastAppliedIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
     return state == State.RUNNING &&
-        getStateMachineLastAppliedIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
+        stateMachine.getLastPluginAppliedTermIndex().getIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
   }
 
   /**

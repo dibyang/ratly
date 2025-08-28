@@ -5,22 +5,40 @@ option java_generate_equals_and_hash = true;
 
 package ratly.sm;
 
+import "Base.proto";
 import "Jdbc.proto";
 
+message CommandRequestProto{
+  string name = 1;
+  string cmd = 2;
+  base.MapProto args = 3;
+}
+
+message CommandReplyProto{
+  base.ValueProto response = 3;
+  base.ListProto list = 4;
+}
+
+message ErrorProto{
+  int32 code = 1;
+  string message = 2;
+}
 
 message WrapRequestProto{
   string type = 1;
   oneof request {
     bytes body = 10;
     jdbc.JdbcRequestProto jdbc_request = 11;
+    CommandRequestProto command_request = 12;
   }
 }
 
 message WrapReplyProto{
   string type = 1;
-  int32 error = 2;
+  ErrorProto error = 2;
   oneof relay{
     bytes body = 10;
     jdbc.JdbcResponseProto jdbc_response = 11;
+    CommandReplyProto cmd_response = 12;
   }
 }

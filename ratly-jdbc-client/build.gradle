@@ -8,6 +8,7 @@ dependencies {
   api project(':ratly-client')
   api project(':ratly-grpc')
   api("net.xdob.h2db:h2db:${h2db_version}")
+  implementation("com.github.jsqlparser:jsqlparser:4.9")
   implementation "ch.qos.logback:logback-core:${logback_version}"
   implementation "ch.qos.logback:logback-classic:${logback_version}"
   testImplementation platform('org.junit:junit-bom:5.10.0')

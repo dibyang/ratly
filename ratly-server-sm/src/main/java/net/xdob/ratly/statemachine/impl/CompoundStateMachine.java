@@ -3,7 +3,9 @@ package net.xdob.ratly.statemachine.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
+import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.proto.sm.ErrorProto;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -42,6 +44,12 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   private MemoizedSupplier<ServerStateSupport> serverStateSupport;
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
   private RaftPeerId peerId;
+	private RaftPeerId leaderId = null;
+	private RaftClient raftClient;
+
+	private volatile CompletableFuture<RaftPeerId> leaderChangedFuture = new CompletableFuture<>();
+
+	volatile boolean isLeader = false;
 
   private AutoCloseableLock readLock() {
     return AutoCloseableLock.acquire(lock.readLock());
@@ -75,6 +83,18 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
                          RaftStorage raftStorage, MemoizedSupplier<ServerStateSupport> logQuery) throws IOException {
     super.initialize(server, groupId, peerId, raftStorage, logQuery);
     this.peerId = peerId;
+		// 创建RaftClient
+		RaftGroup group = null;
+		for (RaftGroup serverGroup : server.getGroups()) {
+			if(serverGroup.getGroupId().equals(groupId)){
+				group = serverGroup;
+				break;
+			}
+		}
+		this.raftClient = RaftClient.newBuilder()
+				.setRaftGroup(group)
+				.setProperties(server.getProperties())
+				.build();
     this.serverStateSupport = logQuery;
     if(this.scheduler==null){
       this.scheduler = Executors.newScheduledThreadPool(6);
@@ -85,8 +105,11 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
   }
 
+	public RaftClient getRaftClient() {
+		return raftClient;
+	}
 
-  @Override
+	@Override
   public void reinitialize() throws IOException {
     restoreFromSnapshot(getLatestSnapshot());
     for (SMPlugin plugin : pluginMap.values()) {
@@ -102,16 +125,17 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     leaderChangedListeners.remove(listener);
   }
 
-  private volatile CompletableFuture<RaftPeerId> leaderChangedFuture = new CompletableFuture<>();
 
-  volatile boolean isLeader = false;
 
   public CompletableFuture<RaftPeerId> getLeaderChangedFuture() {
     return leaderChangedFuture;
   }
 
+
+
   @Override
   public void changeToCandidate(RaftGroupMemberId groupMemberId) {
+		leaderId = null;
     LOG.info("changeToCandidate: groupMemberId={}", groupMemberId);
     for (LeaderChangedListener listener : leaderChangedListeners) {
       try {
@@ -125,7 +149,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
-    isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
+		leaderId = newLeaderId;
+		isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
     scheduler.submit(()->fireLeaderStateEvent(isLeader));
     leaderChangedFuture.complete(newLeaderId);
   }
@@ -146,7 +171,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   public CompletableFuture<Message> query(Message request) {
 
     WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
-    response.setError(0);
     try(AutoCloseableLock readLock = readLock()) {
       WrapRequestProto requestProto = WrapRequestProto.parseFrom(request.getContent());
       String pluginId = requestProto.getType();
@@ -154,23 +178,23 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       if(smPlugin!=null) {
         smPlugin.query(requestProto, response);
       }else {
-        response.setError(404);
+        response.setError(ErrorProto.newBuilder()
+						.setCode(404)
+						.setMessage("plugin not found:"+ pluginId));
       }
     } catch (Exception e) {
-      response.setError(500);
+      response.setError(ErrorProto.newBuilder()
+					.setCode(500)
+					.setMessage(e.getMessage()));
       LOG.warn("", e);
     }
     return CompletableFuture.completedFuture(Message.valueOf(response.build()));
   }
 
-
-
-
-  @Override
+	@Override
   public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
 
     WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
-    response.setError(0);
     ReferenceCountedObject<LogEntryProto> logEntryRef = trx.getLogEntryRef();
     try(AutoCloseableLock writeLock = writeLock()) {
       LogEntryProto entry = logEntryRef.retain();
@@ -181,23 +205,28 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         if(smPlugin!=null) {
           //跳过已应用过的日志
           if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
-            response.setError(302);
+            response.setError(ErrorProto.newBuilder()
+								.setCode(302)
+								.setMessage("log skip :"+ entry.getIndex()));
           }else {
             smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto, response);
             updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
 
           }
         }else {
-          response.setError(404);
+          response.setError(ErrorProto.newBuilder()
+							.setCode(404)
+							.setMessage("plugin not found:"+ pluginId));
         }
       }else{
-        response.setError(302);
+        response.setError(ErrorProto.newBuilder()
+						.setCode(302)
+						.setMessage("log skip :"+ entry.getIndex()));
       }
-    } catch (InvalidProtocolBufferException e) {
-      response.setError(400);
-      LOG.warn("", e);
     } catch (Exception e) {
-      response.setError(500);
+      response.setError(ErrorProto.newBuilder()
+					.setCode(500)
+					.setMessage(e.getMessage()));
       LOG.warn("", e);
     } finally {
       logEntryRef.release();
@@ -263,12 +292,13 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
    * 获取最小插件事务阶段性索引
    * @return 最大插件事务阶段性索引
    */
-  private TermIndex getLastPluginAppliedTermIndex() {
-    TermIndex last = getLastAppliedTermIndex();
+  @Override
+  public TermIndex getLastPluginAppliedTermIndex() {
+    TermIndex last = TermIndex.INITIAL_VALUE;
     Long lastPluginAppliedIndex = pluginMap.values().stream()
         .map(SMPlugin::getLastPluginAppliedIndex)
         .filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-        .max(Comparator.comparingLong(e->e))
+        .min(Comparator.comparingLong(e->e))
         .orElse(RaftLog.INVALID_LOG_INDEX);
     if(lastPluginAppliedIndex>RaftLog.INVALID_LOG_INDEX){
       last = serverStateSupport.get().getTermIndex(lastPluginAppliedIndex.longValue());
@@ -292,7 +322,12 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
   }
 
-  @Override
+	@Override
+	public RaftPeerId getLeaderId() {
+		return this.leaderId;
+	}
+
+	@Override
   public RaftPeerId getPeerId() {
     return peerId;
   }
@@ -307,10 +342,6 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     return serverStateSupport.get();
   }
 
-  @Override
-  public boolean isLeader() {
-    return isLeader;
-  }
 
   @Override
   public PasswordEncoder getPasswordEncoder() {

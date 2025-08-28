@@ -1,0 +1,177 @@
+syntax = "proto3";
+option java_package = "net.xdob.ratly.proto.base";
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+
+package base;
+
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+//import "google/protobuf/any.proto";
+
+
+// 覆盖所有 JDBC 参数类型的消息
+message ValueProto {
+  // 主类型选择器
+  oneof value {
+    // 基本数据类型
+    bool boolean_value = 1;
+    int32 int_value = 2;
+    int64 long_value = 3;
+    float float_value = 4;
+    double double_value = 5;
+    string string_value = 6;
+    bytes bytes_value = 7;
+
+    // 时间日期类型
+    google.protobuf.Timestamp timestamp_value = 8;
+    Date date_value = 9;
+    Time time_value = 10;
+
+    // 精确数值类型
+    string decimal_value = 11;  // 使用字符串保持精度
+
+    // 特殊 SQL 类型
+    NullValue null_value = 12;
+    Ref ref_value = 13;
+    Blob blob_value = 14;
+    Clob clob_value = 15;
+    Array array_value = 16;
+    Struct struct_value = 17;
+    RowId row_id_value = 18;
+    NClob nclob_value = 19;
+    SQLXML sqlxml_value = 20;
+    Json json_value = 21;
+    Url url_value = 22;
+
+    // 可空包装器
+    google.protobuf.BoolValue nullable_bool = 30;
+    google.protobuf.Int32Value nullable_int = 31;
+    google.protobuf.Int64Value nullable_long = 32;
+    google.protobuf.FloatValue nullable_float = 33;
+    google.protobuf.DoubleValue nullable_double = 34;
+    google.protobuf.StringValue nullable_string = 35;
+    google.protobuf.BytesValue nullable_bytes = 36;
+
+    // 自定义对象
+    CustomObject custom_value = 40;
+
+    // 特殊数据库类型
+    Interval interval_value = 41;
+    Uuid uuid_value = 42;
+  }
+
+  // SQL DATE 类型（不含时间）
+  message Date {
+    int32 year = 1;
+    int32 month = 2;  // 1-12
+    int32 day = 3;    // 1-31
+  }
+
+  // SQL TIME 类型（不含日期）
+  message Time {
+    int32 hour = 1;   // 0-23
+    int32 minute = 2; // 0-59
+    int32 second = 3; // 0-59
+    int32 nanos = 4;  // 0-999999999
+  }
+
+  // SQL INTERVAL 类型
+  message Interval {
+    int64 years = 1;
+    int64 months = 2;
+    int64 days = 3;
+    int64 hours = 4;
+    int64 minutes = 5;
+    int64 seconds = 6;
+    int64 nanos = 7;
+    bool is_negative = 8;
+    string iso_string = 9;  // ISO 8601 格式
+  }
+
+  // 引用类型
+  message Ref {
+    string ref_cursor_name = 1; // 游标名
+  }
+
+  // BLOB 类型
+  message Blob {
+    bytes data = 1;
+  }
+
+  // CLOB 类型
+  message Clob {
+    string data = 1;
+  }
+
+  // NCLOB 类型
+  message NClob {
+    string data = 1;
+  }
+
+  // SQLXML 类型
+  message SQLXML {
+    string xml = 1;
+  }
+
+  // JSON 类型
+  message Json {
+    string json = 1;
+  }
+
+  // URL 类型
+  message Url {
+    string url = 1;
+  }
+
+  // UUID 类型
+  message Uuid {
+    string string_value = 1;  // 标准 UUID 字符串格式
+    bytes binary_value = 2;   // 16字节二进制格式
+  }
+
+  // 数组类型
+  message Array {
+    repeated ValueProto elements = 1;
+    string element_type_name = 2; // 数组元素类型的 SQL 名称
+  }
+
+  // 结构类型 (STRUCT)
+  message Struct {
+    message Attribute {
+      string name = 1;
+      ValueProto value = 2;
+    }
+
+    repeated Attribute attributes = 1;
+    string struct_type_name = 2; // 结构类型的 SQL 名称
+  }
+
+  // ROWID 类型
+  message RowId {
+    bytes row_id = 1;
+  }
+
+  // 自定义对象
+  message CustomObject {
+    string class_name = 1;  // Java 类名
+    bytes serialized_data = 2; // 序列化对象数据
+  }
+
+  // NULL 值表示
+  enum NullValue {
+    NULL_VALUE = 0;
+  }
+}
+
+message ListProto {
+  repeated ValueProto values = 1;
+}
+
+message MapProto {
+  map<string, ValueProto> data = 1;
+}
+
+
+
