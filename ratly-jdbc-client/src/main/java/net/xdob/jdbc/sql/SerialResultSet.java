@@ -2,6 +2,7 @@ package net.xdob.jdbc.sql;
 
 import com.google.common.collect.Lists;
 import net.xdob.ratly.proto.jdbc.ResultSetProto;
+import net.xdob.ratly.proto.jdbc.RowProto;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
 import org.h2.util.*;
@@ -2185,7 +2186,7 @@ public class SerialResultSet implements ResultSet, Serializable {
 
   public static SerialResultSet from(ResultSetProto rs) throws SQLException {
     SerialResultSet serialResultSet = new SerialResultSet(SerialResultSetMetaData.from(rs.getColumnsList()));
-    for (ResultSetProto.RowProto row : rs.getRowsList()) {
+    for (RowProto row : rs.getRowsList()) {
       serialResultSet.rows.add(SerialRow.from(row));
     }
     return serialResultSet;

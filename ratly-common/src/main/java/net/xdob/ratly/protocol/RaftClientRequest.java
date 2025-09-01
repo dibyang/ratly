@@ -22,6 +22,7 @@ public class RaftClientRequest extends RaftClientMessage {
   private static final Type READ_NONLINEARIZABLE_DEFAULT
       = new Type(ReadRequestTypeProto.newBuilder().setPreferNonLinearizable(true).build());
   private static final Type STALE_READ_DEFAULT = new Type(StaleReadRequestTypeProto.getDefaultInstance());
+	private static final Type HEART_DEFAULT = new Type(HeartRequestTypeProto.getDefaultInstance());
 
   private static final Map<ReplicationLevel, Type> WRITE_REQUEST_TYPES;
 
@@ -78,6 +79,10 @@ public class RaftClientRequest extends RaftClientMessage {
         : new Type(StaleReadRequestTypeProto.newBuilder().setMinIndex(minIndex).build());
   }
 
+	public static Type heartRequestType() {
+		return HEART_DEFAULT;
+	}
+
   public static Type watchRequestType() {
     return WATCH_DEFAULT;
   }
@@ -94,6 +99,10 @@ public class RaftClientRequest extends RaftClientMessage {
     public static Type valueOf(DataStreamRequestTypeProto dataStream) {
       return DATA_STREAM_DEFAULT;
     }
+
+		public static Type valueOf(HeartRequestTypeProto write) {
+			return HEART_DEFAULT;
+		}
 
     public static Type valueOf(ForwardRequestTypeProto forward) {
       return FORWARD_DEFAULT;
@@ -159,6 +168,9 @@ public class RaftClientRequest extends RaftClientMessage {
       this(TypeCase.WATCH, watch);
     }
 
+		private Type(HeartRequestTypeProto heart) {
+			this(TypeCase.HEART, heart);
+		}
     public boolean is(TypeCase t) {
       return getTypeCase() == t;
     }
@@ -166,6 +178,7 @@ public class RaftClientRequest extends RaftClientMessage {
     public boolean isReadOnly() {
       switch (getTypeCase()) {
         case READ:
+				case HEART:
         case STALEREAD:
         case WATCH:
           return true;
@@ -212,6 +225,11 @@ public class RaftClientRequest extends RaftClientMessage {
       return (ReadRequestTypeProto)proto;
     }
 
+		public HeartRequestTypeProto getHeart() {
+			assertType(TypeCase.HEART);
+			return (HeartRequestTypeProto)proto;
+		}
+
     public StaleReadRequestTypeProto getStaleRead() {
       assertType(TypeCase.STALEREAD);
       return (StaleReadRequestTypeProto)proto;
@@ -245,6 +263,8 @@ public class RaftClientRequest extends RaftClientMessage {
           return "Forward";
         case MESSAGESTREAM:
           return toString(getMessageStream());
+				case HEART:
+          return "Heart";
         case READ:
           final ReadRequestTypeProto read = getRead();
           return read.getReadAfterWriteConsistent()? "RaW"

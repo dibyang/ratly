@@ -97,7 +97,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
     return getStateMachineStorage().getLatestSnapshot();
   }
 
-  @Override
+	@Override
   public void pause() {
 
   }
@@ -198,6 +198,11 @@ public class BaseStateMachine implements StateMachine, DataApi,
     }
     return query(request);
   }
+
+	@Override
+	public CompletableFuture<Message> heart(Message request) {
+		return CompletableFuture.completedFuture(null);
+	}
 
   @Override
   public CompletableFuture<Message> query(Message request) {

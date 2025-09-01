@@ -1031,6 +1031,8 @@ class RaftServerImpl implements Division,
         return staleReadAsync(request);
       case READ:
         return readAsync(request);
+			case HEART:
+				return heartAsync(request);
       case WATCH:
         return watchAsync(request);
       case MESSAGESTREAM:
@@ -1155,6 +1157,14 @@ class RaftServerImpl implements Division,
     return writeIndexCache.getWriteIndexFuture(request).thenCompose(leader::getReadIndex);
   }
 
+	private CompletableFuture<RaftClientReply> heartAsync(RaftClientRequest request) {
+		final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);
+		if (reply != null) {
+			return reply;
+		}
+		return heartStateMachine(request);
+	}
+
   private CompletableFuture<RaftClientReply> readAsync(RaftClientRequest request) {
     if (request.getType().getRead().getPreferNonLinearizable()
         || readOption == RaftServerConfigKeys.Read.Option.DEFAULT) {
@@ -1242,6 +1252,10 @@ class RaftServerImpl implements Division,
         .map(ls -> ls.streamEndOfRequestAsync(request))
         .orElse(null);
   }
+
+	CompletableFuture<RaftClientReply> heartStateMachine(RaftClientRequest request) {
+		return processQueryFuture(stateMachine.heart(request.getMessage()), request);
+	}
 
   CompletableFuture<RaftClientReply> queryStateMachine(RaftClientRequest request) {
     return processQueryFuture(stateMachine.query(request.getMessage()), request);

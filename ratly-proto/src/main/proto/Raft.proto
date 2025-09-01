@@ -407,6 +407,10 @@ message DataStreamRequestTypeProto {
 message ForwardRequestTypeProto {
 }
 
+// 扩展心跳请求
+message HeartRequestTypeProto {
+}
+
 // 此消息类型用于读取操作，包含一些与一致性和读取偏好相关的标志。
 message ReadRequestTypeProto {
   // 表示客户端是否更倾向于非线性化的读取。
@@ -474,6 +478,8 @@ message RaftClientRequestProto {
     DataStreamRequestTypeProto dataStream = 8;
     // 表示转发请求。请求可能会被转发到其他节点进行处理。
     ForwardRequestTypeProto forward = 9;
+    // 添加扩展心跳请求
+    HeartRequestTypeProto heart = 10;
   }
 }
 // 定义了数据流包的头部信息，包含了数据包的基本元数据，类似于协议中的标头。

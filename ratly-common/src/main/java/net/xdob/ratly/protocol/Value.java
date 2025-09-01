@@ -2,6 +2,9 @@ package net.xdob.ratly.protocol;
 
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.proto.base.ValueProto;
+import net.xdob.ratly.util.ProtoUtils;
+import net.xdob.ratly.util.Streams4Jdbc;
+import org.checkerframework.checker.units.qual.N;
 
 import javax.sql.rowset.serial.SerialBlob;
 import javax.sql.rowset.serial.SerialClob;
@@ -9,8 +12,7 @@ import java.io.*;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.sql.RowId;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -180,13 +182,7 @@ public class Value {
 			// 自定义对象
 			case CUSTOM_VALUE: {
 				ValueProto.CustomObject custom = param.getCustomValue();
-				try {
-					ObjectInputStream ois = new ObjectInputStream(
-							new ByteArrayInputStream(custom.getSerializedData().toByteArray()));
-					return ois.readObject();
-				} catch (IOException | ClassNotFoundException e) {
-					throw new SQLException("Failed to deserialize custom object", e);
-				}
+				return ProtoUtils.toObject(custom.getSerializedData());
 			}
 
 			// 未处理类型
@@ -287,18 +283,29 @@ public class Value {
 				}
 			}
 			builder.setStructValue(stBuilder.build());
-		} else {
+		} else if (value instanceof Clob){
 			try {
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				ObjectOutputStream ois = new ObjectOutputStream(out);
-				ois.writeObject(value);
-				builder.setCustomValue(ValueProto.CustomObject.newBuilder()
-						.setClassName(value.getClass().getName())
-						.setSerializedData(com.google.protobuf.ByteString.copyFrom(out.toByteArray()))
-						.build());
-			} catch (IOException e) {
-				throw new RuntimeException("Failed to serialize custom object", e);
+				Clob clob = (Clob) value;
+				builder.setClobValue(ValueProto.Clob.newBuilder()
+						.setData(Streams4Jdbc.readString(clob.getCharacterStream())));
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
 			}
+		} else if (value instanceof Blob){
+			try {
+				Blob blob = (Blob) value;
+				byte[] bytes = Streams4Jdbc.readBytes(blob.getBinaryStream());
+				builder.setBlobValue(
+						ValueProto.Blob.newBuilder()
+						.setData(ByteString.copyFrom(bytes)));
+			} catch (SQLException e) {
+				throw new RuntimeException(e);
+			}
+		} else {
+			builder.setCustomValue(ValueProto.CustomObject.newBuilder()
+					.setClassName(value.getClass().getName())
+					.setSerializedData(ProtoUtils.writeObject2ByteString(value))
+					.build());
 		}
 
 		return builder.build();

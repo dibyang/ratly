@@ -1,9 +1,9 @@
 package net.xdob.jdbc.sql;
 
 import com.google.common.collect.Lists;
-import net.xdob.ratly.proto.jdbc.ResultSetProto;
+import net.xdob.ratly.proto.jdbc.RowProto;
 import net.xdob.ratly.protocol.Value;
-import net.xdob.jdbc.util.Streams4Jdbc;
+import net.xdob.ratly.util.Streams4Jdbc;
 
 import java.io.*;
 import java.sql.Blob;
@@ -69,7 +69,10 @@ public class SerialRow implements Serializable {
     return values.toString();
   }
 
-  public static SerialRow from(ResultSetProto.RowProto row) throws SQLException {
+	public RowProto toProto() throws SQLException {
+		return toProto(this);
+	}
+  public static SerialRow from(RowProto row) throws SQLException {
     SerialRow serialRow = new SerialRow(row.getValuesCount());
     for (int i = 0; i < row.getValuesCount(); i++) {
       serialRow.setValue(i, Value.toJavaObject(row.getValues(i)));
@@ -77,8 +80,8 @@ public class SerialRow implements Serializable {
     return serialRow;
   }
 
-  public static ResultSetProto.RowProto toProto(SerialRow row) throws SQLException {
-    ResultSetProto.RowProto.Builder builder = ResultSetProto.RowProto.newBuilder();
+  public static RowProto toProto(SerialRow row) throws SQLException {
+    RowProto.Builder builder = RowProto.newBuilder();
     for (int i = 0; i < row.getColumns(); i++) {
       builder.addValues(i, Value.toValueProto(row.getValue(i)));
     }

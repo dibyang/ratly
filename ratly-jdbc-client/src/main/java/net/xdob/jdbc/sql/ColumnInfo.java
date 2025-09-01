@@ -1,7 +1,7 @@
 package net.xdob.jdbc.sql;
 
 
-import net.xdob.ratly.proto.jdbc.ResultSetProto;
+import net.xdob.ratly.proto.jdbc.ColumnMetaProto;
 
 import java.io.Serializable;
 
@@ -105,11 +105,11 @@ public final class ColumnInfo implements Serializable {
     return name;
   }
 
-  public ResultSetProto.ColumnMetaProto toProto(){
+  public ColumnMetaProto toProto(){
     return toProto(this);
   }
 
-  public static ColumnInfo from(ResultSetProto.ColumnMetaProto colMeta) {
+  public static ColumnInfo from(ColumnMetaProto colMeta) {
     ColumnInfo info = new ColumnInfo(
         colMeta.getName(),
         colMeta.getJdbcType(),
@@ -120,8 +120,8 @@ public final class ColumnInfo implements Serializable {
     return info;
   }
 
-  public static ResultSetProto.ColumnMetaProto toProto(ColumnInfo info) {
-    ResultSetProto.ColumnMetaProto.Builder builder = ResultSetProto.ColumnMetaProto.newBuilder()
+  public static ColumnMetaProto toProto(ColumnInfo info) {
+    ColumnMetaProto.Builder builder = ColumnMetaProto.newBuilder()
         .setJdbcType(info.getType())
         .setTypeName(info.getTypeName())
         .setPrecision(info.getPrecision())

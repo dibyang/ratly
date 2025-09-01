@@ -100,15 +100,20 @@ message SqlRequestProto{
   ParametersProto params = 4;
   repeated string batchSql = 5;
   repeated ParametersProto batchParams = 6;
-  optional int32 fetch_direction = 7;
-  optional int32 fetch_size = 8;
   StmtType stmt_type = 9;
-  // 分页参数
-  int32 start = 20;
-  optional int32 limit = 21;
 }
 
 message HeartbeatProto{
+}
+
+message ResultSetRequestProto{
+  string uid = 1;
+  string method = 2;
+  repeated string parametersTypes = 3;
+  repeated base.ValueProto args = 4;
+
+  SqlRequestProto sqlRequest = 8;
+  int32 row = 9;
 }
 
 // JDBC 请求消息
@@ -123,29 +128,37 @@ message JdbcRequestProto {
     HeartbeatProto heartbeat = 16;
     ConnRequestProto connRequest = 17;
     SqlRequestProto sqlRequest = 18;
+    ResultSetRequestProto resultSetRequest = 19;
   }
 }
 
+message ColumnMetaProto {
+  string name = 1;
+  int32 jdbc_type = 2;  // java.sql.Types 值
+  string type_name = 3;
+  int32 precision = 4;
+  int32 scale = 5;
+  string label = 6;
+}
+
+message RowProto {
+  repeated base.ValueProto values = 1;
+}
+
 message ResultSetProto {
-  message ColumnMetaProto {
-    string name = 1;
-    int32 jdbc_type = 2;  // java.sql.Types 值
-    string type_name = 3;
-    int32 precision = 4;
-    int32 scale = 5;
-    string label = 6;
-  }
-
-  message RowProto {
-    repeated base.ValueProto values = 1;
-  }
-
   repeated ColumnMetaProto columns = 1;
   repeated RowProto rows = 2;
   // 分页参数
   int32 start = 10;
   int32 limit = 11;
-  int32 total = 12;
+}
+
+message RemoteResultSetProto{
+  string uid = 1;
+  base.ValueProto value = 2;
+  repeated ColumnMetaProto columns = 3;
+  RowProto curRow = 4;
+  int32 row = 9;
 }
 
 message UpdateCounts{
@@ -159,6 +172,8 @@ message ConnectionResponse{
   SqlEx SQLWarning = 4;
 }
 
+
+
 // JDBC 响应消息
 message JdbcResponseProto {
   string db = 1;
@@ -170,6 +185,7 @@ message JdbcResponseProto {
     ParameterMetaProto parameter_meta = 14; // 参数元数据
     SavepointProto savepoint = 15;
     ConnectionResponse connection = 16;
+    RemoteResultSetProto remote_result_set = 17;
   }
 
   bool success = 20;

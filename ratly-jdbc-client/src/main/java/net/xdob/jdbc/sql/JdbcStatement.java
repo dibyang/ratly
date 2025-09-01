@@ -12,6 +12,7 @@ import net.xdob.ratly.protocol.RaftClientReply;
 import org.h2.message.DbException;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +38,7 @@ public class JdbcStatement implements Statement {
   @Override
   public ResultSet executeQuery(String sql) throws SQLException {
     SqlRequestProto.Builder sqlBuilder = newSqlRequestBuilder(SqlRequestType.query);
-    sqlBuilder.setSql( sql);
+ 		sqlBuilder.setSql( sql);
     return sendQuery(sqlBuilder);
   }
 
@@ -47,7 +48,15 @@ public class JdbcStatement implements Statement {
         .setSqlRequest(sqlBuilder)
         .build();
     JdbcResponseProto responseProto = sendReadOnly(requestProto);
-    return SerialResultSet.from(responseProto.getResultSet());
+		if(responseProto.hasRemoteResultSet()){
+			RemoteResultSetProto remoteResultSet = responseProto.getRemoteResultSet();
+			RemoteResultSetInvocationHandler handler = new RemoteResultSetInvocationHandler(sqlBuilder, this.sqlClient,
+					remoteResultSet.getUid(), SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
+			return (ResultSet) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+					new Class[]{ResultSet.class}, handler);
+		}else {
+			return SerialResultSet.from(responseProto.getResultSet());
+		}
   }
 
 
@@ -161,7 +170,7 @@ public class JdbcStatement implements Statement {
   protected  SqlRequestProto.Builder newSqlRequestBuilder(SqlRequestType type) {
     SqlRequestProto.Builder builder = SqlRequestProto.newBuilder()
         .setStmtType(StmtType.statement)
-        .setType( type);
+        .setType(type);
     return builder;
   }
 

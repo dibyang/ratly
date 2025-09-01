@@ -1,8 +1,7 @@
 package net.xdob.jdbc.sql;
 
 
-import net.xdob.jdbc.*;
-import net.xdob.jdbc.util.Streams4Jdbc;
+import net.xdob.ratly.util.Streams4Jdbc;
 import net.xdob.ratly.proto.jdbc.*;
 
 import javax.sql.rowset.serial.SerialBlob;

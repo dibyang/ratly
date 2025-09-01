@@ -31,7 +31,8 @@ public final class RaftServerMetricsImpl extends RatlyMetrics implements RaftSer
   public static final String FOLLOWER_LAST_HEARTBEAT_ELAPSED_TIME_METRIC = "%s_lastHeartbeatElapsedTime";
   public static final String FOLLOWER_APPEND_ENTRIES_LATENCY = "follower_append_entry_latency";
   public static final String LEADER_METRIC_PEER_COMMIT_INDEX = "%s_peerCommitIndex";
-  public static final String RAFT_CLIENT_READ_REQUEST = "clientReadRequest";
+	public static final String RAFT_CLIENT_HEART_REQUEST = "clientHeartRequest";
+	public static final String RAFT_CLIENT_READ_REQUEST = "clientReadRequest";
   public static final String RAFT_CLIENT_STALE_READ_REQUEST = "clientStaleReadRequest";
   public static final String RAFT_CLIENT_WRITE_REQUEST = "clientWriteRequest";
   public static final String RAFT_CLIENT_WATCH_REQUEST = "clientWatch%sRequest";
@@ -77,6 +78,8 @@ public final class RaftServerMetricsImpl extends RatlyMetrics implements RaftSer
   private final LongCounter numFailedClientStream = getRegistry().counter(RATLY_SERVER_FAILED_CLIENT_STREAM_COUNT);
 
   private final LongCounter numInstallSnapshot = getRegistry().counter(RATLY_SERVER_INSTALL_SNAPSHOT_COUNT);
+
+	private final Timekeeper heartTimer = getRegistry().timer(RAFT_CLIENT_HEART_REQUEST);
 
   private final Timekeeper readTimer = getRegistry().timer(RAFT_CLIENT_READ_REQUEST);
   private final Timekeeper staleReadTimer = getRegistry().timer(RAFT_CLIENT_STALE_READ_REQUEST);
@@ -205,7 +208,9 @@ public final class RaftServerMetricsImpl extends RatlyMetrics implements RaftSer
   }
 
   public Timekeeper getClientRequestTimer(Type request) {
-    if (request.is(TypeCase.READ)) {
+		if (request.is(TypeCase.HEART)) {
+			return heartTimer;
+		} else if (request.is(TypeCase.READ)) {
       return readTimer;
     } else if (request.is(TypeCase.STALEREAD)) {
       return staleReadTimer;

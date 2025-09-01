@@ -25,7 +25,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class JdbcConnection implements Connection {
@@ -42,8 +41,6 @@ public class JdbcConnection implements Connection {
 	private final ScheduledExecutorService scheduledService;
 
 	public JdbcConnection(JdbcConnectionInfo ci) throws SQLException {
-		scheduledService = Executors.newScheduledThreadPool(1);
-		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 1, 1, TimeUnit.SECONDS);
 		this.url = ci.getUrl();
     this.ci = ci;
     RaftProperties raftProperties = new RaftProperties();
@@ -59,7 +56,9 @@ public class JdbcConnection implements Connection {
     client = builder.build();
     sessionId.set(openSession());
     LOG.info("open session: {}", sessionId.get());
-  }
+		scheduledService = Executors.newScheduledThreadPool(1);
+		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 400, 400, TimeUnit.MILLISECONDS);
+	}
 
 	private void sendHeartBeat() {
 		String session = getSession();
@@ -70,12 +69,28 @@ public class JdbcConnection implements Connection {
 					.setSessionId(session)
 					.build();
 			try {
-				sendReadOnly(requestProto);
-			} catch (SQLException e) {
+				this.checkClose();
+				WrapRequestProto wrap = WrapRequestProto.newBuilder()
+						.setType(JdbcConnection.DB)
+						.setJdbcRequest(requestProto)
+						.build();
+				RaftClientReply reply = client.io().sendHeart(Message.valueOf(wrap));
+				WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+				JdbcResponseProto response = replyProto.getJdbcResponse();
+				if(response.hasEx()){
+					throw SqlExConverter.fromProto(response.getEx());
+				}
+			} catch (Exception e) {
 				LOG.warn("send heartbeat error", e);
+				try {
+					close();
+				} catch (SQLException ignored) {
+
+				}
 			}
 		}
-	};
+	}
+
 
   private String openSession() throws SQLException {
     ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.openSession);
@@ -225,22 +240,7 @@ public class JdbcConnection implements Connection {
   @Override
   public void close() throws SQLException {
 		scheduledService.shutdown();
-    sessionId.getAndUpdate(s->{
-      if(s!=null) {
-        try {
-          ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.closeSession);
-          JdbcRequestProto requestProto = newJdbcRequestBuilder()
-              .setSessionId(s)
-              .setConnRequest(connReqBuilder.build())
-              .build();
-          send(requestProto);
-        } catch (Exception e) {
-          // ignore SQLException
-        }
-      }
-      return null;
-    });
-
+    sessionId.set(null);
     try {
       client.close();
     } catch (IOException e) {

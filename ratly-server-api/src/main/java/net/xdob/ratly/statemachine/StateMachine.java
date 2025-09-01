@@ -152,6 +152,8 @@ public interface StateMachine extends Closeable {
    */
   SnapshotInfo getLatestSnapshot();
 
+	CompletableFuture<Message> heart(Message request);
+
   /**
    * 功能：查询状态机，查询请求必须是只读操作。
    * 说明：该方法允许外部组件（例如客户端）通过查询访问状态机的只读数据。

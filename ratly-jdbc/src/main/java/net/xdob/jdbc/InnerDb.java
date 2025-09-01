@@ -6,7 +6,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.sf.jsqlparser.JSQLParserException;
 import net.xdob.jdbc.sql.*;
 import net.xdob.ratly.io.Digest;
-import net.xdob.jdbc.exception.NoSessionException;
+import net.xdob.jdbc.exception.DatabaseAlreadyClosedException;
 import net.xdob.jdbc.util.BeginStatement;
 import net.xdob.jdbc.util.CustomSqlParser;
 import net.xdob.jdbc.util.ShowSessionsStatement;
@@ -17,7 +17,6 @@ import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.Value;
 import net.xdob.jdbc.proto.SqlExConverter;
-import net.xdob.jdbc.sql.*;
 import net.xdob.jdbc.util.SQLStatementUtil;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.proto.jdbc.*;
@@ -31,6 +30,7 @@ import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
+import net.xdob.ratly.util.Printer4Proto;
 import org.h2.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +44,6 @@ import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -71,16 +70,17 @@ public class InnerDb implements DbContext {
 
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-  private final ClassCache classCache = new ClassCache();
+  private final ClassCache classCache4DPM = new ClassCache();
+	private final ClassCache classCache4RS = new ClassCache();
 
-  public int maxPoolSize = 56;
+  public int maxPoolSize = 128;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
     this.dbInfo = dbInfo;
     this.context = context;
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
-    sessionMgr = new DefaultSessionMgr(this).setMaxSessions(maxPoolSize-8);
+    sessionMgr = new DefaultSessionMgr(this);
 
   }
 
@@ -140,11 +140,6 @@ public class InnerDb implements DbContext {
         dsConfig.setRegisterMbeans(true);
         openDs();
 
-				context.getScheduler()
-						.scheduleWithFixedDelay(sessionMgr::checkExpiredSessions,
-								1, 1, TimeUnit.SECONDS);
-
-
         restoreFromSnapshot(context.getLatestSnapshot());
       } catch (IOException e) {
         initialized.set(false);
@@ -168,21 +163,37 @@ public class InnerDb implements DbContext {
     }
   }
 
+	public void heart(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
 
-  public void query(JdbcRequestProto queryRequest, JdbcResponseProto.Builder response) throws SQLException {
+		String sessionId = request.getSessionId();
+		response.setDb(request.getDb())
+				.setSessionId(sessionId);
+		sessionMgr.getSession(sessionId)
+				.ifPresent(Session::updateLastHeartTime);
+	}
 
-    String sessionId = queryRequest.getSessionId();
-    Session session = sessionMgr.getSession(sessionId)
-        .orElseThrow(()->new SQLInvalidAuthorizationSpecException(new NoSessionException(sessionId)));
-		query(queryRequest, session, response);
+
+	public void query(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
+
+    String sessionId = request.getSessionId();
+		response.setDb(request.getDb())
+				.setSessionId(sessionId);
+    Session session = sessionMgr.getSession(sessionId).orElse(null);
+			if(session==null){
+				Printer4Proto.printJson(request, m->{
+					LOG.info("session sessionId={} not found, request={} ", sessionId, m);
+				});
+				throw new DatabaseAlreadyClosedException(sessionId);
+			}else {
+				session.updateLastHeartTime();
+				query(request, session, response);
+			}
   }
 
 
-  private void query(JdbcRequestProto queryRequest, Session session, JdbcResponseProto.Builder response) throws SQLException {
-		if(queryRequest.hasHeartbeat()){
-			session.updateLastHeartTime();
-		}else if(queryRequest.hasConnRequest()){
-			ConnRequestProto connRequest = queryRequest.getConnRequest();
+  private void query(JdbcRequestProto requestProto, Session session, JdbcResponseProto.Builder response) throws SQLException {
+		if(requestProto.hasConnRequest()){
+			ConnRequestProto connRequest = requestProto.getConnRequest();
 			if(connRequest.getType()==ConnRequestType.databaseMeta){
 				databaseMetaData(session, connRequest, response);
 			}else if(connRequest.getType()==ConnRequestType.getAutoCommit){
@@ -211,12 +222,15 @@ public class InnerDb implements DbContext {
 						.build();
 				response.setConnection(connectionProto);
 			}
-    }else{
-      SqlRequestProto sqlRequest = queryRequest.getSqlRequest();
+    }else if(requestProto.hasResultSetRequest()){
+			ResultSetRequestProto resultSetRequest = requestProto.getResultSetRequest();
+			resultset(session, resultSetRequest, response);
+		}else{
+      SqlRequestProto sqlRequest = requestProto.getSqlRequest();
       if(sqlRequest.getType().equals(SqlRequestType.parameterMeta)){
-        parameterMeta(session, queryRequest, response);
+        parameterMeta(session, requestProto, response);
       }else if(sqlRequest.getType().equals(SqlRequestType.resultSetMetaData)){
-        resultSetMetaData(session, queryRequest, response);
+        resultSetMetaData(session, requestProto, response);
       } if(sqlRequest.getType().equals(SqlRequestType.query)){
 				try {
 					String sql = sqlRequest.getSql();
@@ -229,7 +243,7 @@ public class InnerDb implements DbContext {
 						}
 						response.setResultSet(resultSet.toProto());
 					}else {
-						doQuery(session, sqlRequest, response);
+						doQuery(session, sqlRequest, response, null, 0);
 					}
 				}finally {
 					session.sleep();
@@ -238,7 +252,98 @@ public class InnerDb implements DbContext {
     }
   }
 
+	private void resultset(Session session, ResultSetRequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
 
+		try {
+			String uid = requestProto.getUid();
+			ResultSet resultSet = session.getResultSet(uid);
+			if(resultSet==null){
+				SqlRequestProto sqlRequest = requestProto.getSqlRequest();
+				doQuery(session, sqlRequest, response, uid, requestProto.getRow());
+				resultSet = session.getResultSet(uid);
+			}
+			String methodName  = requestProto.getMethod();
+			if(methodName.equals("close")){
+				session.closeResultSet(uid);
+				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+						.setUid(uid)
+						.setValue(Value.toValueProto(null));
+				response.setRemoteResultSet(builder);
+			}else if(methodName.equals("next")
+			|| methodName.equals("last")
+			|| methodName.equals("first")){
+				boolean result = false;
+				if(methodName.equals("first")){
+					result= resultSet.first();
+				}else if(methodName.equals("last")){
+					result= resultSet.last();
+				}else {
+					result= resultSet.next();
+				}
+
+				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+						.setUid(uid)
+						.setValue(Value.toValueProto(result));
+				builder.setRow(resultSet.getRow());
+				if(result) {
+					SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
+					if (row != null) {
+						builder.setCurRow(row.toProto());
+					}
+				}
+				response.setRemoteResultSet(builder);
+			}else if(methodName.equals("beforeFirst")){
+				resultSet.beforeFirst();
+				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+						.setUid(uid)
+						.setValue(Value.toValueProto(null));
+				builder.setRow(resultSet.getRow());
+
+				response.setRemoteResultSet(builder);
+			}else if(methodName.equals("afterLast")){
+				resultSet.afterLast();
+				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+						.setUid(uid)
+						.setValue(Value.toValueProto(null));
+				builder.setRow(resultSet.getRow());
+
+				response.setRemoteResultSet(builder);
+			}else {
+				Class<?>[] paramTypes = new Class[requestProto.getParametersTypesCount()];
+				for (int i = 0; i < requestProto.getParametersTypesList().size(); i++) {
+					String parametersType = requestProto.getParametersTypes(i);
+					paramTypes[i] = convertType(parametersType);
+				}
+
+				Method method = classCache4RS.getMethod(resultSet.getClass(), methodName, paramTypes);
+
+				Object[] args = new Object[requestProto.getArgsCount()];
+				for (int i = 0; i < requestProto.getArgsList().size(); i++) {
+					args[i] = Value.toJavaObject(requestProto.getArgs(i));
+				}
+				Object o = method.invoke(resultSet, args);
+				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+						.setUid(uid)
+						.setValue(Value.toValueProto(o));
+
+				response.setRemoteResultSet(builder);
+			}
+		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | ClassNotFoundException e) {
+			throw new SQLException(e);
+		}
+	}
+
+	private SerialRow getRow(int columnCount, ResultSet rs) throws SQLException {
+		if(rs.getRow()>=0) {
+			SerialRow row = new SerialRow(columnCount);
+			for (int col = 1; col <= columnCount; col++) {
+				row.setValue(col - 1, rs.getObject(col));
+			}
+			return row;
+		}else{
+			return null;
+		}
+	}
 
   private void databaseMetaData(Session session, ConnRequestProto connRequest,  JdbcResponseProto.Builder response) throws SQLException {
     DatabaseMetaData metaData = session.getConnection().getMetaData();
@@ -251,7 +356,7 @@ public class InnerDb implements DbContext {
         paramTypes[i] = convertType(parametersType);
       }
 
-      Method method = classCache.getMethod(metaData.getClass(), methodName, paramTypes);;
+      Method method = classCache4DPM.getMethod(metaData.getClass(), methodName, paramTypes);;
       Object[] args = new Object[databaseMetaRequest.getArgsCount()];
       for (int i = 0; i < databaseMetaRequest.getArgsList().size(); i++) {
         args[i] = Value.toJavaObject(databaseMetaRequest.getArgs(i));
@@ -314,23 +419,13 @@ public class InnerDb implements DbContext {
     return type;
   }
 
-  private void doQuery(Session session, SqlRequestProto sqlRequest,  JdbcResponseProto.Builder response) throws SQLException {
+  private void doQuery(Session session, SqlRequestProto sqlRequest,  JdbcResponseProto.Builder response, String uuid, int row) throws SQLException {
     if(StmtType.prepared.equals(sqlRequest.getStmtType())
         ||StmtType.callable.equals(sqlRequest.getStmtType())){
-      try(CallableStatement ps = session.getConnection().prepareCall(sqlRequest.getSql())) {
+			CallableStatement ps = null;
+      try {
+				ps = session.getConnection().prepareCall(sqlRequest.getSql());
 				ps.setQueryTimeout(60);
-				if(sqlRequest.hasFetchDirection()){
-          if(sqlRequest.getFetchDirection()== ResultSet.FETCH_FORWARD){
-            ps.setFetchDirection(ResultSet.FETCH_FORWARD);
-          }else if(sqlRequest.getFetchDirection()== ResultSet.FETCH_REVERSE){
-            ps.setFetchDirection(ResultSet.FETCH_REVERSE);
-          }else if(sqlRequest.getFetchDirection()== ResultSet.FETCH_UNKNOWN){
-            ps.setFetchDirection(ResultSet.FETCH_UNKNOWN);
-          }
-        }
-        if(sqlRequest.hasFetchSize()) {
-          ps.setFetchSize(sqlRequest.getFetchSize());
-        }
         List<ParameterProto> paramList = sqlRequest.getParams().getParamList();
         if(!paramList.isEmpty()){
           for (ParameterProto parameterProto : paramList) {
@@ -340,14 +435,46 @@ public class InnerDb implements DbContext {
           }
         }
         ResultSet rs = ps.executeQuery();
-        response.setResultSet(new SerialResultSet(rs).toProto());
-      }
+				if(uuid==null) {
+					uuid = UUID.randomUUID().toString();
+					while(rs.getRow()!=row){
+						rs.next();
+					}
+				}
+				session.addResultSet(uuid, rs);
+				SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
+
+				response.setRemoteResultSet(RemoteResultSetProto.newBuilder()
+						.setUid(uuid)
+						.addAllColumns(metaData.toProto()));
+      } catch (Exception e) {
+				if(ps!=null){
+					ps.close();
+				}
+			}
     }else{
-      try(Statement s = session.getConnection().createStatement()) {
+			Statement s = null;
+      try {
+				s = session.getConnection().createStatement();
 				s.setQueryTimeout(60);
         ResultSet rs = s.executeQuery(sqlRequest.getSql());
-        response.setResultSet(new SerialResultSet(rs).toProto());
-      }
+				if(uuid==null) {
+					uuid = UUID.randomUUID().toString();
+					while(rs.getRow()!=row){
+						rs.next();
+					}
+				}
+				session.addResultSet(uuid, rs);
+				SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
+
+				response.setRemoteResultSet(RemoteResultSetProto.newBuilder()
+						.setUid(uuid)
+						.addAllColumns(metaData.toProto()));
+      }catch (Exception e) {
+				if(s!=null){
+					s.close();
+				}
+			}
     }
   }
 
@@ -403,7 +530,7 @@ public class InnerDb implements DbContext {
       }else{
         String sessionId = request.getSessionId();
         Session session = sessionMgr.getSession(sessionId)
-            .orElseThrow(()->new SQLInvalidAuthorizationSpecException("connRequest="+connRequest.getType(),new NoSessionException(sessionId)));
+            .orElseThrow(()->new DatabaseAlreadyClosedException(sessionId));
 				session.updateLastHeartTime();
 				session.updateAppliedIndexToMax(termIndex.getIndex());
         applyLog4Conn(termIndex, session, connRequest, response);
@@ -412,7 +539,7 @@ public class InnerDb implements DbContext {
 			SqlRequestProto sqlRequest = request.getSqlRequest();
 			String sessionId = request.getSessionId();
 			Session session = sessionMgr.getSession(sessionId)
-					.orElseThrow(() -> new SQLInvalidAuthorizationSpecException("sql="+sqlRequest.getSql(), new NoSessionException(sessionId)));
+					.orElseThrow(() -> new DatabaseAlreadyClosedException(sessionId));
 			session.updateLastHeartTime();
 			session.updateAppliedIndexToMax(termIndex.getIndex());
 			try {
@@ -472,7 +599,7 @@ public class InnerDb implements DbContext {
 					.setJdbcRequest(requestProto)
 					.build();
 			RaftClientReply reply = context.getRaftClient().io()
-					.sendReadOnly(Message.valueOf(wrap));
+					.send(Message.valueOf(wrap));
 			WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
 			JdbcResponseProto response = replyProto.getJdbcResponse();
 			if(response.hasEx()){

@@ -3,6 +3,7 @@ package net.xdob.ratly.client.impl;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.ByteString;
 import net.xdob.ratly.protocol.SerialSupport;
+import net.xdob.ratly.util.ProtoUtils;
 
 import java.io.*;
 
@@ -10,18 +11,12 @@ public class FastsImpl implements SerialSupport {
 
   @Override
   public byte[] asBytes(Object obj) {
-    try(ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-      ObjectOutputStream out = new ObjectOutputStream(bos);
-      out.writeObject(obj);
-      return bos.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+		return asByteString(obj).toByteArray();
   }
 
   @Override
   public ByteString asByteString(Object obj) {
-    return ByteString.copyFrom(asBytes(obj));
+    return ProtoUtils.writeObject2ByteString(obj);
   }
 
   @Override
@@ -29,12 +24,7 @@ public class FastsImpl implements SerialSupport {
     if(bytes==null||bytes.length==0){
       return null;
     }
-		try (ByteArrayInputStream bis = new ByteArrayInputStream(bytes)){
-      ObjectInputStream in = new ObjectInputStream(bis);
-			return in.readObject();
-		} catch (ClassNotFoundException|IOException e) {
-			throw new RuntimeException(e);
-		}
+		return asObject(ByteString.copyFrom(bytes));
 	}
 
   @Override
@@ -42,7 +32,7 @@ public class FastsImpl implements SerialSupport {
     if(byteString==null||byteString.isEmpty()){
       return null;
     }
-    return asObject(byteString.toByteArray());
+    return ProtoUtils.toObject(byteString);
   }
 
   @Override

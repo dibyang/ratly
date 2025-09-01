@@ -28,6 +28,11 @@ public interface SMPlugin extends Closeable {
   default void reinitialize() throws IOException{
 
   }
+
+	default void heart(WrapRequestProto request, WrapReplyProto.Builder reply) {
+
+	}
+
   default void query(WrapRequestProto request, WrapReplyProto.Builder reply) {
 
   }

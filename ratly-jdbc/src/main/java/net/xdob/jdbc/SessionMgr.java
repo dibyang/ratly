@@ -13,7 +13,6 @@ public interface SessionMgr {
 
   Optional<Session> getSession(String id);
   List<Session> getAllSessions();
-  Session removeSession(String sessionId);
   void closeSession(String sessionId);
   void clearSessions();
   void checkExpiredSessions();

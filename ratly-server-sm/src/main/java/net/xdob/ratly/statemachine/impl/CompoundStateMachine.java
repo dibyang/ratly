@@ -166,8 +166,30 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     }
   }
 
+	@Override
+	public CompletableFuture<Message> heart(Message request) {
+		WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
+		try(AutoCloseableLock readLock = readLock()) {
+			WrapRequestProto requestProto = WrapRequestProto.parseFrom(request.getContent());
+			String pluginId = requestProto.getType();
+			SMPlugin smPlugin = pluginMap.get(pluginId);
+			if(smPlugin!=null) {
+				smPlugin.heart(requestProto, response);
+			}else {
+				response.setError(ErrorProto.newBuilder()
+						.setCode(404)
+						.setMessage("plugin not found:"+ pluginId));
+			}
+		} catch (Exception e) {
+			response.setError(ErrorProto.newBuilder()
+					.setCode(500)
+					.setMessage(e.getMessage()));
+			LOG.warn("", e);
+		}
+		return CompletableFuture.completedFuture(Message.valueOf(response.build()));
+	}
 
-  @Override
+	@Override
   public CompletableFuture<Message> query(Message request) {
 
     WrapReplyProto.Builder response = WrapReplyProto.newBuilder();

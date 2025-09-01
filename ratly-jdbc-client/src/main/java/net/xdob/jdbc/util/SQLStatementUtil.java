@@ -125,4 +125,5 @@ public class SQLStatementUtil {
 				isDDL( statement);
 	}
 
+
 }

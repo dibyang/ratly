@@ -1,7 +1,7 @@
 package net.xdob.jdbc.sql;
 
 import com.google.common.collect.Lists;
-import net.xdob.ratly.proto.jdbc.ResultSetProto;
+import net.xdob.ratly.proto.jdbc.ColumnMetaProto;
 import org.h2.message.DbException;
 import org.h2.value.DataType;
 import org.h2.value.Value;
@@ -347,21 +347,21 @@ public class SerialResultSetMetaData implements ResultSetMetaData, Serializable 
     return iface != null && iface.isAssignableFrom(getClass());
   }
 
-  public List<ResultSetProto.ColumnMetaProto> toProto() throws SQLException {
+  public List<ColumnMetaProto> toProto() throws SQLException {
     return toProto( this);
   }
 
-  public static SerialResultSetMetaData from(List<ResultSetProto.ColumnMetaProto> colMetas) {
+  public static SerialResultSetMetaData from(List<ColumnMetaProto> colMetas) {
     SerialResultSetMetaData rsMeta = new SerialResultSetMetaData();
 
-    for (ResultSetProto.ColumnMetaProto colMeta : colMetas) {
+    for (ColumnMetaProto colMeta : colMetas) {
       rsMeta.columns.add(ColumnInfo.from(colMeta));
     }
     return rsMeta;
   }
 
-  public static List<ResultSetProto.ColumnMetaProto> toProto(ResultSetMetaData metaData) throws SQLException {
-    List<ResultSetProto.ColumnMetaProto> colMetas = Lists.newArrayList();
+  public static List<ColumnMetaProto> toProto(ResultSetMetaData metaData) throws SQLException {
+    List<ColumnMetaProto> colMetas = Lists.newArrayList();
     for (int i = 1; i <= metaData.getColumnCount(); i++) {
       ColumnInfo columnInfo = new ColumnInfo(metaData.getColumnName(i),
           metaData.getColumnType(i), metaData.getColumnTypeName(i), metaData.getPrecision(i), metaData.getScale(i));

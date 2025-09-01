@@ -216,7 +216,28 @@ public class DBSMPlugin implements SMPlugin {
     }
   }
 
-  @Override
+	@Override
+	public void heart(WrapRequestProto request, WrapReplyProto.Builder reply) {
+		if(request.hasJdbcRequest()) {
+			JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
+			JdbcRequestProto jdbcRequest = request.getJdbcRequest();
+			String db = jdbcRequest.getDb();
+			InnerDb innerDb = dbMap.get(db);
+			try {
+				if (innerDb != null) {
+					innerDb.heart(jdbcRequest, response);
+				} else {
+					throw new NoDatabaseException(db);
+				}
+			} catch (SQLException e) {
+				LOG.warn("", e);
+				response.setEx(SqlExConverter.toProto(e));
+			}
+			reply.setJdbcResponse(response);
+		}
+	}
+
+	@Override
   public void query(WrapRequestProto request, WrapReplyProto.Builder reply)  {
     
 		if(request.hasJdbcRequest()) {

@@ -33,6 +33,7 @@ public class Session implements AutoCloseable {
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
+	private final Map<String,ResultSet> resultSets = new HashMap<>();
 
   public Session(String db, String user, String sessionId, Connection connection, DbContext context) {
 		this.db = db;
@@ -41,6 +42,22 @@ public class Session implements AutoCloseable {
 		this.connection = connection;
 		this.context = context;
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
+	}
+
+	public ResultSet getResultSet(String uuid){
+		return resultSets.get(uuid);
+	}
+
+	public void addResultSet(String uuid, ResultSet resultSet){
+		resultSets.put(uuid, resultSet);
+	}
+
+	public void closeResultSet(String uuid) throws SQLException {
+		ResultSet removed = resultSets.remove(uuid);
+		if(removed!=null){
+			removed.getStatement().close();
+			removed.close();
+		}
 	}
 
 	public boolean updateAppliedIndexToMax(long newIndex) {
@@ -60,7 +77,6 @@ public class Session implements AutoCloseable {
 		this.state = State.RUNNING;
 		this.sleepSince = null;
 		this.sql = sql;
-		updateLastHeartTime();
 		return this;
 	}
 
@@ -215,15 +231,21 @@ public class Session implements AutoCloseable {
 
 
   public void close() throws Exception {
+		for (ResultSet resultSet : resultSets.values()) {
+			resultSet.getStatement().close();
+			resultSet.close();
+		}
+		resultSets.clear();
     if (!connection.isClosed()) {
       try {
         rollback(-1);
       } catch (SQLException ignore) {
       }
       connection.close();
-      //LOG.info("session close connection, id={}", id);
+      LOG.info("session connection close id={}", sessionId);
+			context.getSessionMgr().closeSession(this.sessionId);
     }
-		context.getSessionMgr().removeSession(this.sessionId);
+
   }
 
 	public void setSessionData(SessionData sessionData) throws SQLException {
@@ -299,4 +321,5 @@ public class Session implements AutoCloseable {
 		SLEEP,
 		CLOSED
 	}
+
 }

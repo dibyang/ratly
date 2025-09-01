@@ -1,4 +1,4 @@
-package net.xdob.jdbc.util;
+package net.xdob.ratly.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

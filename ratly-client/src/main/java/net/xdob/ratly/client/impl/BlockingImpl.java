@@ -69,7 +69,12 @@ class BlockingImpl implements BlockingApi {
     return send(RaftClientRequest.watchRequestType(index, replication), null, null);
   }
 
-  private RaftClientReply send(RaftClientRequest.Type type, Message message, RaftPeerId server)
+	@Override
+	public RaftClientReply sendHeart(Message message, RaftPeerId server) throws IOException {
+		return send(RaftClientRequest.heartRequestType(), message, server);
+	}
+
+	private RaftClientReply send(RaftClientRequest.Type type, Message message, RaftPeerId server)
       throws IOException {
     if (!type.is(TypeCase.WATCH)) {
       Objects.requireNonNull(message, "message == null");
