@@ -4,10 +4,7 @@ package net.xdob.ratly.client.impl;
 import net.xdob.ratly.client.DataStreamClient;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.client.RaftClientRpc;
-import net.xdob.ratly.client.api.DRpcApi;
-import net.xdob.ratly.client.api.DataStreamApi;
-import net.xdob.ratly.client.api.LeaderElectionManagementApi;
-import net.xdob.ratly.client.api.SnapshotManagementApi;
+import net.xdob.ratly.client.api.*;
 import net.xdob.ratly.client.retry.ClientRetryEvent;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
@@ -183,7 +180,10 @@ public final class RaftClientImpl implements RaftClient {
       leaderElectionManagement = new ConcurrentHashMap<>();
   private final ConcurrentMap<RaftPeerId, DRpcApiImpl> dRpcApi = new ConcurrentHashMap<>();
 
-  private final AtomicBoolean closed = new AtomicBoolean();
+	private final Supplier<JdbcAdminApiImpl> jdbcAdminApi;
+
+
+	private final AtomicBoolean closed = new AtomicBoolean();
 
   @SuppressWarnings("checkstyle:ParameterNumber")
   RaftClientImpl(ClientId clientId, RaftGroup group, RaftPeerId leaderId, RaftPeer primaryDataStreamServer,
@@ -210,6 +210,7 @@ public final class RaftClientImpl implements RaftClient {
         .setParameters(parameters)
         .build());
     this.adminApi = JavaUtils.memoize(() -> new AdminImpl(this));
+		this.jdbcAdminApi = JavaUtils.memoize(() -> new JdbcAdminApiImpl(this));
   }
 
   @Override
@@ -320,7 +321,12 @@ public final class RaftClientImpl implements RaftClient {
     return dRpcApi.computeIfAbsent(server, id -> new DRpcApiImpl(id, this));
   }
 
-  @Override
+	@Override
+	public JdbcAdminApi getJdbcAdminApi() {
+		return jdbcAdminApi.get();
+	}
+
+	@Override
   public BlockingImpl io() {
     return blockingApi.get();
   }

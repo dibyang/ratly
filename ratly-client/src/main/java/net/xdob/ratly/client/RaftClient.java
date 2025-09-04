@@ -53,6 +53,8 @@ public interface RaftClient extends Closeable {
    */
   DRpcApi getDRpcApiApi(RaftPeerId server);
 
+	JdbcAdminApi  getJdbcAdminApi();
+
   /** @return the {@link BlockingApi}. */
   BlockingApi io();
 

@@ -6,12 +6,12 @@ import com.google.common.collect.Maps;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
 import net.xdob.jdbc.exception.NoDatabaseException;
-import net.xdob.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.*;
 import net.xdob.ratly.protocol.RaftGroupId;
 import net.xdob.ratly.protocol.RaftPeerId;
+import net.xdob.ratly.protocol.Value;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -24,6 +24,7 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.*;
+import net.xdob.ratly.util.Timestamp;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -40,9 +41,11 @@ public class DBSMPlugin implements SMPlugin {
   public static final String DB = "db";
   public static final String DBS = "dbs";
   public static final String DBS_JSON = DBS + ".json";
+	public static final String SHOW_SESSION = "show session";
+	public static final String KILL_SESSION = "kill session";
 
 
-  private Path dbStore;
+	private Path dbStore;
   private Path dbCache;
   private SMPluginContext context;
 
@@ -50,6 +53,7 @@ public class DBSMPlugin implements SMPlugin {
 
   private final Map<String, DbDef> dbDefs = Maps.newConcurrentMap();;
   private final RsaHelper rsaHelper = new RsaHelper();
+	private final GCLastTime gcLastTime = new GCLastTime();
 
   private DbsContext dbsContext;
   private boolean dynamicCreate = false;
@@ -129,6 +133,11 @@ public class DBSMPlugin implements SMPlugin {
 			@Override
 			public RaftClient getRaftClient() {
 				return context.getRaftClient();
+			}
+
+			@Override
+			public Timestamp getLastGCTime() {
+				return gcLastTime.getLastGCTime();
 			}
 		};
   }
@@ -217,21 +226,50 @@ public class DBSMPlugin implements SMPlugin {
   }
 
 	@Override
-	public void heart(WrapRequestProto request, WrapReplyProto.Builder reply) {
+	public void admin(WrapRequestProto request, WrapReplyProto.Builder reply) {
 		if(request.hasJdbcRequest()) {
 			JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
 			JdbcRequestProto jdbcRequest = request.getJdbcRequest();
-			String db = jdbcRequest.getDb();
-			InnerDb innerDb = dbMap.get(db);
-			try {
-				if (innerDb != null) {
-					innerDb.heart(jdbcRequest, response);
-				} else {
-					throw new NoDatabaseException(db);
+			if(jdbcRequest.hasHeartbeat()) {
+				String db = jdbcRequest.getDb();
+				InnerDb innerDb = dbMap.get(db);
+				try {
+					if (innerDb != null) {
+						String sessionId = jdbcRequest.getSessionId();
+						response.setDb(jdbcRequest.getDb())
+								.setSessionId(sessionId);
+						innerDb.heart(sessionId);
+					} else {
+						throw new NoDatabaseException(db);
+					}
+				} catch (SQLException e) {
+					LOG.warn("", e);
+					response.setEx(Proto2Util.toThrowable2Proto(e));
 				}
-			} catch (SQLException e) {
-				LOG.warn("", e);
-				response.setEx(SqlExConverter.toProto(e));
+			}else if(jdbcRequest.hasAdmin()){
+				AdminProto admin = jdbcRequest.getAdmin();
+				try {
+					if (admin.getCmd().equalsIgnoreCase(SHOW_SESSION)) {
+						List<Map<String, Object>> list = new ArrayList<>();
+						for (InnerDb db : dbMap.values()) {
+							db.showSessions(list);
+						}
+						response.setValue(Value.toValueProto( list));
+					} else if (admin.getCmd().equalsIgnoreCase(KILL_SESSION)) {
+						boolean killed = false;
+						String sessionId = admin.getArg0();
+						for (InnerDb db : dbMap.values()) {
+							killed = db.killSession(sessionId);
+							if(killed){
+								break;
+							}
+						}
+						response.setUpdateCount(killed?1:0);
+					}
+				} catch (SQLException e) {
+					LOG.warn("", e);
+					response.setEx(Proto2Util.toThrowable2Proto(e));
+				}
 			}
 			reply.setJdbcResponse(response);
 		}
@@ -253,7 +291,7 @@ public class DBSMPlugin implements SMPlugin {
 				}
 			} catch (SQLException e) {
 				LOG.warn("", e);
-				response.setEx(SqlExConverter.toProto(e));
+				response.setEx(Proto2Util.toThrowable2Proto(e));
 			}
 			reply.setJdbcResponse(response);
 		}
@@ -285,7 +323,7 @@ public class DBSMPlugin implements SMPlugin {
       }
     } catch (SQLException e) {
       LOG.warn("", e);
-      response.setEx(SqlExConverter.toProto(e));
+      response.setEx(Proto2Util.toThrowable2Proto(e));
     }
     reply.setJdbcResponse(response);
   }

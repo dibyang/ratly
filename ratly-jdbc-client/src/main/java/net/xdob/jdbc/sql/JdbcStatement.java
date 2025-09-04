@@ -1,14 +1,15 @@
 package net.xdob.jdbc.sql;
 
 import net.sf.jsqlparser.JSQLParserException;
-import net.xdob.jdbc.proto.SqlExConverter;
 import net.xdob.jdbc.util.CustomSqlParser;
+import net.xdob.jdbc.util.JSqlParserWithLRUCache;
 import net.xdob.jdbc.util.SQLStatementUtil;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
+import net.xdob.ratly.util.Proto2Util;
 import org.h2.message.DbException;
 
 import java.io.IOException;
@@ -186,7 +187,7 @@ public class JdbcStatement implements Statement {
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
       JdbcResponseProto response = replyProto.getJdbcResponse();
       if(response.hasEx()){
-        throw SqlExConverter.fromProto(response.getEx());
+        throw Proto2Util.toSQLException(response.getEx());
       }
       return response;
     } catch (IOException e) {
@@ -207,7 +208,7 @@ public class JdbcStatement implements Statement {
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
       JdbcResponseProto response = replyProto.getJdbcResponse();
       if(response.hasEx()){
-        throw SqlExConverter.fromProto(response.getEx());
+        throw Proto2Util.toSQLException(response.getEx());
       }
       return response;
     } catch (IOException e) {
@@ -279,7 +280,7 @@ public class JdbcStatement implements Statement {
 
   protected boolean isModification(String sql) throws SQLException {
 		try{
-			net.sf.jsqlparser.statement.Statement statement = CustomSqlParser.parse(sql);
+			net.sf.jsqlparser.statement.Statement statement = JSqlParserWithLRUCache.parse(sql);
 			return SQLStatementUtil.isModification(statement);
 		}catch (JSQLParserException e) {
 			throw new SQLException("sql parse error. sql="+sql, e);

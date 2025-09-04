@@ -81,7 +81,11 @@ public final class Timestamp implements Comparable<Timestamp> {
     return TimeDuration.valueOf(d, TimeUnit.NANOSECONDS);
   }
 
-  /**
+	public long getNanos() {
+		return nanos;
+	}
+
+	/**
    * Compare two timestamps, t0 (this) and t1 (that).
    * This method uses {@code t0 - t1 < 0}, not {@code t0 < t1},
    * in order to take care the possibility of numerical overflow.

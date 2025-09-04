@@ -83,8 +83,8 @@ public interface BlockingApi {
   RaftClientReply watch(long index, ReplicationLevel replication) throws IOException;
 
 	/** The same as sendHeart(message, null). */
-	default RaftClientReply sendHeart(Message message) throws IOException {
-		return sendHeart(message, null);
+	default RaftClientReply sendAdmin(Message message) throws IOException {
+		return sendAdmin(message, null);
 	}
 	/**
 	 * Send the given readonly message to the raft service.
@@ -93,6 +93,6 @@ public interface BlockingApi {
 	 * @param server The target server.  When server == null, send the message to the leader.
 	 * @return the reply.
 	 */
-	RaftClientReply sendHeart(Message message, RaftPeerId server) throws IOException;
+	RaftClientReply sendAdmin(Message message, RaftPeerId server) throws IOException;
 
 }

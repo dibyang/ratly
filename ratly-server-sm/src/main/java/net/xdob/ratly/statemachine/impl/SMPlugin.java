@@ -29,7 +29,7 @@ public interface SMPlugin extends Closeable {
 
   }
 
-	default void heart(WrapRequestProto request, WrapReplyProto.Builder reply) {
+	default void admin(WrapRequestProto request, WrapReplyProto.Builder reply) {
 
 	}
 

@@ -12,12 +12,6 @@ import "google/protobuf/any.proto";
 
 import "Base.proto";
 
-message SqlEx {
-  string message = 1;           // 异常消息
-  string sql_state = 2;         // SQL状态码
-  int32 error_code = 3;         // 供应商特定的错误代码
-  repeated SqlEx causes = 4;  // 原因异常链（嵌套异常）
-}
 
 
 enum ConnRequestType{
@@ -106,6 +100,11 @@ message SqlRequestProto{
 message HeartbeatProto{
 }
 
+message AdminProto{
+  string cmd = 1;
+  string arg0 = 2;
+}
+
 message ResultSetRequestProto{
   string uid = 1;
   string method = 2;
@@ -129,6 +128,7 @@ message JdbcRequestProto {
     ConnRequestProto connRequest = 17;
     SqlRequestProto sqlRequest = 18;
     ResultSetRequestProto resultSetRequest = 19;
+    AdminProto admin = 20;
   }
 }
 
@@ -169,7 +169,7 @@ message ConnectionResponse{
   string sql = 1;
   bool autoCommit = 2;
   int32 transactionIsolation = 3;
-  SqlEx SQLWarning = 4;
+  base.Throwable2Proto SQLWarning = 5;
 }
 
 
@@ -186,10 +186,11 @@ message JdbcResponseProto {
     SavepointProto savepoint = 15;
     ConnectionResponse connection = 16;
     RemoteResultSetProto remote_result_set = 17;
+    base.ValueProto value = 18;
   }
 
   bool success = 20;
-  SqlEx ex = 21;
+  base.Throwable2Proto ex = 22;
 }
 
 message ParameterMetaProto {

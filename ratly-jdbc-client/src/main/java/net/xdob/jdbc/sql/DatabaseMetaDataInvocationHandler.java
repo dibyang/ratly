@@ -4,12 +4,12 @@ import com.google.common.collect.Maps;
 import net.xdob.jdbc.Version;
 import net.xdob.ratly.proto.jdbc.ResultSetProto;
 import net.xdob.ratly.protocol.Value;
-import net.xdob.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
+import net.xdob.ratly.util.Proto2Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +103,7 @@ public class DatabaseMetaDataInvocationHandler implements InvocationHandler {
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
       JdbcResponseProto response = replyProto.getJdbcResponse();
       if(response.hasEx()){
-        throw SqlExConverter.fromProto(response.getEx());
+        throw Proto2Util.toSQLException(response.getEx());
       }
       return response;
     } catch (IOException e) {

@@ -22,7 +22,7 @@ public class RaftClientRequest extends RaftClientMessage {
   private static final Type READ_NONLINEARIZABLE_DEFAULT
       = new Type(ReadRequestTypeProto.newBuilder().setPreferNonLinearizable(true).build());
   private static final Type STALE_READ_DEFAULT = new Type(StaleReadRequestTypeProto.getDefaultInstance());
-	private static final Type HEART_DEFAULT = new Type(HeartRequestTypeProto.getDefaultInstance());
+	private static final Type ADMIN_DEFAULT = new Type(AdminRequestTypeProto.getDefaultInstance());
 
   private static final Map<ReplicationLevel, Type> WRITE_REQUEST_TYPES;
 
@@ -79,8 +79,8 @@ public class RaftClientRequest extends RaftClientMessage {
         : new Type(StaleReadRequestTypeProto.newBuilder().setMinIndex(minIndex).build());
   }
 
-	public static Type heartRequestType() {
-		return HEART_DEFAULT;
+	public static Type adminRequestType() {
+		return ADMIN_DEFAULT;
 	}
 
   public static Type watchRequestType() {
@@ -100,8 +100,8 @@ public class RaftClientRequest extends RaftClientMessage {
       return DATA_STREAM_DEFAULT;
     }
 
-		public static Type valueOf(HeartRequestTypeProto write) {
-			return HEART_DEFAULT;
+		public static Type valueOf(AdminRequestTypeProto write) {
+			return ADMIN_DEFAULT;
 		}
 
     public static Type valueOf(ForwardRequestTypeProto forward) {
@@ -168,8 +168,8 @@ public class RaftClientRequest extends RaftClientMessage {
       this(TypeCase.WATCH, watch);
     }
 
-		private Type(HeartRequestTypeProto heart) {
-			this(TypeCase.HEART, heart);
+		private Type(AdminRequestTypeProto admin) {
+			this(TypeCase.ADMIN, admin);
 		}
     public boolean is(TypeCase t) {
       return getTypeCase() == t;
@@ -178,7 +178,7 @@ public class RaftClientRequest extends RaftClientMessage {
     public boolean isReadOnly() {
       switch (getTypeCase()) {
         case READ:
-				case HEART:
+				case ADMIN:
         case STALEREAD:
         case WATCH:
           return true;
@@ -225,9 +225,9 @@ public class RaftClientRequest extends RaftClientMessage {
       return (ReadRequestTypeProto)proto;
     }
 
-		public HeartRequestTypeProto getHeart() {
-			assertType(TypeCase.HEART);
-			return (HeartRequestTypeProto)proto;
+		public AdminRequestTypeProto getAdmin() {
+			assertType(TypeCase.ADMIN);
+			return (AdminRequestTypeProto)proto;
 		}
 
     public StaleReadRequestTypeProto getStaleRead() {
@@ -263,7 +263,7 @@ public class RaftClientRequest extends RaftClientMessage {
           return "Forward";
         case MESSAGESTREAM:
           return toString(getMessageStream());
-				case HEART:
+				case ADMIN:
           return "Heart";
         case READ:
           final ReadRequestTypeProto read = getRead();

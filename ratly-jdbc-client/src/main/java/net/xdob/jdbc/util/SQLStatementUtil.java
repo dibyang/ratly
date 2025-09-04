@@ -72,7 +72,7 @@ public class SQLStatementUtil {
 				|| statement instanceof DescribeStatement
 				|| statement instanceof ExplainStatement
 				|| statement instanceof KillSessionStatement
-				|| statement instanceof ShowSessionsStatement) {
+				|| statement instanceof ShowSessionStatement) {
 			return StatementType.OTHER;
 		}
 

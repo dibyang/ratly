@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -98,6 +97,9 @@ public class Session implements AutoCloseable {
 
 
 	public long elapsedHeartTimeMs() {
+		if(context.getLastGCTime().getNanos()>lastHeartTime.getNanos()){
+			updateLastHeartTime();
+		}
 		return lastHeartTime.elapsedTimeMs();
 	}
 
@@ -183,6 +185,10 @@ public class Session implements AutoCloseable {
 		}
   }
 
+	public String getTransactionIsolationName() throws SQLException {
+		return getTransactionIsolationName(getTransactionIsolation());
+	}
+
 	private String getTransactionIsolationName(int level){
 		switch (level) {
 			case Connection.TRANSACTION_SERIALIZABLE:
@@ -237,15 +243,14 @@ public class Session implements AutoCloseable {
 		}
 		resultSets.clear();
     if (!connection.isClosed()) {
-      try {
-        rollback(-1);
-      } catch (SQLException ignore) {
-      }
+			try {
+				rollback(-1);
+			} catch (SQLException ignore) {
+			}
       connection.close();
       LOG.info("session connection close id={}", sessionId);
 			context.getSessionMgr().closeSession(this.sessionId);
     }
-
   }
 
 	public void setSessionData(SessionData sessionData) throws SQLException {
@@ -267,17 +272,20 @@ public class Session implements AutoCloseable {
 		}
 	}
 
+
 	public Map<String, Object> toMap() {
 		try {
 			Map<String, Object> map = new HashMap<>();
+			map.put("db", this.db);
 			map.put("sessionId", this.sessionId);
 			map.put("user", this.user);
 			map.put("autoCommit", this.getAutoCommit());
-			map.put("transactionIsolation", this.getTransactionIsolation());
+			map.put("transactionIsolation", getTransactionIsolationName());
 			map.put("state", this.state);
+			map.put("lastHeart", this.lastHeartTime.elapsedTimeMs());
+			map.put("startTime", new java.sql.Timestamp(this.startTime));
+			map.put("sleepSince", this.sleepSince == null ? null : new java.sql.Timestamp(this.sleepSince));
 			map.put("sql", this.sql);
-			map.put("startTime", new Date(this.startTime).toInstant());
-			map.put("sleepSince", this.sleepSince == null ? null : new Date(this.sleepSince).toInstant());
 			return map;
 		} catch (SQLException e) {
 			return null;
@@ -290,7 +298,7 @@ public class Session implements AutoCloseable {
 				.setValue(1, this.sessionId)
 				.setValue(2, this.user)
 				.setValue(3, this.getAutoCommit())
-				.setValue(4, getTransactionIsolationName(this.getTransactionIsolation()))
+				.setValue(4, getTransactionIsolationName())
 				.setValue(5, this.state.name())
 				.setValue(6, this.lastHeartTime.elapsedTimeMs())
 				.setValue(7, new java.sql.Timestamp(this.startTime))

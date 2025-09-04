@@ -334,6 +334,8 @@ public class Value {
 			System.out.println("val.getClass() = " + val.getClass());
 			System.out.println("val = " + val);
 		}
-
+		ValueProto valuesProto = Value.toValueProto(values);
+		Object list = Value.toJavaObject(valuesProto);
+		System.out.println("list = " + list);
 	}
 }

@@ -2,7 +2,6 @@ package net.xdob.ratly.statemachine.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.InvalidProtocolBufferException;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.proto.sm.ErrorProto;
@@ -167,14 +166,14 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   }
 
 	@Override
-	public CompletableFuture<Message> heart(Message request) {
+	public CompletableFuture<Message> admin(Message request) {
 		WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
-		try(AutoCloseableLock readLock = readLock()) {
+		try{
 			WrapRequestProto requestProto = WrapRequestProto.parseFrom(request.getContent());
 			String pluginId = requestProto.getType();
 			SMPlugin smPlugin = pluginMap.get(pluginId);
 			if(smPlugin!=null) {
-				smPlugin.heart(requestProto, response);
+				smPlugin.admin(requestProto, response);
 			}else {
 				response.setError(ErrorProto.newBuilder()
 						.setCode(404)

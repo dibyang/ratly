@@ -200,7 +200,7 @@ public class BaseStateMachine implements StateMachine, DataApi,
   }
 
 	@Override
-	public CompletableFuture<Message> heart(Message request) {
+	public CompletableFuture<Message> admin(Message request) {
 		return CompletableFuture.completedFuture(null);
 	}
 

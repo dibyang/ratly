@@ -152,7 +152,7 @@ public interface StateMachine extends Closeable {
    */
   SnapshotInfo getLatestSnapshot();
 
-	CompletableFuture<Message> heart(Message request);
+	CompletableFuture<Message> admin(Message request);
 
   /**
    * 功能：查询状态机，查询请求必须是只读操作。

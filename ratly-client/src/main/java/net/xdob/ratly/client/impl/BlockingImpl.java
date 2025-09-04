@@ -70,8 +70,8 @@ class BlockingImpl implements BlockingApi {
   }
 
 	@Override
-	public RaftClientReply sendHeart(Message message, RaftPeerId server) throws IOException {
-		return send(RaftClientRequest.heartRequestType(), message, server);
+	public RaftClientReply sendAdmin(Message message, RaftPeerId server) throws IOException {
+		return send(RaftClientRequest.adminRequestType(), message, server);
 	}
 
 	private RaftClientReply send(RaftClientRequest.Type type, Message message, RaftPeerId server)

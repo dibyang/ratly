@@ -3,11 +3,11 @@ package net.xdob.jdbc.util;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.StatementVisitor;
 
-public class ShowSessionsStatement implements Statement {
+public class ShowSessionStatement implements Statement {
 
 	@Override
 	public String toString() {
-		return "SHOW SESSIONS";
+		return "SHOW SESSION";
 	}
 
 	@Override

@@ -4,7 +4,6 @@ import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
 import net.xdob.ratly.grpc.GrpcFactory;
-import net.xdob.jdbc.proto.SqlExConverter;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
@@ -12,6 +11,7 @@ import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.retry.RetryPolicies;
 import net.xdob.ratly.retry.RetryPolicy;
 import net.xdob.ratly.security.RsaHelper;
+import net.xdob.ratly.util.Proto2Util;
 import net.xdob.ratly.util.TimeDuration;
 import org.h2.message.DbException;
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ public class JdbcConnection implements Connection {
     sessionId.set(openSession());
     LOG.info("open session: {}", sessionId.get());
 		scheduledService = Executors.newScheduledThreadPool(1);
-		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 400, 400, TimeUnit.MILLISECONDS);
+		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 500, 500, TimeUnit.MILLISECONDS);
 	}
 
 	private void sendHeartBeat() {
@@ -74,11 +74,11 @@ public class JdbcConnection implements Connection {
 						.setType(JdbcConnection.DB)
 						.setJdbcRequest(requestProto)
 						.build();
-				RaftClientReply reply = client.io().sendHeart(Message.valueOf(wrap));
+				RaftClientReply reply = client.io().sendAdmin(Message.valueOf(wrap));
 				WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
 				JdbcResponseProto response = replyProto.getJdbcResponse();
 				if(response.hasEx()){
-					throw SqlExConverter.fromProto(response.getEx());
+					throw Proto2Util.toSQLException(response.getEx());
 				}
 			} catch (Exception e) {
 				LOG.warn("send heartbeat error", e);
@@ -213,7 +213,7 @@ public class JdbcConnection implements Connection {
       WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
       JdbcResponseProto response = replyProto.getJdbcResponse();
       if(response.hasEx()){
-        throw SqlExConverter.fromProto(response.getEx());
+        throw Proto2Util.toSQLException(response.getEx());
       }
       return response;
     } catch (IOException e) {
@@ -240,7 +240,21 @@ public class JdbcConnection implements Connection {
   @Override
   public void close() throws SQLException {
 		scheduledService.shutdown();
-    sessionId.set(null);
+		sessionId.getAndUpdate(s->{
+			if(s!=null) {
+				try {
+					ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.closeSession);
+					JdbcRequestProto requestProto = newJdbcRequestBuilder()
+							.setSessionId(s)
+							.setConnRequest(connReqBuilder.build())
+							.build();
+					send(requestProto);
+				} catch (Exception e) {
+					// ignore SQLException
+				}
+			}
+			return null;
+		});
     try {
       client.close();
     } catch (IOException e) {
@@ -315,8 +329,8 @@ public class JdbcConnection implements Connection {
 		JdbcResponseProto responseProto = sendReadOnly(requestProto);
 		ConnectionResponse connection = responseProto.getConnection();
 		if(connection.hasSQLWarning()) {
-			SqlEx sqlEx = connection.getSQLWarning();
-			return new SQLWarning(sqlEx.getMessage(), sqlEx.getSqlState(), sqlEx.getErrorCode());
+			SQLException sqlEx = Proto2Util.toSQLException(connection.getSQLWarning());
+			return new SQLWarning(sqlEx.getMessage(), sqlEx.getSQLState(), sqlEx.getErrorCode());
 		}else{
 			return null;
 		}

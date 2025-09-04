@@ -5,19 +5,15 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.sf.jsqlparser.JSQLParserException;
 import net.xdob.jdbc.sql.*;
+import net.xdob.jdbc.util.*;
 import net.xdob.ratly.io.Digest;
 import net.xdob.jdbc.exception.DatabaseAlreadyClosedException;
-import net.xdob.jdbc.util.BeginStatement;
-import net.xdob.jdbc.util.CustomSqlParser;
-import net.xdob.jdbc.util.ShowSessionsStatement;
 import net.xdob.ratly.proto.jdbc.ResultSetProto;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.Value;
-import net.xdob.jdbc.proto.SqlExConverter;
-import net.xdob.jdbc.util.SQLStatementUtil;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
@@ -31,6 +27,8 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.MD5FileUtil;
 import net.xdob.ratly.util.N3Map;
 import net.xdob.ratly.util.Printer4Proto;
+import net.xdob.ratly.util.Proto2Util;
+import net.xdob.ratly.util.Timestamp;
 import org.h2.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,11 +161,18 @@ public class InnerDb implements DbContext {
     }
   }
 
-	public void heart(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
+	public void showSessions(List<Map<String, Object>> list) throws SQLException {
+		for (Session session : sessionMgr.getAllSessions()) {
+			list.add(session.toMap());
+		}
+	}
 
-		String sessionId = request.getSessionId();
-		response.setDb(request.getDb())
-				.setSessionId(sessionId);
+	public boolean killSession(String sessionId) throws SQLException {
+		return sessionMgr.closeSession(sessionId);
+	}
+
+	public void heart(String sessionId) throws SQLException {
+
 		sessionMgr.getSession(sessionId)
 				.ifPresent(Session::updateLastHeartTime);
 	}
@@ -210,8 +215,7 @@ public class InnerDb implements DbContext {
 				ConnectionResponse.Builder builder = ConnectionResponse.newBuilder();
 				SQLWarning warnings = session.getConnection().getWarnings();
 				if(warnings!=null) {
-					builder.setSQLWarning(SqlExConverter
-							.toProto(warnings));
+					builder.setSQLWarning(Proto2Util.toThrowable2Proto(warnings));
 				}
 				response.setConnection(builder.build());
 			}else if(connRequest.getType()==ConnRequestType.clearWarnings){
@@ -236,7 +240,7 @@ public class InnerDb implements DbContext {
 					String sql = sqlRequest.getSql();
 					session.running(sql);
 					net.sf.jsqlparser.statement.Statement statement = parseSql(sql);
-					if(statement instanceof ShowSessionsStatement){
+					if(statement instanceof ShowSessionStatement){
 						SerialResultSet resultSet = new SerialResultSet(Session.buildSessionResultSetMetaData());
 						for (Session s : sessionMgr.getAllSessions()) {
 							resultSet.addRows(s.toSerialRow());
@@ -603,11 +607,16 @@ public class InnerDb implements DbContext {
 			WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
 			JdbcResponseProto response = replyProto.getJdbcResponse();
 			if(response.hasEx()){
-				throw SqlExConverter.fromProto(response.getEx());
+				throw Proto2Util.toSQLException(response.getEx());
 			}
 		} catch (Exception e) {
 			LOG.warn("close session error", e);
 		}
+	}
+
+	@Override
+	public Timestamp getLastGCTime() {
+		return context.getLastGCTime();
 	}
 
 	public long getLastPluginAppliedIndex() {
@@ -647,7 +656,7 @@ public class InnerDb implements DbContext {
     try {
       executeUpdate(termIndex, sqlRequest, session, response);
     } catch (SQLException e) {
-      response.setEx(SqlExConverter.toProto(e));
+      response.setEx(Proto2Util.toThrowable2Proto(e));
     }
   }
 
@@ -726,7 +735,7 @@ public class InnerDb implements DbContext {
 
 	private net.sf.jsqlparser.statement.Statement parseSql(String sql) throws SQLException {
 		try {
-			return CustomSqlParser.parse(sql);
+			return JSqlParserWithLRUCache.parse(sql);
 		} catch (JSQLParserException e) {
 			throw new SQLException("sql parse error. sql="+sql, e);
 		}

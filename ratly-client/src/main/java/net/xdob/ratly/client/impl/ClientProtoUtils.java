@@ -89,8 +89,8 @@ public interface ClientProtoUtils {
         return RaftClientRequest.Type.valueOf(p.getMessageStream());
       case READ:
         return RaftClientRequest.Type.valueOf(p.getRead());
-			case HEART:
-				return RaftClientRequest.Type.valueOf(p.getHeart());
+			case ADMIN:
+				return RaftClientRequest.Type.valueOf(p.getAdmin());
       case STALEREAD:
         return RaftClientRequest.Type.valueOf(p.getStaleRead());
       case WATCH:
@@ -175,8 +175,8 @@ public interface ClientProtoUtils {
       case READ:
         b.setRead(type.getRead());
         break;
-			case HEART:
-				b.setHeart(type.getHeart());
+			case ADMIN:
+				b.setAdmin(type.getAdmin());
 				break;
       case STALEREAD:
         b.setStaleRead(type.getStaleRead());

@@ -1,5 +1,7 @@
 package net.xdob.jdbc;
 
+import net.xdob.ratly.util.Timestamp;
+
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface DbContext {
@@ -14,4 +16,5 @@ public interface DbContext {
 	ScheduledExecutorService getScheduler();
 	SessionMgr getSessionMgr();
 	void closeSession(String sessionId);
+	Timestamp getLastGCTime();
 }

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
-  public static final int SESSION_TIMEOUT = 5_000;
+  public static final int SESSION_TIMEOUT = 4_000;
 
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
   private final DbContext context;
@@ -99,7 +99,7 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
   @Override
-  public void closeSession(String sessionId) {
+  public boolean closeSession(String sessionId) {
     Session session = removeSession(sessionId);
     if(session!=null){
       try {
@@ -107,7 +107,9 @@ public class DefaultSessionMgr implements SessionMgr{
       } catch (Exception e) {
         LOG.warn("close session error", e);
       }
+			return true;
     }
+		return false;
   }
 
   @Override
