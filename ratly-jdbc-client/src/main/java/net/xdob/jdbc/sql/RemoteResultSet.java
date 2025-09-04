@@ -1,12 +1,11 @@
 package net.xdob.jdbc.sql;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.RaftClientReply;
-import net.xdob.ratly.protocol.Value;
 import net.xdob.ratly.util.Proto2Util;
 import org.h2.api.ErrorCode;
 import org.h2.message.DbException;
@@ -22,31 +21,32 @@ import javax.sql.rowset.serial.SerialClob;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URL;
 import java.sql.*;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class RemoteResultSetInvocationHandler implements InvocationHandler {
+public class RemoteResultSet implements ResultSet {
 
-  static Logger LOG = LoggerFactory.getLogger(RemoteResultSetInvocationHandler.class);
+  static Logger LOG = LoggerFactory.getLogger(RemoteResultSet.class);
   private final SqlClient client;
 	private final String uuid;
 	private volatile int row = 0;
 	private transient SerialRow currentRow;
 	private transient boolean wasNull;
-
+	private final List<SerialRow> rows = Lists.newArrayList();
+  private boolean allLoaded;
 	private final SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData();
 
-	private final Map<Method, Method> localMethods = Maps.newHashMap();
 	private final SqlRequestProto.Builder sqlBuilder;
+	private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public RemoteResultSetInvocationHandler(SqlRequestProto.Builder sqlBuilder, SqlClient client, String uuid, ResultSetMetaData resultMetaData ) throws SQLException {
+  public RemoteResultSet(SqlRequestProto.Builder sqlBuilder, SqlClient client, String uuid, ResultSetMetaData resultMetaData) throws SQLException {
     this.client = client;
 		this.uuid = uuid;
 		this.sqlBuilder = sqlBuilder;
@@ -54,44 +54,32 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 	}
 
 
-  public Object invoke(Method method, Object... args) throws SQLException {
-		ResultSetRequestProto.Builder request = ResultSetRequestProto.newBuilder();
-    request.setUid(uuid).setMethod(method.getName());
-    for (Class<?> parameterType : method.getParameterTypes()) {
-      request.addParametersTypes(parameterType.getName());
+  public RemoteResultSet2Proto send(ResultSetMethod method, Integer agr4i, String arg4s) throws SQLException {
+		ResultSet2RequestProto.Builder request = ResultSet2RequestProto.newBuilder();
+    request.setUid(uuid).setMethod(method);
+
+    if(agr4i!=null) {
+			request.setArg4I(agr4i);
     }
-    if(args!=null) {
-      for (Object arg : args) {
-        request.addArgs(Value.toValueProto(arg));
-      }
-    }
-    request.setRow(row);
+		if (arg4s != null){
+			request.setArg4S(arg4s);
+		}
+
 		request.setSqlRequest(sqlBuilder);
     JdbcRequestProto.Builder builder = JdbcRequestProto.newBuilder();
     builder.setDb(client.getCi().getDb())
         .setSessionId(client.getConnection().getSession())
         .setTimeoutSeconds(3)
-				.setResultSetRequest(request);
-		RemoteResultSetProto resultSet = sendJdbcRequest(builder.build());
-		row = resultSet.getRow();
-		if(resultSet.hasCurRow()){
-			currentRow = SerialRow.from(resultSet.getCurRow());
-		}else{
-			currentRow = null;
-		}
-		if(resultSet.hasValue()) {
-			return Value.toJavaObject(resultSet.getValue());
-		}else if(resultSet.getColumnsCount()>0){
-			return SerialResultSetMetaData.from(resultSet.getColumnsList());
-		}
-		return null;
+				.setResultSet2Request(request);
+
+		return sendJdbcRequest(builder.build());
   }
 
 
-  protected RemoteResultSetProto sendJdbcRequest(JdbcRequestProto queryRequest) throws SQLException {
+  protected RemoteResultSet2Proto sendJdbcRequest(JdbcRequestProto queryRequest) throws SQLException {
     JdbcResponseProto response = sendReadOnly(queryRequest);
 		//Printer4Proto.printJson(response, s->LOG.info("response: {}", s));
-		return response.getRemoteResultSet();
+		return response.getRemoteResultSet2();
   }
 
   protected JdbcResponseProto sendReadOnly(JdbcRequestProto request) throws SQLException {
@@ -114,26 +102,446 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
     }
   }
 
-  @Override
-  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-    if(!localMethods.containsKey(method)) {
-      try{
-        Method m = this.getClass().getMethod(method.getName(), method.getParameterTypes());
-        localMethods.put(method, m);
-      }catch(NoSuchMethodException e) {
-        localMethods.put(method, null);
-      }
-    }
-    Method m = localMethods.get(method);
-    if(m!=null){
-      return m.invoke(this, args);
-    }else{
-      return invoke(method, args);
-    }
-  }
 
 	public int getRow() {
 		return row;
+	}
+
+	@Override
+	public boolean next() throws SQLException {
+		checkClosed();
+		if(((row+1)>rows.size())&&!allLoaded){
+			loadData();
+		}
+		if((row+1)<=rows.size()){
+			row++;
+			currentRow = rows.get(row-1);
+			return true;
+		}
+		return false;
+	}
+
+	private void loadData() throws SQLException {
+		RemoteResultSet2Proto resultSet2Proto = send(ResultSetMethod.loadData, rows.size(), null);
+		loadData(resultSet2Proto);
+	}
+
+	public void loadData(RemoteResultSet2Proto resultSet2Proto) throws SQLException {
+		allLoaded = resultSet2Proto.getAllLoaded();
+		for (RowProto row : resultSet2Proto.getRowsList()) {
+			rows.add(SerialRow.from( row));
+		}
+	}
+
+	@Override
+	public boolean absolute(int row) throws SQLException {
+		checkClosed();
+		if (--row < this.row) {
+			resetResult();
+		}
+		while (this.row < row) {
+			if (!next()) {
+				return false;
+			}
+		}
+		return isOnValidRow();
+	}
+
+	private boolean isOnValidRow() throws SQLException {
+		return row >= 0 && !isAfterLast();
+	}
+
+	private void resetResult() {
+		this.row = 0;
+		this.currentRow = null;
+		this.wasNull = false;
+	}
+
+	@Override
+	public boolean relative(int rowCount) throws SQLException {
+		checkClosed();
+		long longRowCount;
+		if (rowCount < 0) {
+			longRowCount = row + rowCount;
+			resetResult();
+		} else {
+			longRowCount = rowCount;
+		}
+		while (longRowCount-- > 0) {
+			if (!next()) {
+				return false;
+			}
+		}
+		return isOnValidRow();
+	}
+
+	@Override
+	public boolean previous() throws SQLException {
+		checkClosed();
+		return relative(-1);
+	}
+
+
+	@Override
+	public boolean isBeforeFirst() throws SQLException {
+		checkClosed();
+		return row <= 0 && hasNext();
+	}
+
+	boolean hasNext(){
+		return row < rows.size();
+	}
+
+	@Override
+	public boolean isAfterLast() throws SQLException {
+		checkClosed();
+		return row > 1 && isAfterLast();
+	}
+
+	@Override
+	public boolean isFirst() throws SQLException {
+		checkClosed();
+		return row == 1 && !isAfterLast();
+	}
+
+	@Override
+	public boolean isLast() throws SQLException {
+		checkClosed();
+		return row >= 1 && !isAfterLast() && !hasNext();
+	}
+
+	@Override
+	public void beforeFirst() throws SQLException {
+		checkClosed();
+		if (row >= 1) {
+			resetResult();
+		}
+	}
+
+	@Override
+	public void afterLast() throws SQLException {
+		checkClosed();
+		while (next()) {
+			// nothing
+		}
+	}
+
+	@Override
+	public boolean first() throws SQLException {
+		checkClosed();
+		if (row >= 1) {
+			resetResult();
+		}
+		return next();
+	}
+
+	@Override
+	public boolean last() throws SQLException {
+		checkClosed();
+		if (isAfterLast()) {
+			resetResult();
+		}
+		while (hasNext()) {
+			next();
+		}
+		return isOnValidRow();
+	}
+
+	@Override
+	public void setFetchDirection(int direction) throws SQLException {
+
+	}
+
+	@Override
+	public int getFetchDirection() throws SQLException {
+		return ResultSet.FETCH_FORWARD;
+	}
+
+	@Override
+	public void setFetchSize(int rows) throws SQLException {
+		send(ResultSetMethod.setFetchSize, rows, null);
+	}
+
+	@Override
+	public int getFetchSize() throws SQLException {
+		RemoteResultSet2Proto r = send(ResultSetMethod.getFetchSize, null, null);
+		return r.getR4I();
+	}
+
+	@Override
+	public int getType() throws SQLException {
+		RemoteResultSet2Proto r = send(ResultSetMethod.getType, null, null);
+		int r4I = r.getR4I();
+		if (r4I == ResultSet.TYPE_SCROLL_INSENSITIVE) {
+			return ResultSet.TYPE_SCROLL_INSENSITIVE;
+		}else if (r4I == ResultSet.TYPE_SCROLL_SENSITIVE) {
+			return ResultSet.TYPE_SCROLL_SENSITIVE;
+		}else {
+			return ResultSet.TYPE_FORWARD_ONLY;
+		}
+	}
+
+	@Override
+	public int getConcurrency() throws SQLException {
+		RemoteResultSet2Proto r = send(ResultSetMethod.getConcurrency, null, null);
+		int r4I = r.getR4I();
+		if(r4I==ResultSet.CONCUR_UPDATABLE){
+			return ResultSet.CONCUR_UPDATABLE;
+		}else {
+			return ResultSet.CONCUR_READ_ONLY;
+		}
+	}
+
+	@Override
+	public boolean rowUpdated() throws SQLException {
+		return false;
+	}
+
+	@Override
+	public boolean rowInserted() throws SQLException {
+		return false;
+	}
+
+	@Override
+	public boolean rowDeleted() throws SQLException {
+		return false;
+	}
+
+	@Override
+	public void updateNull(int columnIndex) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBoolean(int columnIndex, boolean x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateByte(int columnIndex, byte x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateShort(int columnIndex, short x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateInt(int columnIndex, int x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateLong(int columnIndex, long x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateFloat(int columnIndex, float x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateDouble(int columnIndex, double x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateString(int columnIndex, String x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBytes(int columnIndex, byte[] x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateDate(int columnIndex, Date x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateTime(int columnIndex, Time x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
+
+	}
+
+	@Override
+	public void updateObject(int columnIndex, Object x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNull(String columnLabel) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBoolean(String columnLabel, boolean x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateByte(String columnLabel, byte x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateShort(String columnLabel, short x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateInt(String columnLabel, int x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateLong(String columnLabel, long x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateFloat(String columnLabel, float x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateDouble(String columnLabel, double x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBigDecimal(String columnLabel, BigDecimal x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateString(String columnLabel, String x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBytes(String columnLabel, byte[] x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateDate(String columnLabel, Date x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateTime(String columnLabel, Time x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateTimestamp(String columnLabel, Timestamp x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(String columnLabel, InputStream x, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(String columnLabel, Reader reader, int length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
+
+	}
+
+	@Override
+	public void updateObject(String columnLabel, Object x) throws SQLException {
+
+	}
+
+	@Override
+	public void insertRow() throws SQLException {
+
+	}
+
+	@Override
+	public void updateRow() throws SQLException {
+
+	}
+
+	@Override
+	public void deleteRow() throws SQLException {
+
+	}
+
+	@Override
+	public void refreshRow() throws SQLException {
+
+	}
+
+	@Override
+	public void cancelRowUpdates() throws SQLException {
+
+	}
+
+	@Override
+	public void moveToInsertRow() throws SQLException {
+
+	}
+
+	@Override
+	public void moveToCurrentRow() throws SQLException {
+
+	}
+
+	@Override
+	public Statement getStatement() throws SQLException {
+		return null;
+	}
+
+	@Override
+	public void close() throws SQLException {
+		if(closed.compareAndSet(false, true)) {
+			send(ResultSetMethod.close, null, null);
+		}
 	}
 
 	public boolean wasNull() {
@@ -280,6 +688,21 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 	 */
 	public InputStream getBinaryStream(String columnLabel) throws SQLException {
 		return getBinaryStream(findColumn(columnLabel));
+	}
+
+	@Override
+	public SQLWarning getWarnings() throws SQLException {
+		return null;
+	}
+
+	@Override
+	public void clearWarnings() throws SQLException {
+
+	}
+
+	@Override
+	public String getCursorName() throws SQLException {
+		return "";
 	}
 
 	/**
@@ -606,6 +1029,146 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 		throw getUnsupportedException();
 	}
 
+	@Override
+	public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(String columnLabel, InputStream x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(String columnLabel, InputStream x, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(int columnIndex, InputStream inputStream, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(String columnLabel, InputStream inputStream, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(int columnIndex, Reader reader) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(String columnLabel, Reader reader) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(int columnIndex, Reader reader) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(String columnLabel, Reader reader) throws SQLException {
+
+	}
+
 	/**
 	 * INTERNAL
 	 */
@@ -762,6 +1325,53 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 		throw getUnsupportedException();
 	}
 
+	@Override
+	public void updateRowId(int columnIndex, RowId x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateRowId(String columnLabel, RowId x) throws SQLException {
+
+	}
+
+	@Override
+	public int getHoldability() throws SQLException {
+		return 0;
+	}
+
+	void checkClosed() throws SQLException {
+		if (isClosed()) {
+			throw DbException.get(ErrorCode.OBJECT_CLOSED);
+		}
+		this.client.getConnection().checkClose();
+	}
+
+	@Override
+	public boolean isClosed() throws SQLException {
+		return closed.get();
+	}
+
+	@Override
+	public void updateNString(int columnIndex, String nString) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNString(String columnLabel, String nString) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
+
+	}
+
+	@Override
+	public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
+
+	}
+
 	/**
 	 * Returns the value as a short.
 	 *
@@ -798,6 +1408,16 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 	 */
 	public SQLXML getSQLXML(String columnLabel) throws SQLException {
 		throw getUnsupportedException();
+	}
+
+	@Override
+	public void updateSQLXML(int columnIndex, SQLXML xmlObject) throws SQLException {
+
+	}
+
+	@Override
+	public void updateSQLXML(String columnLabel, SQLXML xmlObject) throws SQLException {
+
 	}
 
 	/**
@@ -928,7 +1548,57 @@ public class RemoteResultSetInvocationHandler implements InvocationHandler {
 		throw getUnsupportedException();
 	}
 
+	@Override
+	public void updateRef(int columnIndex, Ref x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateRef(String columnLabel, Ref x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(int columnIndex, Blob x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateBlob(String columnLabel, Blob x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(int columnIndex, Clob x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateClob(String columnLabel, Clob x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateArray(int columnIndex, Array x) throws SQLException {
+
+	}
+
+	@Override
+	public void updateArray(String columnLabel, Array x) throws SQLException {
+
+	}
+
 	static SQLException getUnsupportedException() {
 		return DbException.getJdbcSQLException(ErrorCode.FEATURE_NOT_SUPPORTED_1);
+	}
+
+	@Override
+	public <T> T unwrap(Class<T> iface) throws SQLException {
+		return null;
+	}
+
+	@Override
+	public boolean isWrapperFor(Class<?> iface) throws SQLException {
+		return false;
 	}
 }

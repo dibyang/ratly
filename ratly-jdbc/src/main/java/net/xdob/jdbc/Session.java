@@ -2,6 +2,7 @@ package net.xdob.jdbc;
 
 import net.xdob.jdbc.sql.SerialResultSetMetaData;
 import net.xdob.jdbc.sql.SerialRow;
+import net.xdob.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.util.Timestamp;
@@ -14,8 +15,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Session implements AutoCloseable {
-  static final Logger LOG = LoggerFactory.getLogger(Session.class);
-  private final String db;
+	static final Logger LOG = LoggerFactory.getLogger(Session.class);
+	public static final int RESULTSET_TIMEOUT = 3_000;
+	private final String db;
   private final String user;
   private final String sessionId;
 
@@ -32,7 +34,7 @@ public class Session implements AutoCloseable {
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
-	private final Map<String,ResultSet> resultSets = new HashMap<>();
+	private final Map<String,ResultSetHandler> resultSets = new HashMap<>();
 
   public Session(String db, String user, String sessionId, Connection connection, DbContext context) {
 		this.db = db;
@@ -44,17 +46,35 @@ public class Session implements AutoCloseable {
 	}
 
 	public ResultSet getResultSet(String uuid){
-		return resultSets.get(uuid);
+		ResultSetHandler handler = resultSets.get(uuid);
+		if(handler!=null){
+			handler.updateLastAccessTime();
+			return handler.getResultSet();
+		}
+		return null;
 	}
 
 	public void addResultSet(String uuid, ResultSet resultSet){
-		resultSets.put(uuid, resultSet);
+		ResultSetHandler handler = new ResultSetHandler(resultSet);
+		resultSets.put(uuid, handler);
+	}
+
+	public void checkExpiredResultSets(){
+		for (String uuid : resultSets.keySet()) {
+			ResultSetHandler handler = resultSets.get(uuid);
+			if(handler.getLastAccessTime().elapsedTimeMs()> RESULTSET_TIMEOUT){
+				try {
+					closeResultSet(uuid);
+				} catch (SQLException e) {
+					LOG.warn("close session error", e);
+				}
+			}
+		}
 	}
 
 	public void closeResultSet(String uuid) throws SQLException {
-		ResultSet removed = resultSets.remove(uuid);
+		ResultSetHandler removed = resultSets.remove(uuid);
 		if(removed!=null){
-			removed.getStatement().close();
 			removed.close();
 		}
 	}
@@ -186,22 +206,9 @@ public class Session implements AutoCloseable {
   }
 
 	public String getTransactionIsolationName() throws SQLException {
-		return getTransactionIsolationName(getTransactionIsolation());
+		return TransactionIsolation.of(getTransactionIsolation()).name();
 	}
 
-	private String getTransactionIsolationName(int level){
-		switch (level) {
-			case Connection.TRANSACTION_SERIALIZABLE:
-				return "TRANSACTION_SERIALIZABLE";
-			case Connection.TRANSACTION_REPEATABLE_READ:
-				return "TRANSACTION_REPEATABLE_READ";
-			case Connection.TRANSACTION_READ_COMMITTED:
-				return "TRANSACTION_READ_COMMITTED";
-			case Connection.TRANSACTION_READ_UNCOMMITTED:
-				return "TRANSACTION_READ_UNCOMMITTED";
-		}
-		return "TRANSACTION_NONE";
-	}
 
   public void commit(long index) throws SQLException {
     if(transaction.compareAndSet(true, false)){
@@ -237,9 +244,8 @@ public class Session implements AutoCloseable {
 
 
   public void close() throws Exception {
-		for (ResultSet resultSet : resultSets.values()) {
-			resultSet.getStatement().close();
-			resultSet.close();
+		for (ResultSetHandler handler : resultSets.values()) {
+			handler.close();
 		}
 		resultSets.clear();
     if (!connection.isClosed()) {
@@ -286,6 +292,7 @@ public class Session implements AutoCloseable {
 			map.put("startTime", new java.sql.Timestamp(this.startTime));
 			map.put("sleepSince", this.sleepSince == null ? null : new java.sql.Timestamp(this.sleepSince));
 			map.put("sql", this.sql);
+			map.put("size", this.resultSets.size());
 			return map;
 		} catch (SQLException e) {
 			return null;

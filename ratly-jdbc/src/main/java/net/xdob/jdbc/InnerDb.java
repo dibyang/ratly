@@ -229,6 +229,9 @@ public class InnerDb implements DbContext {
     }else if(requestProto.hasResultSetRequest()){
 			ResultSetRequestProto resultSetRequest = requestProto.getResultSetRequest();
 			resultset(session, resultSetRequest, response);
+		}else if(requestProto.hasResultSet2Request()){
+			ResultSet2RequestProto resultSetRequest = requestProto.getResultSet2Request();
+			resultset2(session, resultSetRequest, response);
 		}else{
       SqlRequestProto sqlRequest = requestProto.getSqlRequest();
       if(sqlRequest.getType().equals(SqlRequestType.parameterMeta)){
@@ -255,6 +258,64 @@ public class InnerDb implements DbContext {
       }
     }
   }
+
+	private void resultset2(Session session, ResultSet2RequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
+		String uid = requestProto.getUid();
+		ResultSet resultSet = session.getResultSet(uid);
+		if(resultSet==null){
+			SqlRequestProto sqlRequest = requestProto.getSqlRequest();
+			doQuery(session, sqlRequest, response, uid, 0);
+			resultSet = session.getResultSet(uid);
+		}
+		ResultSetMethod method = requestProto.getMethod();
+		if(method==ResultSetMethod.close){
+			session.closeResultSet(uid);
+			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+					.setUid(uid)
+					.setValue(Value.toValueProto(null));
+			response.setRemoteResultSet2(builder);
+		}else if(method==ResultSetMethod.getFetchSize){
+			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+					.setUid(uid)
+					.setR4I(resultSet.getFetchSize());
+			response.setRemoteResultSet2(builder);
+		}else if(method==ResultSetMethod.setFetchSize){
+			resultSet.setFetchSize(requestProto.getArg4I());
+			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+					.setUid(uid);
+			response.setRemoteResultSet2(builder);
+		}else if(method==ResultSetMethod.loadData) {
+			int start = requestProto.getArg4I();
+
+			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+					.setUid(uid);
+			//SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
+			//builder.addAllColumns(metaData.toProto());
+			handleResultSet2(resultSet, builder, start);
+			response.setRemoteResultSet2(builder);
+		}
+	}
+
+	private void handleResultSet2(ResultSet resultSet, RemoteResultSet2Proto.Builder builder, int start) throws SQLException {
+		List<SerialRow> rows = getSerialRows4FetchSize(resultSet, start);
+		for (SerialRow row2 : rows) {
+			builder.addRows(row2.toProto());
+		}
+		builder.setAllLoaded((resultSet.getRow()<1)|| resultSet.isAfterLast());
+	}
+
+	//start从0开始
+	private List<SerialRow> getSerialRows4FetchSize(ResultSet resultSet, int start) throws SQLException {
+		resultSet.absolute(start);
+		List<SerialRow> rows = new ArrayList<>();
+		int fetchSize = Math.min(Math.max(resultSet.getFetchSize(), 100), 600);
+		while (resultSet.next()
+				&& (rows.size() < fetchSize)) {
+			SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
+			rows.add(row);
+		}
+		return rows;
+	}
 
 	private void resultset(Session session, ResultSetRequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
 
@@ -428,7 +489,7 @@ public class InnerDb implements DbContext {
         ||StmtType.callable.equals(sqlRequest.getStmtType())){
 			CallableStatement ps = null;
       try {
-				ps = session.getConnection().prepareCall(sqlRequest.getSql());
+				ps = session.getConnection().prepareCall(sqlRequest.getSql(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 				ps.setQueryTimeout(60);
         List<ParameterProto> paramList = sqlRequest.getParams().getParamList();
         if(!paramList.isEmpty()){
@@ -441,17 +502,14 @@ public class InnerDb implements DbContext {
         ResultSet rs = ps.executeQuery();
 				if(uuid==null) {
 					uuid = UUID.randomUUID().toString();
-					while(rs.getRow()!=row){
-						rs.next();
+					if(row>0) {
+						while (rs.getRow() != row) {
+							rs.next();
+						}
 					}
 				}
-				session.addResultSet(uuid, rs);
-				SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
-
-				response.setRemoteResultSet(RemoteResultSetProto.newBuilder()
-						.setUid(uuid)
-						.addAllColumns(metaData.toProto()));
-      } catch (Exception e) {
+				handleResultSet(session, sqlRequest, response, uuid, rs);
+			} catch (Exception e) {
 				if(ps!=null){
 					ps.close();
 				}
@@ -459,21 +517,18 @@ public class InnerDb implements DbContext {
     }else{
 			Statement s = null;
       try {
-				s = session.getConnection().createStatement();
+				s = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 				s.setQueryTimeout(60);
         ResultSet rs = s.executeQuery(sqlRequest.getSql());
 				if(uuid==null) {
 					uuid = UUID.randomUUID().toString();
-					while(rs.getRow()!=row){
-						rs.next();
+					if(row>0) {
+						while (rs.getRow() != row) {
+							rs.next();
+						}
 					}
 				}
-				session.addResultSet(uuid, rs);
-				SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
-
-				response.setRemoteResultSet(RemoteResultSetProto.newBuilder()
-						.setUid(uuid)
-						.addAllColumns(metaData.toProto()));
+				handleResultSet(session, sqlRequest, response, uuid, rs);
       }catch (Exception e) {
 				if(s!=null){
 					s.close();
@@ -482,7 +537,26 @@ public class InnerDb implements DbContext {
     }
   }
 
-  private SerialResultSetMetaData buildResultSetMetaData(Class<?> returnType) {
+	private void handleResultSet(Session session, SqlRequestProto sqlRequest, JdbcResponseProto.Builder response, String uuid, ResultSet rs) throws SQLException {
+		SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
+		if(sqlRequest.getVersion()==1){
+			session.addResultSet(uuid, rs);
+			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+				.setUid(uuid)
+				.addAllColumns(metaData.toProto());
+			handleResultSet2(rs, builder, 0);
+			response.setRemoteResultSet2(builder);
+		}else {
+			session.addResultSet(uuid, rs);
+			RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
+					.setUid(uuid)
+					.setRow(rs.getRow())
+					.addAllColumns(metaData.toProto());
+			response.setRemoteResultSet(builder);
+		}
+	}
+
+	private SerialResultSetMetaData buildResultSetMetaData(Class<?> returnType) {
     SerialResultSetMetaData resultSetMetaData = new SerialResultSetMetaData();
     if (returnType.equals(Boolean.class)
         || returnType.equals(boolean.class)) {

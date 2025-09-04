@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -68,6 +69,7 @@ public interface RaftClient extends Closeable {
   DataStreamApi getDataStreamApi();
 
   boolean isClosed();
+
 
   /** @return a {@link Builder}. */
   static Builder newBuilder() {

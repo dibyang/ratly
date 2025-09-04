@@ -58,6 +58,9 @@ public class DefaultSessionMgr implements SessionMgr{
 		}
     if(expiredChecking.compareAndSet(false, true)) {
       try {
+				for (Session session : sessions.values()) {
+					session.checkExpiredResultSets();
+				}
 				List<Session> expiredSessions = sessions.values().stream()
 						.filter(s -> s.elapsedHeartTimeMs()> SESSION_TIMEOUT)
 						.collect(Collectors.toList());

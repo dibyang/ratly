@@ -1,5 +1,6 @@
 package net.xdob.jdbc.sql;
 
+import net.xdob.jdbc.exception.DatabaseAlreadyClosedException;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
@@ -57,7 +58,7 @@ public class JdbcConnection implements Connection {
     sessionId.set(openSession());
     LOG.info("open session: {}", sessionId.get());
 		scheduledService = Executors.newScheduledThreadPool(1);
-		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 500, 500, TimeUnit.MILLISECONDS);
+		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 200, TimeUnit.MILLISECONDS);
 	}
 
 	private void sendHeartBeat() {
@@ -82,10 +83,13 @@ public class JdbcConnection implements Connection {
 				}
 			} catch (Exception e) {
 				LOG.warn("send heartbeat error", e);
-				try {
-					close();
-				} catch (SQLException ignored) {
+				if((e instanceof DatabaseAlreadyClosedException)
+				||(e instanceof IOException)) {
+					try {
+						close();
+					} catch (SQLException ignored) {
 
+					}
 				}
 			}
 		}

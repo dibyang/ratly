@@ -45,11 +45,18 @@ public class JdbcStatement implements Statement {
 
 
   protected ResultSet sendQuery(SqlRequestProto.Builder sqlBuilder) throws SQLException {
-    JdbcRequestProto requestProto = newRequestBuilder()
+		sqlBuilder.setVersion(1);
+		JdbcRequestProto requestProto = newRequestBuilder()
         .setSqlRequest(sqlBuilder)
         .build();
     JdbcResponseProto responseProto = sendReadOnly(requestProto);
-		if(responseProto.hasRemoteResultSet()){
+		if(responseProto.hasRemoteResultSet2()){
+			RemoteResultSet2Proto remoteResultSet = responseProto.getRemoteResultSet2();
+			RemoteResultSet rs = new RemoteResultSet(sqlBuilder, this.sqlClient,
+					remoteResultSet.getUid(), SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
+			rs.loadData(remoteResultSet);
+			return rs;
+		}else if(responseProto.hasRemoteResultSet()){
 			RemoteResultSetProto remoteResultSet = responseProto.getRemoteResultSet();
 			RemoteResultSetInvocationHandler handler = new RemoteResultSetInvocationHandler(sqlBuilder, this.sqlClient,
 					remoteResultSet.getUid(), SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
