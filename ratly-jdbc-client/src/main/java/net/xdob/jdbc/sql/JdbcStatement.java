@@ -52,16 +52,8 @@ public class JdbcStatement implements Statement {
     JdbcResponseProto responseProto = sendReadOnly(requestProto);
 		if(responseProto.hasRemoteResultSet2()){
 			RemoteResultSet2Proto remoteResultSet = responseProto.getRemoteResultSet2();
-			RemoteResultSet rs = new RemoteResultSet(sqlBuilder, this.sqlClient,
-					remoteResultSet.getUid(), SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
-			rs.loadData(remoteResultSet);
-			return rs;
-		}else if(responseProto.hasRemoteResultSet()){
-			RemoteResultSetProto remoteResultSet = responseProto.getRemoteResultSet();
-			RemoteResultSetInvocationHandler handler = new RemoteResultSetInvocationHandler(sqlBuilder, this.sqlClient,
-					remoteResultSet.getUid(), SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
-			return (ResultSet) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-					new Class[]{ResultSet.class}, handler);
+
+			return new RemoteResultSet(sqlBuilder, this.sqlClient, remoteResultSet);
 		}else {
 			return SerialResultSet.from(responseProto.getResultSet());
 		}
@@ -176,10 +168,9 @@ public class JdbcStatement implements Statement {
   }
 
   protected  SqlRequestProto.Builder newSqlRequestBuilder(SqlRequestType type) {
-    SqlRequestProto.Builder builder = SqlRequestProto.newBuilder()
-        .setStmtType(StmtType.statement)
-        .setType(type);
-    return builder;
+		return SqlRequestProto.newBuilder()
+				.setStmtType(StmtType.statement)
+				.setType(type);
   }
 
   protected JdbcResponseProto send(JdbcRequestProto request) throws SQLException {

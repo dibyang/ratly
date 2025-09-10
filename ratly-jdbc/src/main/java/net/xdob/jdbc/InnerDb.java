@@ -4,6 +4,13 @@ import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.LongValue;
+import net.sf.jsqlparser.expression.operators.arithmetic.Addition;
+import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
+import net.sf.jsqlparser.statement.select.Limit;
+import net.sf.jsqlparser.statement.select.Offset;
+import net.sf.jsqlparser.statement.select.Select;
 import net.xdob.jdbc.sql.*;
 import net.xdob.jdbc.util.*;
 import net.xdob.ratly.io.Digest;
@@ -24,10 +31,7 @@ import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
-import net.xdob.ratly.util.MD5FileUtil;
-import net.xdob.ratly.util.N3Map;
-import net.xdob.ratly.util.Printer4Proto;
-import net.xdob.ratly.util.Proto2Util;
+import net.xdob.ratly.util.*;
 import net.xdob.ratly.util.Timestamp;
 import org.h2.Driver;
 import org.slf4j.Logger;
@@ -69,9 +73,8 @@ public class InnerDb implements DbContext {
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
   private final ClassCache classCache4DPM = new ClassCache();
-	private final ClassCache classCache4RS = new ClassCache();
 
-  public int maxPoolSize = 128;
+  public int maxPoolSize = 32;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
@@ -120,8 +123,9 @@ public class InnerDb implements DbContext {
         LOG.info("initialize db dbPath={}", dbPath);
         // 基于存储目录初始化
         String url = "jdbc:h2:file:" + dbPath
-            + ";AUTO_SERVER=TRUE"
+            + ";AUTO_SERVER=TRUE;TRACE_LEVEL_FILE=3"
             + ";QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
+
 
         dsConfig.setPoolName(this.context.getPeerId()+"$"+getName());
         dsConfig.setJdbcUrl(url);
@@ -226,10 +230,7 @@ public class InnerDb implements DbContext {
 						.build();
 				response.setConnection(connectionProto);
 			}
-    }else if(requestProto.hasResultSetRequest()){
-			ResultSetRequestProto resultSetRequest = requestProto.getResultSetRequest();
-			resultset(session, resultSetRequest, response);
-		}else if(requestProto.hasResultSet2Request()){
+    }else if(requestProto.hasResultSet2Request()){
 			ResultSet2RequestProto resultSetRequest = requestProto.getResultSet2Request();
 			resultset2(session, resultSetRequest, response);
 		}else{
@@ -250,7 +251,7 @@ public class InnerDb implements DbContext {
 						}
 						response.setResultSet(resultSet.toProto());
 					}else {
-						doQuery(session, sqlRequest, response, null, 0);
+						doQuery(session, sqlRequest, response, null,0);
 					}
 				}finally {
 					session.sleep();
@@ -262,140 +263,44 @@ public class InnerDb implements DbContext {
 	private void resultset2(Session session, ResultSet2RequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
 		String uid = requestProto.getUid();
 		ResultSet resultSet = session.getResultSet(uid);
-		if(resultSet==null){
-			SqlRequestProto sqlRequest = requestProto.getSqlRequest();
-			doQuery(session, sqlRequest, response, uid, 0);
-			resultSet = session.getResultSet(uid);
-		}
 		ResultSetMethod method = requestProto.getMethod();
 		if(method==ResultSetMethod.close){
-			session.closeResultSet(uid);
+			if(resultSet!=null){
+				session.closeResultSet(uid);
+			}
 			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
 					.setUid(uid)
 					.setValue(Value.toValueProto(null));
 			response.setRemoteResultSet2(builder);
-		}else if(method==ResultSetMethod.getFetchSize){
-			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
-					.setUid(uid)
-					.setR4I(resultSet.getFetchSize());
-			response.setRemoteResultSet2(builder);
-		}else if(method==ResultSetMethod.setFetchSize){
-			resultSet.setFetchSize(requestProto.getArg4I());
-			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
-					.setUid(uid);
-			response.setRemoteResultSet2(builder);
 		}else if(method==ResultSetMethod.loadData) {
-			int start = requestProto.getArg4I();
-
-			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
-					.setUid(uid);
-			//SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
-			//builder.addAllColumns(metaData.toProto());
-			handleResultSet2(resultSet, builder, start);
-			response.setRemoteResultSet2(builder);
+			if(resultSet==null){
+				SqlRequestProto sqlRequest = requestProto.getSqlRequest();
+				doQuery(session, sqlRequest, response, uid, requestProto.getStart());
+			}else{
+				handleResultSet(response, resultSet, session, uid, 200, requestProto.getStart());
+			}
 		}
 	}
 
-	private void handleResultSet2(ResultSet resultSet, RemoteResultSet2Proto.Builder builder, int start) throws SQLException {
-		List<SerialRow> rows = getSerialRows4FetchSize(resultSet, start);
+	private void handleResultSet2(ResultSet resultSet, RemoteResultSet2Proto.Builder builder, int start, int pageSize) throws SQLException {
+		List<SerialRow> rows = getSerialRows4FetchSize(resultSet, start, pageSize);
 		for (SerialRow row2 : rows) {
 			builder.addRows(row2.toProto());
 		}
 		builder.setAllLoaded((resultSet.getRow()<1)|| resultSet.isAfterLast());
 	}
 
-	//start从0开始
-	private List<SerialRow> getSerialRows4FetchSize(ResultSet resultSet, int start) throws SQLException {
-		resultSet.absolute(start);
+
+	private List<SerialRow> getSerialRows4FetchSize(ResultSet resultSet, int start, int pageSize) throws SQLException {
+
 		List<SerialRow> rows = new ArrayList<>();
-		int fetchSize = Math.min(Math.max(resultSet.getFetchSize(), 100), 600);
+		resultSet.absolute(start);
 		while (resultSet.next()
-				&& (rows.size() < fetchSize)) {
+		&& rows.size()<pageSize) {
 			SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
 			rows.add(row);
 		}
 		return rows;
-	}
-
-	private void resultset(Session session, ResultSetRequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
-
-		try {
-			String uid = requestProto.getUid();
-			ResultSet resultSet = session.getResultSet(uid);
-			if(resultSet==null){
-				SqlRequestProto sqlRequest = requestProto.getSqlRequest();
-				doQuery(session, sqlRequest, response, uid, requestProto.getRow());
-				resultSet = session.getResultSet(uid);
-			}
-			String methodName  = requestProto.getMethod();
-			if(methodName.equals("close")){
-				session.closeResultSet(uid);
-				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-						.setUid(uid)
-						.setValue(Value.toValueProto(null));
-				response.setRemoteResultSet(builder);
-			}else if(methodName.equals("next")
-			|| methodName.equals("last")
-			|| methodName.equals("first")){
-				boolean result = false;
-				if(methodName.equals("first")){
-					result= resultSet.first();
-				}else if(methodName.equals("last")){
-					result= resultSet.last();
-				}else {
-					result= resultSet.next();
-				}
-
-				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-						.setUid(uid)
-						.setValue(Value.toValueProto(result));
-				builder.setRow(resultSet.getRow());
-				if(result) {
-					SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
-					if (row != null) {
-						builder.setCurRow(row.toProto());
-					}
-				}
-				response.setRemoteResultSet(builder);
-			}else if(methodName.equals("beforeFirst")){
-				resultSet.beforeFirst();
-				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-						.setUid(uid)
-						.setValue(Value.toValueProto(null));
-				builder.setRow(resultSet.getRow());
-
-				response.setRemoteResultSet(builder);
-			}else if(methodName.equals("afterLast")){
-				resultSet.afterLast();
-				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-						.setUid(uid)
-						.setValue(Value.toValueProto(null));
-				builder.setRow(resultSet.getRow());
-
-				response.setRemoteResultSet(builder);
-			}else {
-				Class<?>[] paramTypes = new Class[requestProto.getParametersTypesCount()];
-				for (int i = 0; i < requestProto.getParametersTypesList().size(); i++) {
-					String parametersType = requestProto.getParametersTypes(i);
-					paramTypes[i] = convertType(parametersType);
-				}
-
-				Method method = classCache4RS.getMethod(resultSet.getClass(), methodName, paramTypes);
-
-				Object[] args = new Object[requestProto.getArgsCount()];
-				for (int i = 0; i < requestProto.getArgsList().size(); i++) {
-					args[i] = Value.toJavaObject(requestProto.getArgs(i));
-				}
-				Object o = method.invoke(resultSet, args);
-				RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-						.setUid(uid)
-						.setValue(Value.toValueProto(o));
-
-				response.setRemoteResultSet(builder);
-			}
-		} catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | ClassNotFoundException e) {
-			throw new SQLException(e);
-		}
 	}
 
 	private SerialRow getRow(int columnCount, ResultSet rs) throws SQLException {
@@ -484,76 +389,71 @@ public class InnerDb implements DbContext {
     return type;
   }
 
-  private void doQuery(Session session, SqlRequestProto sqlRequest,  JdbcResponseProto.Builder response, String uuid, int row) throws SQLException {
-    if(StmtType.prepared.equals(sqlRequest.getStmtType())
+	//start从0开始
+  private void doQuery(Session session, SqlRequestProto sqlRequest,  JdbcResponseProto.Builder response, String uid, int start) throws SQLException {
+
+		int pageSize = 200;
+		String sql = sqlRequest.getSql();
+
+		if(StmtType.prepared.equals(sqlRequest.getStmtType())
         ||StmtType.callable.equals(sqlRequest.getStmtType())){
-			CallableStatement ps = null;
+			CallableStatement stmt = null;
       try {
-				ps = session.getConnection().prepareCall(sqlRequest.getSql(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-				ps.setQueryTimeout(60);
+				stmt = session.getConnection().prepareCall(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+				stmt.setQueryTimeout(60);
         List<ParameterProto> paramList = sqlRequest.getParams().getParamList();
         if(!paramList.isEmpty()){
           for (ParameterProto parameterProto : paramList) {
             Parameter parameter = Parameter.from(parameterProto);
             Object value = parameter.getValue();
-            ps.setObject(parameter.getIndex(), value);
+            stmt.setObject(parameter.getIndex(), value);
           }
         }
-        ResultSet rs = ps.executeQuery();
-				if(uuid==null) {
-					uuid = UUID.randomUUID().toString();
-					if(row>0) {
-						while (rs.getRow() != row) {
-							rs.next();
-						}
-					}
+        ResultSet rs = stmt.executeQuery();
+				rs.setFetchSize(sqlRequest.getFetchSize());
+				handleResultSet(response, rs, session, uid, pageSize, start);
+			}catch (SQLException e){
+				if(stmt!=null){
+					stmt.close();
 				}
-				handleResultSet(session, sqlRequest, response, uuid, rs);
-			} catch (Exception e) {
-				if(ps!=null){
-					ps.close();
-				}
+				Printer4Proto.printText(sqlRequest, s->LOG.info("sqlRequest:{} ", s));
+				LOG.warn("sql:{} executeQuery error.", sql, e);
+				throw e;
 			}
     }else{
-			Statement s = null;
-      try {
-				s = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-				s.setQueryTimeout(60);
-        ResultSet rs = s.executeQuery(sqlRequest.getSql());
-				if(uuid==null) {
-					uuid = UUID.randomUUID().toString();
-					if(row>0) {
-						while (rs.getRow() != row) {
-							rs.next();
-						}
-					}
+			Statement stmt = null;
+      try{
+				stmt = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+				stmt.setQueryTimeout(60);
+        ResultSet rs = stmt.executeQuery(sql);
+
+				rs.setFetchSize(sqlRequest.getFetchSize());
+
+				handleResultSet(response, rs, session, uid, pageSize, start);
+      }catch (SQLException e){
+				if(stmt!=null){
+					stmt.close();
 				}
-				handleResultSet(session, sqlRequest, response, uuid, rs);
-      }catch (Exception e) {
-				if(s!=null){
-					s.close();
-				}
+				Printer4Proto.printText(sqlRequest, s->LOG.info("sqlRequest:{} ", s));
+				LOG.warn("sql:{} executeQuery error.", sql, e);
+				throw e;
 			}
     }
+
   }
 
-	private void handleResultSet(Session session, SqlRequestProto sqlRequest, JdbcResponseProto.Builder response, String uuid, ResultSet rs) throws SQLException {
-		SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
-		if(sqlRequest.getVersion()==1){
-			session.addResultSet(uuid, rs);
-			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
-				.setUid(uuid)
-				.addAllColumns(metaData.toProto());
-			handleResultSet2(rs, builder, 0);
-			response.setRemoteResultSet2(builder);
-		}else {
-			session.addResultSet(uuid, rs);
-			RemoteResultSetProto.Builder builder = RemoteResultSetProto.newBuilder()
-					.setUid(uuid)
-					.setRow(rs.getRow())
-					.addAllColumns(metaData.toProto());
-			response.setRemoteResultSet(builder);
+	private void handleResultSet(JdbcResponseProto.Builder response, ResultSet rs, Session session, String uid, int pageSize, int start) throws SQLException {
+		if(uid==null){
+			uid = UUID.randomUUID().toString();
 		}
+		session.addResultSet(uid, rs);
+		SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
+		RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
+				.addAllColumns(metaData.toProto())
+				.setUid(uid)
+				.setStart(start);
+		handleResultSet2(rs, builder, start, pageSize);
+		response.setRemoteResultSet2(builder);
 	}
 
 	private SerialResultSetMetaData buildResultSetMetaData(Class<?> returnType) {
@@ -689,8 +589,8 @@ public class InnerDb implements DbContext {
 	}
 
 	@Override
-	public Timestamp getLastGCTime() {
-		return context.getLastGCTime();
+	public Timestamp getLastJvmPauseTime() {
+		return context.getLastJvmPauseTime();
 	}
 
 	public long getLastPluginAppliedIndex() {
@@ -809,11 +709,12 @@ public class InnerDb implements DbContext {
 
 	private net.sf.jsqlparser.statement.Statement parseSql(String sql) throws SQLException {
 		try {
-			return JSqlParserWithLRUCache.parse(sql);
+			return CustomSqlParser.parse(sql);
 		} catch (JSQLParserException e) {
 			throw new SQLException("sql parse error. sql="+sql, e);
 		}
 	}
+
 
   void update4Statement(TermIndex termIndex,
 												Session session,

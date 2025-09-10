@@ -96,6 +96,7 @@ message SqlRequestProto{
   repeated ParametersProto batchParams = 6;
   StmtType stmt_type = 9;
   int32 version = 10;
+  int32 fetchSize = 11;
 }
 
 message HeartbeatProto{
@@ -106,24 +107,10 @@ message AdminProto{
   string arg0 = 2;
 }
 
-message ResultSetRequestProto{
-  string uid = 1;
-  string method = 2;
-  repeated string parametersTypes = 3;
-  repeated base.ValueProto args = 4;
-
-  SqlRequestProto sqlRequest = 8;
-  int32 row = 9;
-}
 
 enum ResultSetMethod{
   close = 0;
   loadData = 1;
-  getFetchSize = 3;
-  setFetchSize = 4;
-  getType = 5;
-  getConcurrency = 6;
-  getHoldability = 7;
 }
 
 message ResultSet2RequestProto{
@@ -131,7 +118,9 @@ message ResultSet2RequestProto{
   ResultSetMethod method = 2;
   int32 arg4i = 3;
   string arg4s = 4;
+  int64 arg4l = 5;
   SqlRequestProto sqlRequest = 8;
+  int32 start = 9;
 }
 
 // JDBC 请求消息
@@ -146,7 +135,6 @@ message JdbcRequestProto {
     HeartbeatProto heartbeat = 16;
     ConnRequestProto connRequest = 17;
     SqlRequestProto sqlRequest = 18;
-    ResultSetRequestProto resultSetRequest = 19;
     AdminProto admin = 20;
     ResultSet2RequestProto resultSet2Request = 21;
   }
@@ -173,13 +161,6 @@ message ResultSetProto {
   int32 limit = 11;
 }
 
-message RemoteResultSetProto{
-  string uid = 1;
-  base.ValueProto value = 2;
-  repeated ColumnMetaProto columns = 3;
-  RowProto curRow = 4;
-  int32 row = 9;
-}
 
 message RemoteResultSet2Proto{
   string uid = 1;
@@ -190,6 +171,7 @@ message RemoteResultSet2Proto{
     int64 r4l = 5;
     base.ValueProto value = 6;
   }
+  int32 start = 10;
   bool all_loaded = 11;
   repeated ColumnMetaProto columns = 12;
   repeated RowProto rows = 13;
@@ -219,7 +201,6 @@ message JdbcResponseProto {
     ParameterMetaProto parameter_meta = 14; // 参数元数据
     SavepointProto savepoint = 15;
     ConnectionResponse connection = 16;
-    RemoteResultSetProto remote_result_set = 17;
     base.ValueProto value = 18;
     RemoteResultSet2Proto remote_result_set2 = 19;
   }

@@ -16,5 +16,5 @@ public interface DbContext {
 	ScheduledExecutorService getScheduler();
 	SessionMgr getSessionMgr();
 	void closeSession(String sessionId);
-	Timestamp getLastGCTime();
+	Timestamp getLastJvmPauseTime();
 }

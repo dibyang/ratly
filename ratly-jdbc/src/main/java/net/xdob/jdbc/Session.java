@@ -1,5 +1,6 @@
 package net.xdob.jdbc;
 
+import com.google.common.collect.Maps;
 import net.xdob.jdbc.sql.SerialResultSetMetaData;
 import net.xdob.jdbc.sql.SerialRow;
 import net.xdob.jdbc.sql.TransactionIsolation;
@@ -20,6 +21,7 @@ public class Session implements AutoCloseable {
 	private final String db;
   private final String user;
   private final String sessionId;
+	private final String innerId;
 
   private final Connection connection;
 
@@ -34,13 +36,21 @@ public class Session implements AutoCloseable {
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
-	private final Map<String,ResultSetHandler> resultSets = new HashMap<>();
+	private final Map<String,ResultSetHandler> resultSets = Maps.newConcurrentMap();
 
-  public Session(String db, String user, String sessionId, Connection connection, DbContext context) {
+  public Session(String db, String user, String sessionId, Connection connection, DbContext context) throws SQLException {
 		this.db = db;
 		this.user = user;
 		this.sessionId = sessionId;
 		this.connection = connection;
+		try(Statement st = connection.createStatement();
+				ResultSet rs = st.executeQuery("select session_id();")){
+			if(rs.next()) {
+				innerId = rs.getString(1);
+			}else {
+				throw new SQLException("get session id error");
+			}
+		}
 		this.context = context;
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
 	}
@@ -117,7 +127,7 @@ public class Session implements AutoCloseable {
 
 
 	public long elapsedHeartTimeMs() {
-		if(context.getLastGCTime().getNanos()>lastHeartTime.getNanos()){
+		if(context.getLastJvmPauseTime().getNanos()>lastHeartTime.getNanos()){
 			updateLastHeartTime();
 		}
 		return lastHeartTime.elapsedTimeMs();
@@ -244,8 +254,8 @@ public class Session implements AutoCloseable {
 
 
   public void close() throws Exception {
-		for (ResultSetHandler handler : resultSets.values()) {
-			handler.close();
+		for (String uid : resultSets.keySet()) {
+			closeResultSet(uid);
 		}
 		resultSets.clear();
     if (!connection.isClosed()) {
@@ -284,6 +294,7 @@ public class Session implements AutoCloseable {
 			Map<String, Object> map = new HashMap<>();
 			map.put("db", this.db);
 			map.put("sessionId", this.sessionId);
+			map.put("innerId", this.innerId);
 			map.put("user", this.user);
 			map.put("autoCommit", this.getAutoCommit());
 			map.put("transactionIsolation", getTransactionIsolationName());
@@ -292,7 +303,7 @@ public class Session implements AutoCloseable {
 			map.put("startTime", new java.sql.Timestamp(this.startTime));
 			map.put("sleepSince", this.sleepSince == null ? null : new java.sql.Timestamp(this.sleepSince));
 			map.put("sql", this.sql);
-			map.put("size", this.resultSets.size());
+
 			return map;
 		} catch (SQLException e) {
 			return null;
@@ -300,18 +311,20 @@ public class Session implements AutoCloseable {
 	}
 
 	public SerialRow toSerialRow() throws SQLException {
-		return new SerialRow(10)
-				.setValue(0, this.db)
-				.setValue(1, this.sessionId)
-				.setValue(2, this.user)
-				.setValue(3, this.getAutoCommit())
-				.setValue(4, getTransactionIsolationName())
-				.setValue(5, this.state.name())
-				.setValue(6, this.lastHeartTime.elapsedTimeMs())
-				.setValue(7, new java.sql.Timestamp(this.startTime))
-				.setValue(8, this.sleepSince == null ?
+		int index = 0;
+		return new SerialRow(11)
+				.setValue(index++, this.db)
+				.setValue(index++, this.sessionId)
+				.setValue(index++, this.innerId)
+				.setValue(index++, this.user)
+				.setValue(index++, this.getAutoCommit())
+				.setValue(index++, getTransactionIsolationName())
+				.setValue(index++, this.state.name())
+				.setValue(index++, this.lastHeartTime.elapsedTimeMs())
+				.setValue(index++, new java.sql.Timestamp(this.startTime))
+				.setValue(index++, this.sleepSince == null ?
 						null : new java.sql.Timestamp(this.sleepSince))
-				.setValue(9, this.sql);
+				.setValue(index++, this.sql);
 
 	}
 
@@ -319,6 +332,7 @@ public class Session implements AutoCloseable {
 		SerialResultSetMetaData metaData = new SerialResultSetMetaData();
 		metaData.addColumn("db", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("session_id", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
+		metaData.addColumn("inner_id", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("user", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("auto_commit", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("transaction_isolation", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);

@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
-  public static final int SESSION_TIMEOUT = 4_000;
+  public static final int SESSION_TIMEOUT = 5_000;
 
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
   private final DbContext context;
@@ -27,7 +27,6 @@ public class DefaultSessionMgr implements SessionMgr{
 				.scheduleWithFixedDelay(this::checkExpiredSessions,
 						1, 1, TimeUnit.SECONDS);
 	}
-
 
 
 
@@ -65,8 +64,10 @@ public class DefaultSessionMgr implements SessionMgr{
 						.filter(s -> s.elapsedHeartTimeMs()> SESSION_TIMEOUT)
 						.collect(Collectors.toList());
 				expiredSessions.forEach(s -> {
-					LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.elapsedHeartTimeMs());
-					context.closeSession(s.getSessionId());
+					if(s.elapsedHeartTimeMs()> SESSION_TIMEOUT) {
+						LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.elapsedHeartTimeMs());
+						context.closeSession(s.getSessionId());
+					}
 				});
       } finally {
         expiredChecking.set(false);

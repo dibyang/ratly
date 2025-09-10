@@ -35,8 +35,8 @@ public class RemoteResultSet implements ResultSet {
 
   static Logger LOG = LoggerFactory.getLogger(RemoteResultSet.class);
   private final SqlClient client;
-	private final String uuid;
 	private volatile int row = 0;
+	private volatile int start;
 	private transient SerialRow currentRow;
 	private transient boolean wasNull;
 	private final List<SerialRow> rows = Lists.newArrayList();
@@ -46,17 +46,19 @@ public class RemoteResultSet implements ResultSet {
 	private final SqlRequestProto.Builder sqlBuilder;
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public RemoteResultSet(SqlRequestProto.Builder sqlBuilder, SqlClient client, String uuid, ResultSetMetaData resultMetaData) throws SQLException {
+	private int fetchSize;
+
+  public RemoteResultSet(SqlRequestProto.Builder sqlBuilder, SqlClient client, RemoteResultSet2Proto remoteResultSet) throws SQLException {
     this.client = client;
-		this.uuid = uuid;
-		this.sqlBuilder = sqlBuilder;
-		this.resultSetMetaData.fill(resultMetaData);
+		this.sqlBuilder = sqlBuilder.clone();
+		this.resultSetMetaData.fill(SerialResultSetMetaData.from(remoteResultSet.getColumnsList()));
+		loadData(remoteResultSet);
 	}
 
 
-  public RemoteResultSet2Proto send(ResultSetMethod method, Integer agr4i, String arg4s) throws SQLException {
+  public RemoteResultSet2Proto send(ResultSetMethod method, Integer agr4i, String arg4s, Long agr4l) throws SQLException {
 		ResultSet2RequestProto.Builder request = ResultSet2RequestProto.newBuilder();
-    request.setUid(uuid).setMethod(method);
+    request.setMethod(method);
 
     if(agr4i!=null) {
 			request.setArg4I(agr4i);
@@ -64,7 +66,11 @@ public class RemoteResultSet implements ResultSet {
 		if (arg4s != null){
 			request.setArg4S(arg4s);
 		}
-
+		if(agr4l!=null) {
+			request.setArg4L(agr4l);
+		}
+		sqlBuilder.setFetchSize(fetchSize);
+		request.setStart(this.start);
 		request.setSqlRequest(sqlBuilder);
     JdbcRequestProto.Builder builder = JdbcRequestProto.newBuilder();
     builder.setDb(client.getCi().getDb())
@@ -110,24 +116,29 @@ public class RemoteResultSet implements ResultSet {
 	@Override
 	public boolean next() throws SQLException {
 		checkClosed();
-		if(((row+1)>rows.size())&&!allLoaded){
-			loadData();
+		synchronized (rows) {
+			if (((row + 1) > getMaxRow()) && !allLoaded) {
+				this.start = getMaxRow();
+				this.rows.clear();
+				loadData();
+			}
+			if (row < getMaxRow()) {
+				row++;
+				currentRow = rows.get(row - start - 1);
+				return true;
+			}
+			return false;
 		}
-		if((row+1)<=rows.size()){
-			row++;
-			currentRow = rows.get(row-1);
-			return true;
-		}
-		return false;
 	}
 
 	private void loadData() throws SQLException {
-		RemoteResultSet2Proto resultSet2Proto = send(ResultSetMethod.loadData, rows.size(), null);
+		RemoteResultSet2Proto resultSet2Proto = send(ResultSetMethod.loadData, null, null, (long)rows.size());
 		loadData(resultSet2Proto);
 	}
 
-	public void loadData(RemoteResultSet2Proto resultSet2Proto) throws SQLException {
+	void loadData(RemoteResultSet2Proto resultSet2Proto) throws SQLException {
 		allLoaded = resultSet2Proto.getAllLoaded();
+		start = resultSet2Proto.getStart();
 		for (RowProto row : resultSet2Proto.getRowsList()) {
 			rows.add(SerialRow.from( row));
 		}
@@ -137,7 +148,11 @@ public class RemoteResultSet implements ResultSet {
 	public boolean absolute(int row) throws SQLException {
 		checkClosed();
 		if (--row < this.row) {
-			resetResult();
+			if(--row<start) {
+				resetResult();
+			}else {
+				this.row = row -1;
+			}
 		}
 		while (this.row < row) {
 			if (!next()) {
@@ -153,26 +168,15 @@ public class RemoteResultSet implements ResultSet {
 
 	private void resetResult() {
 		this.row = 0;
+		this.start = 0;
 		this.currentRow = null;
 		this.wasNull = false;
+		this.rows.clear();
 	}
 
 	@Override
 	public boolean relative(int rowCount) throws SQLException {
-		checkClosed();
-		long longRowCount;
-		if (rowCount < 0) {
-			longRowCount = row + rowCount;
-			resetResult();
-		} else {
-			longRowCount = rowCount;
-		}
-		while (longRowCount-- > 0) {
-			if (!next()) {
-				return false;
-			}
-		}
-		return isOnValidRow();
+		return absolute(row + rowCount);
 	}
 
 	@Override
@@ -189,7 +193,11 @@ public class RemoteResultSet implements ResultSet {
 	}
 
 	boolean hasNext(){
-		return row < rows.size();
+		return row < getMaxRow();
+	}
+
+	private int getMaxRow() {
+		return start + rows.size();
 	}
 
 	@Override
@@ -259,37 +267,22 @@ public class RemoteResultSet implements ResultSet {
 
 	@Override
 	public void setFetchSize(int rows) throws SQLException {
-		send(ResultSetMethod.setFetchSize, rows, null);
+		this.fetchSize = rows;
 	}
 
 	@Override
 	public int getFetchSize() throws SQLException {
-		RemoteResultSet2Proto r = send(ResultSetMethod.getFetchSize, null, null);
-		return r.getR4I();
+		return this.fetchSize;
 	}
 
 	@Override
 	public int getType() throws SQLException {
-		RemoteResultSet2Proto r = send(ResultSetMethod.getType, null, null);
-		int r4I = r.getR4I();
-		if (r4I == ResultSet.TYPE_SCROLL_INSENSITIVE) {
-			return ResultSet.TYPE_SCROLL_INSENSITIVE;
-		}else if (r4I == ResultSet.TYPE_SCROLL_SENSITIVE) {
-			return ResultSet.TYPE_SCROLL_SENSITIVE;
-		}else {
-			return ResultSet.TYPE_FORWARD_ONLY;
-		}
+		return ResultSet.TYPE_SCROLL_SENSITIVE;
 	}
 
 	@Override
 	public int getConcurrency() throws SQLException {
-		RemoteResultSet2Proto r = send(ResultSetMethod.getConcurrency, null, null);
-		int r4I = r.getR4I();
-		if(r4I==ResultSet.CONCUR_UPDATABLE){
-			return ResultSet.CONCUR_UPDATABLE;
-		}else {
-			return ResultSet.CONCUR_READ_ONLY;
-		}
+		return ResultSet.CONCUR_READ_ONLY;
 	}
 
 	@Override
@@ -540,7 +533,7 @@ public class RemoteResultSet implements ResultSet {
 	@Override
 	public void close() throws SQLException {
 		if(closed.compareAndSet(false, true)) {
-			send(ResultSetMethod.close, null, null);
+			send(ResultSetMethod.close, null, null, null);
 		}
 	}
 

@@ -1,33 +1,59 @@
 package net.xdob.jdbc;
 
-import net.xdob.ratly.jdbc.Driver;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.JdbcNamedParameter;
+import net.sf.jsqlparser.expression.JdbcParameter;
+import net.sf.jsqlparser.expression.LongValue;
+import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
+import net.sf.jsqlparser.statement.select.Limit;
+import net.sf.jsqlparser.statement.select.Offset;
+import net.sf.jsqlparser.statement.select.Select;
+import net.xdob.jdbc.util.CustomSqlParser;
 
 public class Test {
 
-	public static void main(String[] args) {
-		String url = "jdbc:ratly:13.13.163.1$n1@13.13.14.163,n2@13.13.14.164/fspool_db?port=7800";
-		Driver.load();
-		try(Connection connection = DriverManager.getConnection(url, "remote", "hhrhl2016");
-				Statement statement = connection.createStatement()){
-			ResultSet resultSet = statement.executeQuery("select * from utility_user;");
-//			ResultSetMetaData metaData = resultSet.getMetaData();
-//			List<String> columns = new ArrayList<>();
-//			for (int i = 1; i <= metaData.getColumnCount(); i++) {
-//				columns.add(metaData.getColumnName(i));
-//			}
-			while (resultSet.next()){
-				for (int i =1; i< 5;i++) {
-					System.out.print(resultSet.getObject(i) + "\t");
-				}
-				System.out.println("");
+	public static void main(String[] args) throws JSQLParserException {
+		Select select = (Select)CustomSqlParser.parse("SELECT * FROM B_DB.\"PUBLIC\".BMSQL_ITEM LIMIT :name OFFSET 90000;");
+		long start = 0;
+		int pageSize = 200;
+		Limit limit = select.getLimit();
+		if(limit !=null){
+			Expression rowCount = limit.getRowCount();
+			if(rowCount instanceof LongValue) {
+				limit.withRowCount(new LongValue(((LongValue)rowCount).getValue() - start));
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
+			if(rowCount instanceof JdbcParameter) {
+				Subtraction subtraction = new Subtraction();
+				subtraction.withLeftExpression(rowCount)
+								.withRightExpression(new LongValue(start));
+				limit.withRowCount(subtraction);
+			}
+			if(rowCount instanceof JdbcNamedParameter) {
+				Subtraction subtraction = new Subtraction();
+				subtraction.withLeftExpression(rowCount)
+						.withRightExpression(new LongValue(start));
+				limit.withRowCount(subtraction);
+			}
+
+		}else {
+			select.setLimit(new Limit()
+					.withRowCount(new LongValue(pageSize + 1)));
 		}
+
+		Offset offset = select.getOffset();
+		if(offset==null){
+			select.setOffset(new Offset()
+					.withOffset(new LongValue(start)));
+		}else{
+			long offsetValue = Long.parseLong(offset.getOffset().toString());
+			offset.withOffset(new LongValue(offsetValue + start));
+		}
+
+		System.out.println("select.getLimit() = " + select.getLimit().getRowCount());
+		System.out.println("select.getOffset() = " + select.getOffset().getOffset());
+		System.out.println("select.toString() = " + select.toString());
 
 	}
 }

@@ -2,6 +2,8 @@ package net.xdob.jdbc.util;
 
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.statement.Statement;
+import net.xdob.ratly.util.Proto2Util;
+import net.xdob.ratly.util.ProtoUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,7 +38,7 @@ public interface JSqlParserWithLRUCache {
 	 * @return 解析后的Statement对象
 	 * @throws JSQLParserException 如果解析失败
 	 */
-	public static Statement parse(String sql) throws JSQLParserException {
+	static Statement parse(String sql) throws JSQLParserException {
 		// 先尝试从缓存中获取（读锁）
 		LOCK.readLock().lock();
 		try {
@@ -59,6 +61,10 @@ public interface JSqlParserWithLRUCache {
 		} finally {
 			LOCK.writeLock().unlock();
 		}
+	}
+
+	static Statement clone(Statement cached) {
+		return (Statement) Proto2Util.toObject(Proto2Util.writeObject2ByteString(cached));
 	}
 
 
