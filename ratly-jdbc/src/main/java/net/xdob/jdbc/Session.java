@@ -1,6 +1,5 @@
 package net.xdob.jdbc;
 
-import com.google.common.collect.Maps;
 import net.xdob.jdbc.sql.SerialResultSetMetaData;
 import net.xdob.jdbc.sql.SerialRow;
 import net.xdob.jdbc.sql.TransactionIsolation;
@@ -92,7 +91,7 @@ public class Session implements AutoCloseable {
 
 
 	public long elapsedHeartTimeMs() {
-		if(context.getLastJvmPauseTime().getNanos()>lastHeartTime.getNanos()){
+		if(context.getLastPauseTime().getNanos()>lastHeartTime.getNanos()){
 			updateLastHeartTime();
 		}
 		return lastHeartTime.elapsedTimeMs();

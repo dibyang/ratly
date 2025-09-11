@@ -24,5 +24,5 @@ public interface DbsContext {
    */
   TermIndex getLastAppliedTermIndex();
 	RaftClient getRaftClient();
-	Timestamp getLastJvmPauseTime();
+	Timestamp getLastPauseTime();
 }

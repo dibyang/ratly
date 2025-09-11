@@ -563,8 +563,8 @@ public class InnerDb implements DbContext {
 	}
 
 	@Override
-	public Timestamp getLastJvmPauseTime() {
-		return context.getLastJvmPauseTime();
+	public Timestamp getLastPauseTime() {
+		return context.getLastPauseTime();
 	}
 
 	public long getLastPluginAppliedIndex() {
@@ -760,52 +760,61 @@ public class InnerDb implements DbContext {
   }
 
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
-    List<FileInfo> infos = new ArrayList<>();
-    Stopwatch stopwatch = Stopwatch.createStarted();
-    try(Connection connection = getConnection();
-        Statement stmt = connection.createStatement()){
-      stmt.setQueryTimeout(600);
-      //快照前让数据落盘  CHECKPOINT SYNC
-      stmt.executeUpdate("checkpoint sync");
-    }catch (SQLException e){
-      throw new IOException(e);
-    }
+		try {
+			sessionMgr.setDisabled(true);
+			return takeSnapshot2(storage, last);
+		}finally {
+			sessionMgr.setDisabled(false);
+		}
+	}
 
-    File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
-    Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
-    if(!sourceDbFile.toFile().exists()){
-      throw new IOException(DbErrorException.notExists(sourceDbFile.toString()));
-    }
-    if(sourceDbFile.toFile().length()<128){
-      throw new IOException(DbErrorException.error(sourceDbFile.toString()));
-    }
-    Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+	private List<FileInfo> takeSnapshot2(FileListStateMachineStorage storage, TermIndex last) throws IOException {
+		List<FileInfo> infos = new ArrayList<>();
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		try(Connection connection = getConnection();
+				Statement stmt = connection.createStatement()){
+			stmt.setQueryTimeout(600);
+			//快照前让数据落盘  CHECKPOINT SYNC
+			stmt.executeUpdate("checkpoint sync");
+		}catch (SQLException e){
+			throw new IOException(e);
+		}
 
-    FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null);
-    infos.add(dbFileInfo);
+		File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
+		Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
+		if(!sourceDbFile.toFile().exists()){
+			throw new IOException(DbErrorException.notExists(sourceDbFile.toString()));
+		}
+		if(sourceDbFile.toFile().length()<128){
+			throw new IOException(DbErrorException.error(sourceDbFile.toString()));
+		}
+		Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+		FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null);
+		infos.add(dbFileInfo);
 //    生成sql快照
-    File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
-    FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
-    infos.add(sqlFileInfo);
-    context.getScheduler().submit(()->{
-      takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
-    });
-    File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
-    List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
+		File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
+		FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
+		infos.add(sqlFileInfo);
+		context.getScheduler().submit(()->{
+			takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
+		});
+		File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
+		List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
 				.map(Session::toSessionData)
 				.filter(Objects::nonNull)
-        .collect(Collectors.toList());
-    N3Map n3Map = new N3Map();
-    n3Map.put(SESSIONS_KEY, sessionDataList);
-    String json = Jsons.i.toJson(n3Map);
-    Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
-    infos.add(getFileInfo(sessionFile));
-    LOG.info("{} Taking a DB snapshot, use time:{}", getName(), stopwatch);
-    return infos;
-  }
+				.collect(Collectors.toList());
+		N3Map n3Map = new N3Map();
+		n3Map.put(SESSIONS_KEY, sessionDataList);
+		String json = Jsons.i.toJson(n3Map);
+		Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
+		infos.add(getFileInfo(sessionFile));
+		LOG.info("{} Taking a DB snapshot, use time:{}", getName(), stopwatch);
+		return infos;
+	}
 
 
-  private FileInfo getFileInfo(File file) {
+	private FileInfo getFileInfo(File file) {
     final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(file);
 		return new FileInfo(file.toPath(), digest);
   }

@@ -1,26 +1,53 @@
 package net.xdob.ratly.util;
 
+import org.slf4j.Logger;
+
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class JvmPauseLastTime {
+public class JvmPauseLastTime implements PauseLastTime {
+
+	private Logger logger;
 	private Timestamp lastJvmPauseTime = Timestamp.currentTime();
 	private Timestamp lastCheckTime = Timestamp.currentTime();
-
+	private int period = 100;
+	private ScheduledFuture<?> future;
+	private ScheduledExecutorService executor;
 	public JvmPauseLastTime(ScheduledExecutorService executor) {
-		executor.scheduleAtFixedRate(this::checkJvmPause, 0, 100, TimeUnit.MILLISECONDS);
+		this.executor = executor;
+	}
+
+	public JvmPauseLastTime setLogger(Logger logger) {
+		this.logger = logger;
+		return this;
+	}
+
+	public void start() {
+		future = executor.scheduleWithFixedDelay(this::checkJvmPause, 0, period, TimeUnit.MILLISECONDS);
+	}
+
+	public void stop() {
+		if(future!=null){
+			future.cancel(true);
+		}
 	}
 
 	void checkJvmPause() {
-		long elapsedTimeMs = lastCheckTime.elapsedTimeMs();
+		long pauseTime = lastCheckTime.elapsedTimeMs()- period;
 		//说明有JVM停顿
-		if(elapsedTimeMs>160){
+		if(pauseTime>=10){
 			lastJvmPauseTime = Timestamp.currentTime();
+			if(logger!=null){
+				logger.info("JVM pause {} ms", pauseTime);
+			}
 		}
 		lastCheckTime = Timestamp.currentTime();
 	}
 
-	public Timestamp getLastJvmPauseTime() {
+
+	@Override
+	public Timestamp getLastPauseTime() {
 		return lastJvmPauseTime;
 	}
 }

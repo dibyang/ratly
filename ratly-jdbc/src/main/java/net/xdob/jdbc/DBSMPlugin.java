@@ -53,7 +53,7 @@ public class DBSMPlugin implements SMPlugin {
 
   private final Map<String, DbDef> dbDefs = Maps.newConcurrentMap();;
   private final RsaHelper rsaHelper = new RsaHelper();
-	private JvmPauseLastTime jvmPauseLastTime;
+	private PauseLastTime pauseLastTime;
 
   private DbsContext dbsContext;
   private boolean dynamicCreate = false;
@@ -78,6 +78,7 @@ public class DBSMPlugin implements SMPlugin {
   @Override
   public void setSMPluginContext(SMPluginContext context) {
     this.context = context;
+		this.pauseLastTime = new GCLastTime();
     this.dbsContext = new DbsContext() {
 			@Override
 			public String getLeaderId() {
@@ -136,15 +137,16 @@ public class DBSMPlugin implements SMPlugin {
 			}
 
 			@Override
-			public Timestamp getLastJvmPauseTime() {
-				return jvmPauseLastTime.getLastJvmPauseTime();
+			public Timestamp getLastPauseTime() {
+				return pauseLastTime.getLastPauseTime();
 			}
 		};
   }
 
   @Override
   public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
-		this.jvmPauseLastTime = new JvmPauseLastTime(context.getScheduler());
+		this.pauseLastTime.start();
+
     /**
      * 初始化数据库
      */
@@ -385,6 +387,7 @@ public class DBSMPlugin implements SMPlugin {
       innerDb.close();
     }
     dbMap.clear();
+		this.pauseLastTime.stop();
   }
 
 

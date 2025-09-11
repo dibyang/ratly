@@ -82,8 +82,13 @@ public class DefaultSessionMgr implements SessionMgr{
 	}
 
 	@Override
-	public void setDisabled(boolean disableCheckExpired) {
-		this.disabled.set(disableCheckExpired);
+	public void setDisabled(boolean disabled) {
+		this.disabled.set(disabled);
+		if(!this.disabled.get()){
+			for (Session session : sessions.values()) {
+				session.updateLastHeartTime();
+			}
+		}
 	}
 
 
