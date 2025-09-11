@@ -67,7 +67,7 @@ public class InnerDb implements DbContext {
 
   private final ClassCache classCache4DPM = new ClassCache();
 
-  public int maxPoolSize = 32;
+  public int maxPoolSize = 64;
 
   public InnerDb(Path dbStore, DbInfo dbInfo, DbsContext context) {
     this.dbStore = dbStore;
@@ -127,8 +127,7 @@ public class InnerDb implements DbContext {
 
         // 2. 可选：优化配置
         dsConfig.setConnectionTimeout(30_000);    // 连接超时(ms)
-        dsConfig.setIdleTimeout(600_000);         // 空闲超时(ms)
-        dsConfig.setMaxLifetime(1_800_000);        // 最大存活时间(ms)
+        dsConfig.setIdleTimeout(60_000);         // 空闲超时(ms)
         dsConfig.setMaximumPoolSize(maxPoolSize);         // 最大连接数
         dsConfig.setMinimumIdle(5);              // 最小空闲连接
         dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
