@@ -102,6 +102,9 @@ message SqlRequestProto{
 message HeartbeatProto{
 }
 
+message PreSessionProto{
+}
+
 message AdminProto{
   string cmd = 1;
   string arg0 = 2;
@@ -137,6 +140,7 @@ message JdbcRequestProto {
     SqlRequestProto sqlRequest = 18;
     AdminProto admin = 20;
     ResultSet2RequestProto resultSet2Request = 21;
+    PreSessionProto preSession = 22;
   }
 }
 

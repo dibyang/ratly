@@ -14,24 +14,30 @@ import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
-  public static final int SESSION_TIMEOUT = 10_000;
+  public static final int SESSION_TIMEOUT = 8_000;
 
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
   private final DbContext context;
   private final AtomicBoolean expiredChecking = new AtomicBoolean();
   private final AtomicBoolean leader = new AtomicBoolean();
 	private final AtomicBoolean disabled = new AtomicBoolean();
+	private int maxSize;
 
-	public DefaultSessionMgr(DbContext context) {
+	public DefaultSessionMgr(DbContext context, int maxSize) {
 		this.context = context;
+		this.maxSize = maxSize;
 		context.getScheduler()
 				.scheduleWithFixedDelay(this::checkExpiredSessions,
-						1, 1, TimeUnit.SECONDS);
+						0, Session.LIFE_TIME, TimeUnit.MILLISECONDS);
 	}
 
 
+	@Override
+	public int getAvailableSessionCount() {
+		return maxSize - sessions.size();
+	}
 
-  @Override
+	@Override
   public Session newSession(String db, String user, String sessionId, ConnSupplier connSupplier) throws SQLException {
     synchronized (sessions) {
       Session session = getSession(sessionId).orElse(null);
@@ -46,6 +52,15 @@ public class DefaultSessionMgr implements SessionMgr{
     }
   }
 
+	public void lifeCountSessions() {
+		if (disabled.get()||!leader.get()) {
+			return;
+		}
+		for (Session session : sessions.values()) {
+			session.incrementLifeCount();
+		}
+	}
+
   public void checkExpiredSessions() {
 		if(disabled.get()){
 			return;
@@ -56,16 +71,19 @@ public class DefaultSessionMgr implements SessionMgr{
 		}
 		if(leader.compareAndSet(false, true)){
 			for (Session session : sessions.values()) {
-				session.updateLastHeartTime();
+				session.updateLifeCount();
 			}
+		}else{
+			this.lifeCountSessions();
 		}
+
     if(expiredChecking.compareAndSet(false, true)) {
       try {
 				List<Session> expiredSessions = sessions.values().stream()
-						.filter(s -> s.elapsedHeartTimeMs()> SESSION_TIMEOUT)
+						.filter(s -> s.elapsedHeartTimeMs() > SESSION_TIMEOUT)
 						.collect(Collectors.toList());
 				expiredSessions.forEach(s -> {
-					if(s.elapsedHeartTimeMs()> SESSION_TIMEOUT) {
+					if(s.elapsedHeartTimeMs() > SESSION_TIMEOUT) {
 						LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.elapsedHeartTimeMs());
 						context.closeSession(s.getSessionId());
 					}
@@ -86,7 +104,7 @@ public class DefaultSessionMgr implements SessionMgr{
 		this.disabled.set(disabled);
 		if(!this.disabled.get()){
 			for (Session session : sessions.values()) {
-				session.updateLastHeartTime();
+				session.updateLifeCount();
 			}
 		}
 	}

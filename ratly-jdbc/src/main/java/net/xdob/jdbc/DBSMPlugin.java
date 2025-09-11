@@ -272,6 +272,19 @@ public class DBSMPlugin implements SMPlugin {
 					LOG.warn("", e);
 					response.setEx(Proto2Util.toThrowable2Proto(e));
 				}
+			} else if (jdbcRequest.hasPreSession()) {
+				String db = jdbcRequest.getDb();
+				InnerDb innerDb = dbMap.get(db);
+				try {
+					if (innerDb != null) {
+						innerDb.preSession(jdbcRequest, response);
+					} else {
+						throw new NoDatabaseException(db);
+					}
+				} catch (SQLException e) {
+					LOG.warn("", e);
+					response.setEx(Proto2Util.toThrowable2Proto(e));
+				}
 			}
 			reply.setJdbcResponse(response);
 		}

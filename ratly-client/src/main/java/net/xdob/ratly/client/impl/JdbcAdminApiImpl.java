@@ -19,14 +19,13 @@ import java.util.Map;
 import java.util.Objects;
 
 public class JdbcAdminApiImpl implements JdbcAdminApi {
-	static final Logger LOG = LoggerFactory.getLogger(JdbcAdminApiImpl.class);
 	private final RaftClientImpl client;
 
 	JdbcAdminApiImpl(RaftClientImpl client) {
 		this.client = Objects.requireNonNull(client, "client == null");
 	}
 	@Override
-	public List<Map<String, Object>> showSession() {
+	public List<Map<String, Object>> showSession() throws SQLException {
 		try {
 			JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
 					.setAdmin(AdminProto.newBuilder()
@@ -44,14 +43,13 @@ public class JdbcAdminApiImpl implements JdbcAdminApi {
 				throw Proto2Util.toThrowable(response.getEx(), SQLException.class);
 			}
 			return (List<Map<String,Object>>)Value.toJavaObject(response.getValue());
-		} catch (SQLException | IOException e) {
-			LOG.warn("show session error", e);
+		} catch (IOException e) {
+			throw new SQLException("io error:"+e.getMessage(), e);
 		}
-		return Collections.emptyList();
 	}
 
 	@Override
-	public boolean killSession(String sessionId) {
+	public boolean killSession(String sessionId) throws SQLException {
 		try {
 			JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
 					.setAdmin(AdminProto.newBuilder()
@@ -70,9 +68,8 @@ public class JdbcAdminApiImpl implements JdbcAdminApi {
 				throw Proto2Util.toThrowable(response.getEx(), SQLException.class);
 			}
 			return response.hasUpdateCount() && response.getUpdateCount() > 0;
-		} catch (SQLException | IOException e) {
-			LOG.warn("show session error", e);
+		} catch (IOException e) {
+			throw new SQLException("io error:"+e.getMessage(), e);
 		}
-		return false;
 	}
 }

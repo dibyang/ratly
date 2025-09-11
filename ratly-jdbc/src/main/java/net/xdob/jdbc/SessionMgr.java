@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SessionMgr {
+
+	int getAvailableSessionCount();
   /**
    * 新建托管的session
    */

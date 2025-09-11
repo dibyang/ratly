@@ -4,6 +4,8 @@ import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.sf.jsqlparser.JSQLParserException;
+import net.xdob.jdbc.exception.AuthorizationFailedException;
+import net.xdob.jdbc.exception.TooManySessionException;
 import net.xdob.jdbc.sql.*;
 import net.xdob.jdbc.util.*;
 import net.xdob.ratly.io.Digest;
@@ -74,7 +76,7 @@ public class InnerDb implements DbContext {
     this.dbInfo = dbInfo;
     this.context = context;
     appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
-    sessionMgr = new DefaultSessionMgr(this);
+    sessionMgr = new DefaultSessionMgr(this, maxPoolSize);
 
   }
 
@@ -170,7 +172,32 @@ public class InnerDb implements DbContext {
 	public void heart(String sessionId) throws SQLException {
 
 		sessionMgr.getSession(sessionId)
-				.ifPresent(Session::updateLastHeartTime);
+				.ifPresent(Session::updateLifeCount);
+	}
+
+	public void preSession(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
+		OpenSessionProto openSession = request.getOpenSession();
+		String user = openSession.getUser();
+		String password = context.getRsaHelper().decrypt(openSession.getPassword());
+		DbUser dbUser = getDbInfo().getUser(user).orElse(null);
+		if (dbUser == null) {
+			throw new AuthorizationFailedException();
+		} else {
+			PasswordEncoder passwordEncoder = context.getPasswordEncoder();
+			if (!passwordEncoder.matches(password, dbUser.getPassword())) {
+				throw new AuthorizationFailedException();
+			} else {
+				if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
+					dbUser.setPassword(passwordEncoder.encode(password));
+					context.updateDbs();
+				}
+			}
+		}
+		int availableSessionCount = sessionMgr.getAvailableSessionCount();
+		if(availableSessionCount <10){
+			throw new TooManySessionException();
+		}
+		response.setValue(Value.toValueProto(availableSessionCount));
 	}
 
 
@@ -186,7 +213,7 @@ public class InnerDb implements DbContext {
 				});
 				throw new DatabaseAlreadyClosedException(sessionId);
 			}else {
-				session.updateLastHeartTime();
+				session.updateLifeCount();
 				query(request, session, response);
 			}
   }
@@ -460,11 +487,11 @@ public class InnerDb implements DbContext {
         String password = context.getRsaHelper().decrypt(openSession.getPassword());
         DbUser dbUser = getDbInfo().getUser(user).orElse(null);
         if (dbUser == null) {
-          throw new SQLInvalidAuthorizationSpecException();
+          throw new AuthorizationFailedException();
         } else {
           PasswordEncoder passwordEncoder = context.getPasswordEncoder();
           if (!passwordEncoder.matches(password, dbUser.getPassword())) {
-            throw new SQLInvalidAuthorizationSpecException();
+            throw new AuthorizationFailedException();
           } else {
             if (passwordEncoder.upgradeEncoding(dbUser.getPassword())) {
               dbUser.setPassword(passwordEncoder.encode(password));
@@ -483,7 +510,7 @@ public class InnerDb implements DbContext {
         String sessionId = request.getSessionId();
         Session session = sessionMgr.getSession(sessionId)
             .orElseThrow(()->new DatabaseAlreadyClosedException(sessionId));
-				session.updateLastHeartTime();
+				session.updateLifeCount();
 				session.updateAppliedIndexToMax(termIndex.getIndex());
         applyLog4Conn(termIndex, session, connRequest, response);
       }
@@ -492,7 +519,7 @@ public class InnerDb implements DbContext {
 			String sessionId = request.getSessionId();
 			Session session = sessionMgr.getSession(sessionId)
 					.orElseThrow(() -> new DatabaseAlreadyClosedException(sessionId));
-			session.updateLastHeartTime();
+			session.updateLifeCount();
 			session.updateAppliedIndexToMax(termIndex.getIndex());
 			try {
 				if (session.isTransaction()) {
@@ -887,7 +914,7 @@ public class InnerDb implements DbContext {
 							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), this::getConnection);
 							session.setSessionData(sessionData);
 						}
-						session.updateLastHeartTime();
+						session.updateLifeCount();
 					} catch (SQLException e) {
 						LOG.warn("node {} newSession error.", context.getPeerId(), e);
 					}

@@ -58,7 +58,7 @@ public class JdbcConnection implements Connection {
     sessionId.set(openSession());
     LOG.info("open session: {}", sessionId.get());
 		scheduledService = Executors.newScheduledThreadPool(1);
-		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 1000, TimeUnit.MILLISECONDS);
+		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 500, TimeUnit.MILLISECONDS);
 	}
 
 	private void sendHeartBeat() {
@@ -97,16 +97,21 @@ public class JdbcConnection implements Connection {
 
 
   private String openSession() throws SQLException {
-    ConnRequestProto.Builder connReqBuilder = newConnRequestBuilder(ConnRequestType.openSession);
-    JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
-        .setDb(ci.getDb())
-        .setConnRequest(connReqBuilder.build())
-        .setOpenSession(OpenSessionProto.newBuilder()
-            .setUser(ci.getUser())
-            .setPassword(rsaHelper.encrypt(ci.getPassword())))
-        .build();
+		OpenSessionProto.Builder openSession = OpenSessionProto.newBuilder()
+				.setUser(ci.getUser())
+				.setPassword(rsaHelper.encrypt(ci.getPassword()));
+		JdbcRequestProto request = JdbcRequestProto.newBuilder()
+				.setDb(ci.getDb())
+				.setPreSession(PreSessionProto.newBuilder())
+				.setOpenSession(openSession)
+				.build();
+		JdbcResponseProto response = sendAdmin(request);
+		JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
+				.setDb(ci.getDb())
+				.setConnRequest(newConnRequestBuilder(ConnRequestType.openSession))
+				.setOpenSession(openSession)
+				.build();
     JdbcResponseProto responseProto = send(requestProto);
-
     return responseProto.getSessionId();
   }
 
@@ -200,6 +205,24 @@ public class JdbcConnection implements Connection {
         .setType( type);
     return builder;
   }
+
+	protected JdbcResponseProto sendAdmin(JdbcRequestProto request) throws SQLException {
+		try {
+			WrapRequestProto wrap = WrapRequestProto.newBuilder()
+					.setType(JdbcConnection.DB)
+					.setJdbcRequest(request)
+					.build();
+			RaftClientReply reply = client.io().sendAdmin(Message.valueOf(wrap));
+			WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+			JdbcResponseProto response = replyProto.getJdbcResponse();
+			if(response.hasEx()){
+				throw Proto2Util.toSQLException(response.getEx());
+			}
+			return response;
+		} catch (IOException e) {
+			throw new SQLException(e);
+		}
+	}
 
 	protected JdbcResponseProto send(JdbcRequestProto request) throws SQLException{
 		return send(request, false);

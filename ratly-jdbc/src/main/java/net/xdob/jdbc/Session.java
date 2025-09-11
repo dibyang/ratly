@@ -5,7 +5,6 @@ import net.xdob.jdbc.sql.SerialRow;
 import net.xdob.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
-import net.xdob.ratly.util.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,10 +12,14 @@ import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Session implements AutoCloseable {
 	static final Logger LOG = LoggerFactory.getLogger(Session.class);
-	public static final int RESULTSET_TIMEOUT = 3_000;
+	/**
+	 * 生命周期计数时间(单位是毫秒)
+	 */
+	public static final int LIFE_TIME = 100;
 	private final String db;
   private final String user;
   private final String sessionId;
@@ -24,7 +27,7 @@ public class Session implements AutoCloseable {
 
   private final Connection connection;
 
-	private transient volatile Timestamp lastHeartTime = Timestamp.currentTime();
+	private final AtomicLong lifeCount = new AtomicLong(0);
 	private final DbContext context;
 	private final RaftLogIndex appliedIndex;
   /**
@@ -90,15 +93,16 @@ public class Session implements AutoCloseable {
 	}
 
 
-	public long elapsedHeartTimeMs() {
-		if(context.getLastPauseTime().getNanos()>lastHeartTime.getNanos()){
-			updateLastHeartTime();
-		}
-		return lastHeartTime.elapsedTimeMs();
+	public long incrementLifeCount() {
+		return lifeCount.addAndGet(LIFE_TIME);
 	}
 
-	public void updateLastHeartTime() {
-		lastHeartTime = Timestamp.currentTime();
+	public void updateLifeCount() {
+		lifeCount.set(0);
+	}
+
+	public long elapsedHeartTimeMs() {
+		return lifeCount.get();
 	}
 
 	public Savepoint setSavepoint(String name) throws SQLException {
@@ -259,7 +263,7 @@ public class Session implements AutoCloseable {
 			map.put("autoCommit", this.getAutoCommit());
 			map.put("transactionIsolation", getTransactionIsolationName());
 			map.put("state", this.state);
-			map.put("lastHeart", this.lastHeartTime.elapsedTimeMs());
+			map.put("lastHeart", this.elapsedHeartTimeMs());
 			map.put("startTime", new java.sql.Timestamp(this.startTime));
 			map.put("sleepSince", this.sleepSince == null ? null : new java.sql.Timestamp(this.sleepSince));
 			map.put("sql", this.sql);
@@ -280,7 +284,7 @@ public class Session implements AutoCloseable {
 				.setValue(index++, this.getAutoCommit())
 				.setValue(index++, getTransactionIsolationName())
 				.setValue(index++, this.state.name())
-				.setValue(index++, this.lastHeartTime.elapsedTimeMs())
+				.setValue(index++, this.elapsedHeartTimeMs())
 				.setValue(index++, new java.sql.Timestamp(this.startTime))
 				.setValue(index++, this.sleepSince == null ?
 						null : new java.sql.Timestamp(this.sleepSince))
