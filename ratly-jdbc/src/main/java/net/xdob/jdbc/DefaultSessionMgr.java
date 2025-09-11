@@ -20,6 +20,7 @@ public class DefaultSessionMgr implements SessionMgr{
   private final DbContext context;
   private final AtomicBoolean expiredChecking = new AtomicBoolean();
   private final AtomicBoolean leader = new AtomicBoolean();
+	private final AtomicBoolean disabled = new AtomicBoolean();
 
 	public DefaultSessionMgr(DbContext context) {
 		this.context = context;
@@ -46,6 +47,9 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
   public void checkExpiredSessions() {
+		if(disabled.get()){
+			return;
+		}
 		if(!context.getPeerId().equals(context.getLeaderId())){
 			leader.set(false);
 			return;
@@ -57,9 +61,6 @@ public class DefaultSessionMgr implements SessionMgr{
 		}
     if(expiredChecking.compareAndSet(false, true)) {
       try {
-				for (Session session : sessions.values()) {
-					session.checkExpiredResultSets();
-				}
 				List<Session> expiredSessions = sessions.values().stream()
 						.filter(s -> s.elapsedHeartTimeMs()> SESSION_TIMEOUT)
 						.collect(Collectors.toList());
@@ -78,6 +79,11 @@ public class DefaultSessionMgr implements SessionMgr{
 	@Override
 	public boolean isTransaction() {
 		return sessions.values().stream().anyMatch(Session::isTransaction);
+	}
+
+	@Override
+	public void setDisabled(boolean disableCheckExpired) {
+		this.disabled.set(disableCheckExpired);
 	}
 
 

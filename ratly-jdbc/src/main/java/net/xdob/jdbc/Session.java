@@ -36,7 +36,6 @@ public class Session implements AutoCloseable {
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
-	private final Map<String,ResultSetHandler> resultSets = Maps.newConcurrentMap();
 
   public Session(String db, String user, String sessionId, Connection connection, DbContext context) throws SQLException {
 		this.db = db;
@@ -53,40 +52,6 @@ public class Session implements AutoCloseable {
 		}
 		this.context = context;
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
-	}
-
-	public ResultSet getResultSet(String uuid){
-		ResultSetHandler handler = resultSets.get(uuid);
-		if(handler!=null){
-			handler.updateLastAccessTime();
-			return handler.getResultSet();
-		}
-		return null;
-	}
-
-	public void addResultSet(String uuid, ResultSet resultSet){
-		ResultSetHandler handler = new ResultSetHandler(resultSet);
-		resultSets.put(uuid, handler);
-	}
-
-	public void checkExpiredResultSets(){
-		for (String uuid : resultSets.keySet()) {
-			ResultSetHandler handler = resultSets.get(uuid);
-			if(handler.getLastAccessTime().elapsedTimeMs()> RESULTSET_TIMEOUT){
-				try {
-					closeResultSet(uuid);
-				} catch (SQLException e) {
-					LOG.warn("close session error", e);
-				}
-			}
-		}
-	}
-
-	public void closeResultSet(String uuid) throws SQLException {
-		ResultSetHandler removed = resultSets.remove(uuid);
-		if(removed!=null){
-			removed.close();
-		}
 	}
 
 	public boolean updateAppliedIndexToMax(long newIndex) {
@@ -254,10 +219,6 @@ public class Session implements AutoCloseable {
 
 
   public void close() throws Exception {
-		for (String uid : resultSets.keySet()) {
-			closeResultSet(uid);
-		}
-		resultSets.clear();
     if (!connection.isClosed()) {
 			try {
 				rollback(-1);

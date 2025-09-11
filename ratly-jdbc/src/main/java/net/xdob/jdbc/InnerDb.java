@@ -4,13 +4,6 @@ import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.operators.arithmetic.Addition;
-import net.sf.jsqlparser.expression.operators.arithmetic.Subtraction;
-import net.sf.jsqlparser.statement.select.Limit;
-import net.sf.jsqlparser.statement.select.Offset;
-import net.sf.jsqlparser.statement.select.Select;
 import net.xdob.jdbc.sql.*;
 import net.xdob.jdbc.util.*;
 import net.xdob.ratly.io.Digest;
@@ -262,23 +255,15 @@ public class InnerDb implements DbContext {
 
 	private void resultset2(Session session, ResultSet2RequestProto requestProto,  JdbcResponseProto.Builder response) throws SQLException {
 		String uid = requestProto.getUid();
-		ResultSet resultSet = session.getResultSet(uid);
 		ResultSetMethod method = requestProto.getMethod();
 		if(method==ResultSetMethod.close){
-			if(resultSet!=null){
-				session.closeResultSet(uid);
-			}
 			RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
 					.setUid(uid)
 					.setValue(Value.toValueProto(null));
 			response.setRemoteResultSet2(builder);
 		}else if(method==ResultSetMethod.loadData) {
-			if(resultSet==null){
-				SqlRequestProto sqlRequest = requestProto.getSqlRequest();
-				doQuery(session, sqlRequest, response, uid, requestProto.getStart());
-			}else{
-				handleResultSet(response, resultSet, session, uid, 200, requestProto.getStart());
-			}
+			SqlRequestProto sqlRequest = requestProto.getSqlRequest();
+			doQuery(session, sqlRequest, response, uid, requestProto.getStart());
 		}
 	}
 
@@ -397,9 +382,8 @@ public class InnerDb implements DbContext {
 
 		if(StmtType.prepared.equals(sqlRequest.getStmtType())
         ||StmtType.callable.equals(sqlRequest.getStmtType())){
-			CallableStatement stmt = null;
-      try {
-				stmt = session.getConnection().prepareCall(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+      try(CallableStatement stmt = session.getConnection().prepareCall(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+
 				stmt.setQueryTimeout(60);
         List<ParameterProto> paramList = sqlRequest.getParams().getParamList();
         if(!paramList.isEmpty()){
@@ -411,29 +395,21 @@ public class InnerDb implements DbContext {
         }
         ResultSet rs = stmt.executeQuery();
 				rs.setFetchSize(sqlRequest.getFetchSize());
-				handleResultSet(response, rs, session, uid, pageSize, start);
+				handleResultSet(response, rs, uid, pageSize, start);
 			}catch (SQLException e){
-				if(stmt!=null){
-					stmt.close();
-				}
 				Printer4Proto.printText(sqlRequest, s->LOG.info("sqlRequest:{} ", s));
 				LOG.warn("sql:{} executeQuery error.", sql, e);
 				throw e;
 			}
     }else{
-			Statement stmt = null;
-      try{
-				stmt = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+      try(Statement stmt = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)){
 				stmt.setQueryTimeout(60);
         ResultSet rs = stmt.executeQuery(sql);
 
 				rs.setFetchSize(sqlRequest.getFetchSize());
 
-				handleResultSet(response, rs, session, uid, pageSize, start);
+				handleResultSet(response, rs, uid, pageSize, start);
       }catch (SQLException e){
-				if(stmt!=null){
-					stmt.close();
-				}
 				Printer4Proto.printText(sqlRequest, s->LOG.info("sqlRequest:{} ", s));
 				LOG.warn("sql:{} executeQuery error.", sql, e);
 				throw e;
@@ -442,11 +418,10 @@ public class InnerDb implements DbContext {
 
   }
 
-	private void handleResultSet(JdbcResponseProto.Builder response, ResultSet rs, Session session, String uid, int pageSize, int start) throws SQLException {
+	private void handleResultSet(JdbcResponseProto.Builder response, ResultSet rs, String uid, int pageSize, int start) throws SQLException {
 		if(uid==null){
 			uid = UUID.randomUUID().toString();
 		}
-		session.addResultSet(uid, rs);
 		SerialResultSetMetaData metaData = new SerialResultSetMetaData(rs.getMetaData());
 		RemoteResultSet2Proto.Builder builder = RemoteResultSet2Proto.newBuilder()
 				.addAllColumns(metaData.toProto())
@@ -838,73 +813,84 @@ public class InnerDb implements DbContext {
 
 
   public void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException {
-    if(snapshot==null){
-      return;
-    }
+		try {
+			sessionMgr.setDisabled(true);
+			restoreFromSnapshot2(snapshot);
+		} finally {
+			sessionMgr.setDisabled(false);
+		}
+	}
 
-    Stopwatch stopwatch = Stopwatch.createStarted();
-    boolean restoreDb = false;
-    FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
-    if(dbfileInfo!=null) {
-      final File dbFile = dbfileInfo.getPath().toFile();
-      final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
-      if (digest.equals(dbfileInfo.getFileDigest())) {
-        LOG.info("restore DB file snapshot from {}", dbFile.getPath());
-        try {
-          closeDs();
-          Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
-        }finally {
-          openDs();
-        }
-        restoreDb = true;
-      }else{
-        LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
-      }
-    }
+	private void restoreFromSnapshot2(SnapshotInfo snapshot) throws IOException {
+		if(snapshot==null){
+			return;
+		}
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		boolean restoreDb = false;
+		FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
+		if(dbfileInfo!=null) {
+			final File dbFile = dbfileInfo.getPath().toFile();
+			final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
+			if (digest.equals(dbfileInfo.getFileDigest())) {
+				LOG.info("restore DB file snapshot from {}", dbFile.getPath());
+				try {
+					closeDs();
+					Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
+				}finally {
+					openDs();
+				}
+				restoreDb = true;
+			}else{
+				LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
+			}
+		}
 
-    if(!restoreDb){
-      FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
-      if(sqlfileInfo!=null) {
-        final File sqlFile = sqlfileInfo.getPath().toFile();
-        final Digest digest = MD5FileUtil.computeDigestForFile(sqlFile);
-        if (digest.equals(sqlfileInfo.getFileDigest())) {
-          LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
-          try (Connection connection = getConnection();
-               Statement statement = connection.createStatement()) {
-            statement.setQueryTimeout(600);
-            statement.execute("RUNSCRIPT FROM '" + sqlFile.toString() + "'");
-          } catch (SQLException e) {
-            throw new IOException(e);
-          }
-        }else {
-          LOG.warn("DB sql snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
-        }
-      }
-    }
-    sessionMgr.clearSessions();
-    FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
-    if(sessionfileInfo!=null) {
-      final File sessionFile = sessionfileInfo.getPath().toFile();
-      final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
-      if (digest.equals(sessionfileInfo.getFileDigest())) {
-        byte[] bytes = Files.readAllBytes(sessionFile.toPath());
-        N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
-        List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS_KEY);
-        for (SessionData sessionData : sessions) {
-          try {
-						Session session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), this::getConnection);
-						session.setSessionData(sessionData);
+		if(!restoreDb){
+			FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
+			if(sqlfileInfo!=null) {
+				final File sqlFile = sqlfileInfo.getPath().toFile();
+				final Digest digest = MD5FileUtil.computeDigestForFile(sqlFile);
+				if (digest.equals(sqlfileInfo.getFileDigest())) {
+					LOG.info("restore DB sql snapshot from {}", sqlFile.getPath());
+					try (Connection connection = getConnection();
+							 Statement statement = connection.createStatement()) {
+						statement.setQueryTimeout(600);
+						statement.execute("RUNSCRIPT FROM '" + sqlFile.toString() + "'");
 					} catch (SQLException e) {
-            LOG.warn("node {} newSession error.", context.getPeerId(), e);
-          }
-        }
-      }
-    }
-    LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
-  }
+						throw new IOException(e);
+					}
+				}else {
+					LOG.warn("DB sql snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
+				}
+			}
+		}
+		FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
+		if(sessionfileInfo!=null) {
+			final File sessionFile = sessionfileInfo.getPath().toFile();
+			final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
+			if (digest.equals(sessionfileInfo.getFileDigest())) {
+				byte[] bytes = Files.readAllBytes(sessionFile.toPath());
+				N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
+				List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS_KEY);
+				for (SessionData sessionData : sessions) {
+					try {
+						Session session = sessionMgr.getSession(sessionData.getSessionId()).orElse(null);
+						if(session==null) {
+							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), this::getConnection);
+							session.setSessionData(sessionData);
+						}
+						session.updateLastHeartTime();
+					} catch (SQLException e) {
+						LOG.warn("node {} newSession error.", context.getPeerId(), e);
+					}
+				}
+			}
+		}
+		LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
+	}
 
 
-  public void close() {
+	public void close() {
     closeDs();
 
   }

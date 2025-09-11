@@ -17,4 +17,5 @@ public interface SessionMgr {
   void clearSessions();
   void checkExpiredSessions();
 	boolean isTransaction();
+	void setDisabled(boolean disabled);
 }

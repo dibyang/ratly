@@ -58,7 +58,7 @@ public class JdbcConnection implements Connection {
     sessionId.set(openSession());
     LOG.info("open session: {}", sessionId.get());
 		scheduledService = Executors.newScheduledThreadPool(1);
-		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 200, TimeUnit.MILLISECONDS);
+		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 1000, TimeUnit.MILLISECONDS);
 	}
 
 	private void sendHeartBeat() {
