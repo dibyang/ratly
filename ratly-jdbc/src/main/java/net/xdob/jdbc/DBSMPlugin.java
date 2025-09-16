@@ -276,6 +276,14 @@ public class DBSMPlugin implements SMPlugin {
 				String db = jdbcRequest.getDb();
 				InnerDb innerDb = dbMap.get(db);
 				try {
+					if(innerDb==null&&dynamicCreate){
+						OpenSessionProto openSession = jdbcRequest.getOpenSession();
+						String user = openSession.getUser();
+						String password = rsaHelper.decrypt(openSession.getPassword());
+						this.addDbIfAbsent(db, user, password);
+						addDbIfAbsent(dbDefs.get(db));
+						innerDb = dbMap.get(db);
+					}
 					if (innerDb != null) {
 						innerDb.preSession(jdbcRequest, response);
 					} else {
