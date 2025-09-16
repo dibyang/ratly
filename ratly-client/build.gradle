@@ -7,7 +7,9 @@ dependencies {
     implementation "com.google.protobuf:protobuf-java:${protobuf_version}"
     implementation "com.google.protobuf:protobuf-java-util:${protobuf_version}"
     implementation "io.grpc:grpc-netty:${grpc_version}"
-    implementation "io.grpc:grpc-protobuf:${grpc_version}"
+    implementation("io.grpc:grpc-protobuf:${grpc_version}"){
+      exclude group: 'io.grpc', module: 'grpc-protobuf-lite'
+    }
 //    implementation "io.grpc:grpc-stub:${grpc_version}"
 //    implementation "io.grpc:grpc-context:${grpc_version}"
     implementation platform("io.netty:netty-bom:${netty_version}")

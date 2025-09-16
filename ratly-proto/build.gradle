@@ -8,7 +8,9 @@ dependencies {
     implementation("io.grpc:grpc-netty:${grpc_version}"){
         exclude group: 'io.netty'
     } // 或 grpc-okhttp，根据需要选择传输层实现
-    implementation "io.grpc:grpc-protobuf:${grpc_version}"
+    implementation("io.grpc:grpc-protobuf:${grpc_version}"){
+      exclude group: 'io.grpc', module: 'grpc-protobuf-lite'
+    }
     implementation "io.grpc:grpc-stub:${grpc_version}"
     //implementation "io.grpc:grpc-services:${grpc_version}"
     //implementation "io.grpc:protoc-gen-grpc-java:${grpc_version}"
