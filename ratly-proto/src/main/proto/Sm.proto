@@ -35,7 +35,8 @@ message WrapRequestProto{
 
 message WrapReplyProto{
   string type = 1;
-  ErrorProto error = 2;
+  //ErrorProto error = 2;
+  base.Throwable2Proto ex = 3;
   oneof relay{
     bytes body = 10;
     jdbc.JdbcResponseProto jdbc_response = 11;

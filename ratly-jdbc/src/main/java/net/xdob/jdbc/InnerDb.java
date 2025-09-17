@@ -21,8 +21,6 @@ import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.exception.DbErrorException;
 import net.xdob.ratly.server.protocol.TermIndex;
-import net.xdob.ratly.server.raftlog.RaftLog;
-import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
@@ -63,8 +61,6 @@ public class InnerDb implements DbContext {
 
   private final DbsContext context;
 
-  private final RaftLogIndex appliedIndex;
-
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
   private final ClassCache classCache4DPM = new ClassCache();
@@ -75,17 +71,12 @@ public class InnerDb implements DbContext {
     this.dbStore = dbStore;
     this.dbInfo = dbInfo;
     this.context = context;
-    appliedIndex = new RaftLogIndex(getName()+"_DbAppliedIndex", RaftLog.INVALID_LOG_INDEX);
     sessionMgr = new DefaultSessionMgr(this, maxPoolSize);
 
   }
 
   public DbInfo getDbInfo() {
     return dbInfo;
-  }
-
-  public DbInfo getDbState() {
-    return new DbState(dbInfo).setAppliedIndex(getLastPluginAppliedIndex());
   }
 
 	@Override
@@ -159,6 +150,20 @@ public class InnerDb implements DbContext {
     }
   }
 
+	/**
+	 * 获取插件内最早事务的开始索引
+	 */
+	public long getFirstTx(){
+		return sessionMgr.getFirstTx();
+	}
+
+	/**
+	 * 获取插件已结束事务的索引
+	 */
+	public List<Long> getLastEndedTxIndexList(){
+		return sessionMgr.getLastEndedTxIndexList();
+	}
+
 	public void showSessions(List<Map<String, Object>> list) throws SQLException {
 		for (Session session : sessionMgr.getAllSessions()) {
 			list.add(session.toMap());
@@ -166,7 +171,8 @@ public class InnerDb implements DbContext {
 	}
 
 	public boolean killSession(String sessionId) throws SQLException {
-		return sessionMgr.closeSession(sessionId);
+		 this.closeSession(sessionId);
+		 return true;
 	}
 
 	public void heart(String sessionId) throws SQLException {
@@ -501,11 +507,9 @@ public class InnerDb implements DbContext {
         }
         Session session = sessionMgr.newSession(request.getDb(), user, sessionId, this::getConnection);
         response.setSessionId(session.getSessionId());
-        updateAppliedIndexToMax(termIndex.getIndex());
       }else if(connRequest.getType()==ConnRequestType.closeSession){
         String sessionId = request.getSessionId();
-        sessionMgr.closeSession(sessionId);
-        updateAppliedIndexToMax(termIndex.getIndex());
+        sessionMgr.closeSession(sessionId, termIndex.getIndex());
       }else{
         String sessionId = request.getSessionId();
         Session session = sessionMgr.getSession(sessionId)
@@ -523,8 +527,8 @@ public class InnerDb implements DbContext {
 			session.updateAppliedIndexToMax(termIndex.getIndex());
 			try {
 				if (session.isTransaction()) {
+					session.updateTx(termIndex.getIndex());
 					executeUpdate(termIndex, sqlRequest, session, response);
-					updateAppliedIndexToMax(termIndex.getIndex());
 				} else {
 					applyLog4Sql(termIndex, session, sqlRequest, response);
 				}
@@ -540,15 +544,6 @@ public class InnerDb implements DbContext {
     return dataSource.getConnection();
   }
 
-
-  /**
-   * 事务完成更新插件事务阶段性索引
-   * @param newIndex 插件事务阶段性索引
-   */
-  public boolean updateAppliedIndexToMax(long newIndex) {
-    return appliedIndex.updateToMax(newIndex,
-        message -> LOG.debug("updateAppliedIndex {}", message));
-  }
 
 	@Override
 	public ScheduledExecutorService getScheduler() {
@@ -593,14 +588,6 @@ public class InnerDb implements DbContext {
 	public Timestamp getLastPauseTime() {
 		return context.getLastPauseTime();
 	}
-
-	public long getLastPluginAppliedIndex() {
-    if(sessionMgr.isTransaction()) {
-      return appliedIndex.get();
-    }else{
-      return context.getLastAppliedTermIndex().getIndex();
-    }
-  }
 
 
   private void applyLog4Conn(TermIndex termIndex, Session session, ConnRequestProto connRequest, JdbcResponseProto.Builder response) throws SQLException {

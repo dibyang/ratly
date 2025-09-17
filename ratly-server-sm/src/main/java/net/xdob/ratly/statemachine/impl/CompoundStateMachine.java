@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.proto.base.Throwable2Proto;
 import net.xdob.ratly.proto.sm.ErrorProto;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
@@ -29,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 public class CompoundStateMachine extends BaseStateMachine implements SMPluginContext {
   static final Logger LOG = LoggerFactory.getLogger(CompoundStateMachine.class);
@@ -175,14 +177,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 			if(smPlugin!=null) {
 				smPlugin.admin(requestProto, response);
 			}else {
-				response.setError(ErrorProto.newBuilder()
-						.setCode(404)
-						.setMessage("plugin not found:"+ pluginId));
+				throw new IOException("plugin not found:"+ pluginId);
 			}
 		} catch (Exception e) {
-			response.setError(ErrorProto.newBuilder()
-					.setCode(500)
-					.setMessage(e.getMessage()));
+			response.setEx(Proto2Util.toThrowable2Proto(e));
 			LOG.warn("", e);
 		}
 		return CompletableFuture.completedFuture(Message.valueOf(response.build()));
@@ -199,14 +197,10 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       if(smPlugin!=null) {
         smPlugin.query(requestProto, response);
       }else {
-        response.setError(ErrorProto.newBuilder()
-						.setCode(404)
-						.setMessage("plugin not found:"+ pluginId));
+        throw new IOException("plugin not found:"+ pluginId);
       }
     } catch (Exception e) {
-      response.setError(ErrorProto.newBuilder()
-					.setCode(500)
-					.setMessage(e.getMessage()));
+			response.setEx(Proto2Util.toThrowable2Proto(e));
       LOG.warn("", e);
     }
     return CompletableFuture.completedFuture(Message.valueOf(response.build()));
@@ -224,30 +218,16 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         String pluginId = wrapMsgProto.getType();
         SMPlugin smPlugin = pluginMap.get(pluginId);
         if(smPlugin!=null) {
-          //跳过已应用过的日志
-          if(entry.getIndex()<smPlugin.getLastPluginAppliedIndex()){
-            response.setError(ErrorProto.newBuilder()
-								.setCode(302)
-								.setMessage("log skip :"+ entry.getIndex()));
-          }else {
-            smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto, response);
-            updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
-
-          }
+					smPlugin.applyTransaction(TermIndex.valueOf(entry.getTerm(), entry.getIndex()), wrapMsgProto, response);
+					updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
         }else {
-          response.setError(ErrorProto.newBuilder()
-							.setCode(404)
-							.setMessage("plugin not found:"+ pluginId));
+          throw new IOException("plugin not found:"+ pluginId);
         }
       }else{
-        response.setError(ErrorProto.newBuilder()
-						.setCode(302)
-						.setMessage("log skip :"+ entry.getIndex()));
+				LOG.warn("log skip index:{}", entry.getIndex());
       }
     } catch (Exception e) {
-      response.setError(ErrorProto.newBuilder()
-					.setCode(500)
-					.setMessage(e.getMessage()));
+			response.setEx(Proto2Util.toThrowable2Proto(e));
       LOG.warn("", e);
     } finally {
       logEntryRef.release();
@@ -271,16 +251,15 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public long takeSnapshot() throws IOException {
     TermIndex last = null;
-    Properties appliedIndexMap = new Properties();
     try(AutoCloseableLock readLock = readLock()) {
       List<FileInfo> infos = Lists.newArrayList();
-      last = getLastPluginAppliedTermIndex();
+      last = this.getLastAppliedTermIndex();
+			if(last.getIndex()<=0){
+				return 0;
+			}
       for (SMPlugin plugin : pluginMap.values()) {
-        long appliedIndex = plugin.getLastPluginAppliedIndex();
-        LOG.info("plugin {} index={}", plugin.getId(), plugin.getLastPluginAppliedIndex());
-        if(appliedIndex>RaftLog.INVALID_LOG_INDEX){
-          appliedIndexMap.setProperty(plugin.getId(), String.valueOf(appliedIndex));
-        }
+        LOG.info("plugin {} index={}", plugin.getId(), last.getIndex());
+
         List<FileInfo> fileInfos = plugin.takeSnapshot(storage, last);
         if(fileInfos!=null&&!fileInfos.isEmpty()){
           infos.addAll(fileInfos);
@@ -301,7 +280,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
         return last.getIndex();
       }
     }catch (IOException e){
-      if(last!=null){
+      if(last.getIndex()>0){
         storage.cleanupSnapshot(last.getTerm(), last.getIndex());
       }
       throw e;
@@ -310,19 +289,31 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   }
 
   /**
-   * 获取最小插件事务阶段性索引
-   * @return 最大插件事务阶段性索引
+   * 获取最新事务阶段性索引
+   * @return 获取最新事务阶段性索引
    */
   @Override
-  public TermIndex getLastPluginAppliedTermIndex() {
+  public TermIndex getLastTxAppliedTermIndex() {
+		//初始值表示不能做快照
     TermIndex last = TermIndex.INITIAL_VALUE;
-    Long lastPluginAppliedIndex = pluginMap.values().stream()
-        .map(SMPlugin::getLastPluginAppliedIndex)
-        .filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-        .min(Comparator.comparingLong(e->e))
-        .orElse(RaftLog.INVALID_LOG_INDEX);
-    if(lastPluginAppliedIndex>RaftLog.INVALID_LOG_INDEX){
-      last = serverStateSupport.get().getTermIndex(lastPluginAppliedIndex.longValue());
+		long tx = pluginMap.values().stream()
+				.map(SMPlugin::getFirstTx)
+				.filter(e -> e > RaftLog.INVALID_LOG_INDEX)
+				.min(Long::compareTo)
+				.orElse(TermIndex.INITIAL_VALUE.getIndex());
+		List<Long> indexList = pluginMap.values().stream()
+				.flatMap(e -> e.getLastEndedTxIndexList().stream())
+				.filter(e -> e > RaftLog.INVALID_LOG_INDEX)
+				.sorted()
+				.collect(Collectors.toList());
+		long lastEndedTxIndex = 0;
+		for (Long index : indexList) {
+			if(index<tx&&index>lastEndedTxIndex){
+				lastEndedTxIndex = index;
+			}
+		}
+    if(lastEndedTxIndex>TermIndex.INITIAL_VALUE.getIndex()){
+      last = serverStateSupport.get().getTermIndex(lastEndedTxIndex);
     }
     return last;
   }

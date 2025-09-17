@@ -6,7 +6,6 @@ import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
-import net.xdob.ratly.server.exception.DbErrorException;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -345,7 +344,7 @@ class StateMachineUpdater implements Runnable {
 //    return state == State.RUNNING &&
 //        getStateMachineLastAppliedIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
     return state == State.RUNNING &&
-        stateMachine.getLastPluginAppliedTermIndex().getIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
+        stateMachine.getLastAppliedTermIndex().getIndex() - snapshotIndex.get() >= autoSnapshotThreshold;
   }
 
   /**

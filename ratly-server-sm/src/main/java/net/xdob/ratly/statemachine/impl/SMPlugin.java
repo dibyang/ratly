@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public interface SMPlugin extends Closeable {
@@ -51,14 +52,17 @@ public interface SMPlugin extends Closeable {
   }
 
 
-  /**
-   * 获取插件最新的已应用的日志索引，
-   * 用来处理多日志事务，返回INVALID_LOG_INDEX表示该插件不需要阶段性事务(多日志事务)
-   * @see RaftLog#INVALID_LOG_INDEX
-   * @return 插件事务阶段性索引
-   */
-  default long getLastPluginAppliedIndex(){
-    return RaftLog.INVALID_LOG_INDEX;
-  }
-
+	/**
+	 * 获取插件已结束事务的索引列表
+	 */
+	default List<Long> getLastEndedTxIndexList(){
+		return new ArrayList<>();
+	}
+	/**
+	 * 获取插件内最早事务的索引
+	 * @return 插件内最早事务的索引
+	 */
+	default long getFirstTx(){
+		return RaftLog.INVALID_LOG_INDEX;
+	}
 }

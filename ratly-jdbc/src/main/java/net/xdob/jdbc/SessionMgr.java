@@ -15,9 +15,17 @@ public interface SessionMgr {
 
   Optional<Session> getSession(String id);
   List<Session> getAllSessions();
-  boolean closeSession(String sessionId);
+  boolean closeSession(String sessionId, long index);
   void clearSessions();
   void checkExpiredSessions();
 	boolean isTransaction();
 	void setDisabled(boolean disabled);
+	/**
+	 * 获取插件已结束事务的索引列表
+	 */
+	List<Long> getLastEndedTxIndexList();
+	/**
+	 * 获取插件内最早事务的开始索引
+	 */
+	long getFirstTx();
 }

@@ -5,16 +5,19 @@ import net.xdob.jdbc.sql.SerialRow;
 import net.xdob.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
+import net.xdob.ratly.util.function.CheckedConsumer;
+import net.xdob.ratly.util.function.CheckedRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class Session implements AutoCloseable {
+public class Session  {
 	static final Logger LOG = LoggerFactory.getLogger(Session.class);
 	/**
 	 * 生命周期计数时间(单位是毫秒)
@@ -34,6 +37,7 @@ public class Session implements AutoCloseable {
    * 是否处于事务中
    */
   private final AtomicBoolean transaction = new AtomicBoolean(false);
+	private final AtomicLong tx = new AtomicLong(0);
   private State state = State.SLEEP;
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
@@ -142,20 +146,17 @@ public class Session implements AutoCloseable {
 		if (needCommit) {
 			commit(appliedIndex.get());
 		}
-		checkTransaction();
-	}
-
-	/**
-	 * 不自动提交，自动开启事务
-	 */
-	private void checkTransaction() throws SQLException {
 		if (!connection.getAutoCommit()) {
 			beginTx();
 		}
 	}
 
+
+
 	public void beginTx() {
-		transaction.compareAndSet(false, true);
+		if(transaction.compareAndSet(false, true)){
+			tx.set(0);
+		}
 	}
 
 	public boolean getAutoCommit() throws SQLException {
@@ -187,24 +188,28 @@ public class Session implements AutoCloseable {
 		return TransactionIsolation.of(getTransactionIsolation()).name();
 	}
 
+	public void updateTx(long index){
+		this.tx.compareAndSet(0, index);
+	}
+
 
   public void commit(long index) throws SQLException {
-    if(transaction.compareAndSet(true, false)){
-      connection.commit();
-			context.updateAppliedIndexToMax(index);
-			//LOG.info("db {} commit index:{}", db, index);
-    }
-		checkTransaction();
+		endTx(index,  Connection::commit);
 	}
+
+	private void endTx(long index, CheckedConsumer<Connection,SQLException> consumer) throws SQLException {
+		if(transaction.compareAndSet(true, false)){
+			consumer.accept(connection);
+			updateAppliedIndexToMax(index);
+			tx.set(0);
+		}
+		if (!connection.getAutoCommit()) {
+			beginTx();
+		}
+	}
+
 	public void rollback(long index) throws SQLException {
-    if(transaction.compareAndSet(true, false)) {
-      connection.rollback();
-			if(index>=0){
-				context.updateAppliedIndexToMax(index);
-				//LOG.info("db {} rollback index:{}", db, index);
-			}
-    }
-		checkTransaction();
+		endTx(index, Connection::rollback);
 	}
 
 
@@ -220,21 +225,34 @@ public class Session implements AutoCloseable {
     return user;
   }
 
+	public long getTx(){
+		return tx.get();
+	}
+
+	public long getAppliedIndex() {
+		return appliedIndex.get();
+	}
+
+	Optional<SessionInnerMgr> getSessionInnerMgr() {
+		SessionInnerMgr sessionMgr = null;
+		if(context.getSessionMgr() instanceof SessionInnerMgr) {
+			sessionMgr = (SessionInnerMgr) context.getSessionMgr();
+		}
+		return Optional.ofNullable(sessionMgr);
+	}
 
   public void close() throws Exception {
     if (!connection.isClosed()) {
-			try {
-				rollback(-1);
-			} catch (SQLException ignore) {
-			}
       connection.close();
       LOG.info("session connection close id={}", sessionId);
-			context.getSessionMgr().closeSession(this.sessionId);
+			getSessionInnerMgr()
+					.ifPresent(mgr -> mgr.removeSession(this.sessionId));
     }
   }
 
 	public void setSessionData(SessionData sessionData) throws SQLException {
 		this.setAutoCommit(sessionData.isAutoCommit());
+		this.tx.set(sessionData.getTx());
 		this.setTransactionIsolation(sessionData.getTransactionIsolation());
 		this.sleep();
 	}
@@ -244,6 +262,7 @@ public class Session implements AutoCloseable {
 			return new SessionData()
 					.setDb(this.db)
 					.setSessionId(this.sessionId)
+					.setTx(this.tx.get())
 					.setUser(this.user)
 					.setAutoCommit(this.getAutoCommit())
 					.setTransactionIsolation(this.getTransactionIsolation());
@@ -261,6 +280,7 @@ public class Session implements AutoCloseable {
 			map.put("innerId", this.innerId);
 			map.put("user", this.user);
 			map.put("autoCommit", this.getAutoCommit());
+			map.put("tx", this.getTx());
 			map.put("transactionIsolation", getTransactionIsolationName());
 			map.put("state", this.state);
 			map.put("lastHeart", this.elapsedHeartTimeMs());
@@ -282,6 +302,7 @@ public class Session implements AutoCloseable {
 				.setValue(index++, this.innerId)
 				.setValue(index++, this.user)
 				.setValue(index++, this.getAutoCommit())
+				.setValue(index++, this.getTx())
 				.setValue(index++, getTransactionIsolationName())
 				.setValue(index++, this.state.name())
 				.setValue(index++, this.elapsedHeartTimeMs())
@@ -299,6 +320,7 @@ public class Session implements AutoCloseable {
 		metaData.addColumn("inner_id", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("user", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("auto_commit", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
+		metaData.addColumn("tx", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("transaction_isolation", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("state", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("last_heart", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);

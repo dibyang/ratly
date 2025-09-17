@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class DefaultSessionMgr implements SessionMgr{
+public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
   public static final int SESSION_TIMEOUT = 8_000;
 
@@ -109,6 +109,21 @@ public class DefaultSessionMgr implements SessionMgr{
 		}
 	}
 
+	@Override
+	public List<Long> getLastEndedTxIndexList() {
+		return sessions.values().stream().map(Session::getAppliedIndex)
+				.filter(e->e>0)
+				.collect(Collectors.toList());
+	}
+
+	@Override
+	public long getFirstTx() {
+		return sessions.values().stream().map(Session::getTx)
+				.filter(e->e>0)
+				.min(Long::compareTo)
+				.orElse(0L);
+	}
+
 
 	@Override
   public Optional<Session> getSession(String sessionId) {
@@ -122,7 +137,7 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
 
-  private Session removeSession(String sessionId) {
+  public Session removeSession(String sessionId) {
     if (sessionId != null) {
       synchronized (sessions) {
         return sessions.remove(sessionId);
@@ -132,10 +147,16 @@ public class DefaultSessionMgr implements SessionMgr{
   }
 
   @Override
-  public boolean closeSession(String sessionId) {
+  public boolean closeSession(String sessionId, long index) {
     Session session = removeSession(sessionId);
     if(session!=null){
       try {
+				if(session.isTransaction()){
+					try {
+						session.rollback(index);
+					} catch (SQLException ignore) {
+					}
+				}
         session.close();
       } catch (Exception e) {
         LOG.warn("close session error", e);

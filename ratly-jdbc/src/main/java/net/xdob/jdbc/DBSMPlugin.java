@@ -43,6 +43,7 @@ public class DBSMPlugin implements SMPlugin {
   public static final String DBS_JSON = DBS + ".json";
 	public static final String SHOW_SESSION = "show session";
 	public static final String KILL_SESSION = "kill session";
+	public static final String SHOW_SNAPSHOT_INDEX = "show snapshot index";
 
 
 	private Path dbStore;
@@ -161,7 +162,7 @@ public class DBSMPlugin implements SMPlugin {
     }
 
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
-    loadDbs(dbsFile, false);
+    loadDbs(dbsFile);
     for (DbDef dbDef : dbDefs.values()) {
       addDbIfAbsent(dbDef);
     }
@@ -179,7 +180,7 @@ public class DBSMPlugin implements SMPlugin {
     });
   }
 
-  private void loadDbs(File dbsFile, boolean loadAppliedIndex) throws IOException {
+  private void loadDbs(File dbsFile) throws IOException {
     if(dbsFile.exists()&& dbsFile.length()>0){
       Map<String,DbState> dbs = new HashMap<>();
       try(BufferedReader br = new BufferedReader(new InputStreamReader(
@@ -194,9 +195,6 @@ public class DBSMPlugin implements SMPlugin {
           innerDb2.initialize();
           return innerDb2;
         });
-        if (loadAppliedIndex) {
-          innerDb.updateAppliedIndexToMax(dbState.getAppliedIndex());
-        }
       }
     }
   }
@@ -207,15 +205,15 @@ public class DBSMPlugin implements SMPlugin {
 
   private void saveDbs(){
     File dbsFile = this.dbStore.resolve(DBS_JSON).toFile();
-    saveDbsToFile(dbsFile, false);
+    saveDbsToFile(dbsFile);
   }
 
-  private void saveDbsToFile(File dbsFile, boolean saveAppliedIndex) {
+  private void saveDbsToFile(File dbsFile) {
 
     N3Map n3Map = new N3Map();
 
     List<DbInfo> dbStateList = dbMap.values().stream()
-        .map(e->!saveAppliedIndex?e.getDbInfo():e.getDbState())
+        .map(InnerDb::getDbInfo)
         .collect(Collectors.toList());
     n3Map.put(DBS, dbStateList);
     try(BufferedWriter out = new BufferedWriter(
@@ -363,7 +361,7 @@ public class DBSMPlugin implements SMPlugin {
     ArrayList<FileInfo> fileInfos = Lists.newArrayList();
 
     final File snapshotFile =  storage.getSnapshotFile(DBS_JSON, last.getTerm(), last.getIndex());
-    saveDbsToFile(snapshotFile,true);
+    saveDbsToFile(snapshotFile);
     final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
     final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
     fileInfos.add(info);
@@ -391,7 +389,7 @@ public class DBSMPlugin implements SMPlugin {
       if (digest.equals(fileInfo.getFileDigest())) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         if(snapshotFile.exists()){
-          loadDbs(snapshotFile, true);
+          loadDbs(snapshotFile);
         }
         for (InnerDb innerDb : dbMap.values()) {
           innerDb.restoreFromSnapshot(snapshot);
@@ -411,17 +409,20 @@ public class DBSMPlugin implements SMPlugin {
 		this.pauseLastTime.stop();
   }
 
+	@Override
+	public List<Long> getLastEndedTxIndexList() {
+		return dbMap.values().stream()
+				.flatMap(e -> e.getLastEndedTxIndexList().stream())
+				.filter(e->e>0)
+				.collect(Collectors.toList());
+	}
 
-  @Override
-  public long getLastPluginAppliedIndex() {
-    Long lastDbAppliedIndex = dbMap.values().stream()
-        .map(InnerDb::getLastPluginAppliedIndex)
-        .filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-        .min(Comparator.comparingLong(e->e))
-        .orElse(RaftLog.INVALID_LOG_INDEX);
-    if(lastDbAppliedIndex > RaftLog.INVALID_LOG_INDEX){
-      return lastDbAppliedIndex;
-    }
-    return RaftLog.INVALID_LOG_INDEX;
-  }
+	@Override
+	public long getFirstTx() {
+		return dbMap.values().stream()
+				.map(InnerDb::getFirstTx)
+				.filter(e-> e > RaftLog.INVALID_LOG_INDEX)
+				.min(Long::compareTo)
+				.orElse(RaftLog.INVALID_LOG_INDEX);
+	}
 }

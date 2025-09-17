@@ -269,10 +269,10 @@ public interface StateMachine extends Closeable {
   }
 
   /**
-   * 获取最小插件事务阶段性索引
-   * @return 最大插件事务阶段性索引
+   * 获取最新事务阶段性索引
+   * @return 获取最新事务阶段性索引
    */
-  default TermIndex getLastPluginAppliedTermIndex(){
+  default TermIndex getLastTxAppliedTermIndex(){
     return this.getLastAppliedTermIndex();
   }
 
