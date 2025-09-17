@@ -54,11 +54,20 @@ public class JdbcConnection implements Connection {
         TimeDuration.ONE_SECOND);
     builder.setRetryPolicy(retryPolicy);
     builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
-    client = builder.build();
-    sessionId.set(openSession());
-    LOG.info("open session: {}", sessionId.get());
+		try {
+			client = builder.build();
+			open();
+		} catch (SQLException e) {
+			close();
+			throw e;
+		}
 		scheduledService = Executors.newScheduledThreadPool(1);
 		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 500, TimeUnit.MILLISECONDS);
+	}
+
+	private void open() throws SQLException {
+		sessionId.set(openSession());
+		LOG.info("open session: {}", sessionId.get());
 	}
 
 	private void sendHeartBeat() {
