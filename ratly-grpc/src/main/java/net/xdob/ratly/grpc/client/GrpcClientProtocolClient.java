@@ -63,19 +63,17 @@ public class GrpcClientProtocolClient implements Closeable {
 
   private final AtomicReference<AsyncStreamObservers> unorderedStreamObservers = new AtomicReference<>();
   private final MetricClientInterceptor metricClientInterceptor;
-	private final int asyncExecutorThreadPoolSize;
-	private final int asyncExecutorThreadPoolMax;
-	private ExecutorService grpcClientExecutor;
+	private final RaftProperties properties;
 
 	GrpcClientProtocolClient(ClientId id, RaftPeer target, RaftProperties properties,
       GrpcTlsConfig adminTlsConfig, GrpcTlsConfig clientTlsConfig) {
     this.name = JavaUtils.memoize(() -> id + "->" + target.getId());
     this.target = target;
+		this.properties = properties;
     final SizeInBytes flowControlWindow = GrpcConfigKeys.flowControlWindow(properties, LOG::debug);
     final SizeInBytes maxMessageSize = GrpcConfigKeys.messageSizeMax(properties, LOG::debug);
     metricClientInterceptor = new MetricClientInterceptor(getName());
-		asyncExecutorThreadPoolSize = GrpcConfigKeys.Client.getAsyncExecutorThreadPoolSize(properties);
-		asyncExecutorThreadPoolMax = GrpcConfigKeys.Client.getAsyncExecutorThreadPoolMAX(properties);
+
 		final String clientAddress = Optional.ofNullable(target.getClientAddress())
         .filter(x -> !x.isEmpty()).orElse(target.getAddress());
     final String adminAddress = Optional.ofNullable(target.getAdminAddress())
@@ -119,16 +117,10 @@ public class GrpcClientProtocolClient implements Closeable {
     } else {
       channelBuilder.negotiationType(NegotiationType.PLAINTEXT);
     }
-		grpcClientExecutor = new ThreadPoolExecutor(asyncExecutorThreadPoolSize,
-				asyncExecutorThreadPoolMax,
-				0L, TimeUnit.MILLISECONDS,
-				new LinkedBlockingQueue<Runnable>(),
-				ThreadUtil.getThreadFactory("grpc-client-executor" + "-%d", true));
 
 		return channelBuilder.flowControlWindow(flowControlWindow.getSizeInt())
         .maxInboundMessageSize(maxMessageSize.getSizeInt())
         .intercept(metricClientInterceptor)
-				.executor(grpcClientExecutor)
         .build();
   }
 
@@ -145,8 +137,6 @@ public class GrpcClientProtocolClient implements Closeable {
       GrpcUtil.shutdownManagedChannel(adminChannel);
     }
     metricClientInterceptor.close();
-		grpcClientExecutor.shutdown();
-
   }
 
   RaftClientReplyProto groupAdd(GroupManagementRequestProto request) throws IOException {

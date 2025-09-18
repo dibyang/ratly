@@ -57,7 +57,7 @@ public interface Concurrents3 {
     return runnable -> {
       final int id = numThread.incrementAndGet();
       final Thread t = new Thread(runnable);
-      t.setName(namePrefix + "-thread" + id);
+      t.setName(namePrefix + "-t" + id);
       return t;
     };
   }

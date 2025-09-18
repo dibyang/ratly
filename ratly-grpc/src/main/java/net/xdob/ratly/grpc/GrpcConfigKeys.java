@@ -161,27 +161,6 @@ public interface GrpcConfigKeys {
       parameters.put(TLS_CONF_PARAMETER, conf, TLS_CONF_CLASS);
     }
 
-		String ASYNC_EXECUTOR_THREAD_POOL_SIZE_KEY = PREFIX + ".async.executor.thread.pool.size";
-		int ASYNC_EXECUTOR_THREAD_POOL_SIZE_DEFAULT = 6;
-		static int getAsyncExecutorThreadPoolSize(RaftProperties properties) {
-			return getInt(properties::getInt, ASYNC_EXECUTOR_THREAD_POOL_SIZE_KEY,
-					ASYNC_EXECUTOR_THREAD_POOL_SIZE_DEFAULT, getDefaultLog(),
-					requireMin(2), requireMax(256));
-		}
-		static void setAsyncExecutorThreadPoolSize(RaftProperties properties, int port) {
-			setInt(properties::setInt, ASYNC_EXECUTOR_THREAD_POOL_SIZE_KEY, port);
-		}
-
-		String ASYNC_EXECUTOR_THREAD_POOL_MAX_KEY = PREFIX + ".async.executor.thread.pool.max";
-		int ASYNC_EXECUTOR_THREAD_POOL_MAX_DEFAULT = 10;
-		static int getAsyncExecutorThreadPoolMAX(RaftProperties properties) {
-			return getInt(properties::getInt, ASYNC_EXECUTOR_THREAD_POOL_MAX_KEY,
-					ASYNC_EXECUTOR_THREAD_POOL_MAX_DEFAULT, getDefaultLog(),
-					requireMin(6), requireMax(65536));
-		}
-		static void setAsyncExecutorThreadPoolMAX(RaftProperties properties, int port) {
-			setInt(properties::setInt, ASYNC_EXECUTOR_THREAD_POOL_MAX_KEY, port);
-		}
   }
 
   interface Server {
@@ -236,6 +215,7 @@ public interface GrpcConfigKeys {
     static void setAsyncRequestThreadPoolSize(RaftProperties properties, int port) {
       setInt(properties::setInt, ASYNC_REQUEST_THREAD_POOL_SIZE_KEY, port);
     }
+
 
     String LEADER_OUTSTANDING_APPENDS_MAX_KEY = PREFIX + ".leader.outstanding.appends.max";
     int LEADER_OUTSTANDING_APPENDS_MAX_DEFAULT = 8;

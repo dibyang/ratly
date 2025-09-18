@@ -4,7 +4,6 @@ import net.xdob.jdbc.exception.DatabaseAlreadyClosedException;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
-import net.xdob.ratly.grpc.GrpcFactory;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
@@ -53,7 +52,7 @@ public class JdbcConnection implements Connection {
     RetryPolicy retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(20,
         TimeDuration.ONE_SECOND);
     builder.setRetryPolicy(retryPolicy);
-    builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
+		builder.setParameters(new Parameters());
 		try {
 			client = builder.build();
 			open();

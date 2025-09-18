@@ -768,9 +768,8 @@ public class InnerDb implements DbContext {
     }
     Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sqlFile);
     sqlFileInfo.setFileDigest(digest);
-    Digest digest2 = MD5FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
-    dbFileInfo.setFileDigest(digest2);
-    LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
+		computeAndSaveDigestForFile(dbFileInfo);
+		LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
   }
 
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
@@ -806,13 +805,17 @@ public class InnerDb implements DbContext {
 
 		FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null);
 		infos.add(dbFileInfo);
-//    生成sql快照
-		File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
-		FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
-		infos.add(sqlFileInfo);
 		context.getScheduler().submit(()->{
-			takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
+			computeAndSaveDigestForFile(dbFileInfo);
 		});
+
+//    生成sql快照
+//		File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
+//		FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
+//		infos.add(sqlFileInfo);
+//		context.getScheduler().submit(()->{
+//			takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
+//		});
 		File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
 		List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
 				.map(Session::toSessionData)
@@ -825,6 +828,11 @@ public class InnerDb implements DbContext {
 		infos.add(getFileInfo(sessionFile));
 		LOG.info("{} Taking a DB snapshot, use time:{}", getName(), stopwatch);
 		return infos;
+	}
+
+	private void computeAndSaveDigestForFile(FileInfo dbFileInfo) {
+		Digest digest2 = MD5FileUtil.computeAndSaveDigestForFile(dbFileInfo.getPath().toFile());
+		dbFileInfo.setFileDigest(digest2);
 	}
 
 

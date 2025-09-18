@@ -1,6 +1,7 @@
 
 package net.xdob.ratly.grpc;
 
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import net.xdob.ratly.protocol.exceptions.ServerNotReadyException;
 import net.xdob.ratly.protocol.exceptions.TimeoutIOException;
@@ -201,6 +202,15 @@ public interface GrpcUtil {
       return trailers;
     }
   }
+
+	/**
+	 * 关闭线程池
+	 */
+	static void shutdownExecutorService(ExecutorService executorService) {
+		if(executorService!=null&&!executorService.isShutdown()){
+			executorService.shutdown();
+		}
+	}
 
   /**
    * Tries to gracefully shut down the managed channel. Falls back to forceful shutdown if

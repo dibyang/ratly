@@ -154,12 +154,12 @@ public final class GrpcServicesImpl
           requestTimeoutDuration, serverTlsConfig, separateHeartbeatChannel);
     }
 
-    private ExecutorService newExecutor() {
+    private ExecutorService newRequestExecutor() {
       final RaftProperties properties = server.getProperties();
       return Concurrents3.newThreadPoolWithMax(
           GrpcConfigKeys.Server.asyncRequestThreadPoolCached(properties),
           GrpcConfigKeys.Server.asyncRequestThreadPoolSize(properties),
-          server.getId() + "-request-");
+          server.getId() + "-req");
     }
 
     private GrpcClientProtocolService newGrpcClientProtocolService(
@@ -282,7 +282,7 @@ public final class GrpcServicesImpl
   private GrpcServicesImpl(Builder b) {
     super(b.server::getId, id -> new PeerProxyMap<>(id.toString(), b::newGrpcServerProtocolClient));
 
-    this.executor = b.newExecutor();
+    this.executor = b.newRequestExecutor();
     this.clientProtocolService = b.newGrpcClientProtocolService(executor, zeroCopyMetrics);
     this.serverInterceptor = b.newMetricServerInterceptor();
     final Server server = b.newServer(clientProtocolService, zeroCopyMetrics, serverInterceptor);

@@ -17,11 +17,13 @@ import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtoco
 import net.xdob.ratly.proto.grpc.RaftServerProtocolServiceGrpc.RaftServerProtocolServiceStub;
 import net.xdob.ratly.protocol.RaftPeer;
 import io.netty.handler.ssl.SslContextBuilder;
+import net.xdob.ratly.util.Concurrents3;
 import net.xdob.ratly.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 这是一个支持向 raft 环流式传输数据的 RaftClient 实现。
@@ -80,7 +82,8 @@ public class GrpcServerProtocolClient implements Closeable {
       channelBuilder.negotiationType(NegotiationType.PLAINTEXT);
     }
     channelBuilder.disableRetry();
-    return channelBuilder.flowControlWindow(flowControlWindow).build();
+
+		return channelBuilder.flowControlWindow(flowControlWindow).build();
   }
 
   @Override
