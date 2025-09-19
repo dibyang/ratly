@@ -1,9 +1,11 @@
 package net.xdob.jdbc;
 
+import com.alibaba.druid.sql.ast.SQLStatement;
+import com.alibaba.druid.sql.ast.statement.SQLBeginStatement;
+import com.alibaba.druid.sql.ast.statement.SQLShowSessionStatement;
 import com.google.common.base.Stopwatch;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import net.sf.jsqlparser.JSQLParserException;
 import net.xdob.jdbc.exception.AuthorizationFailedException;
 import net.xdob.jdbc.exception.TooManySessionException;
 import net.xdob.jdbc.sql.*;
@@ -109,8 +111,8 @@ public class InnerDb implements DbContext {
         LOG.info("initialize db dbPath={}", dbPath);
         // 基于存储目录初始化
         String url = "jdbc:h2:file:" + dbPath
-            + ";AUTO_SERVER=TRUE;TRACE_LEVEL_FILE=3"
-            + ";QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
+            + ";AUTO_SERVER=TRUE";
+            //+ ";TRACE_LEVEL_FILE=3;QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
 
 
         dsConfig.setPoolName(this.context.getPeerId()+"$"+getName());
@@ -178,7 +180,7 @@ public class InnerDb implements DbContext {
 	public void heart(String sessionId) throws SQLException {
 
 		sessionMgr.getSession(sessionId)
-				.ifPresent(Session::updateLifeCount);
+				.ifPresent(Session::heartBeat);
 	}
 
 	public void preSession(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
@@ -219,7 +221,7 @@ public class InnerDb implements DbContext {
 				});
 				throw new DatabaseAlreadyClosedException(sessionId);
 			}else {
-				session.updateLifeCount();
+				session.heartBeat();
 				query(request, session, response);
 			}
   }
@@ -268,8 +270,8 @@ public class InnerDb implements DbContext {
 				try {
 					String sql = sqlRequest.getSql();
 					session.running(sql);
-					net.sf.jsqlparser.statement.Statement statement = parseSql(sql);
-					if(statement instanceof ShowSessionStatement){
+					SQLStatement statement = parseSql(sql);
+					if(statement instanceof SQLShowSessionStatement){
 						SerialResultSet resultSet = new SerialResultSet(Session.buildSessionResultSetMetaData());
 						for (Session s : sessionMgr.getAllSessions()) {
 							resultSet.addRows(s.toSerialRow());
@@ -311,11 +313,14 @@ public class InnerDb implements DbContext {
 	private List<SerialRow> getSerialRows4FetchSize(ResultSet resultSet, int start, int pageSize) throws SQLException {
 
 		List<SerialRow> rows = new ArrayList<>();
-		resultSet.absolute(start);
+		int rowNum = 0;
 		while (resultSet.next()
 		&& rows.size()<pageSize) {
-			SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
-			rows.add(row);
+			rowNum++;
+			if(rowNum>start){
+				SerialRow row = getRow(resultSet.getMetaData().getColumnCount(), resultSet);
+				rows.add(row);
+			}
 		}
 		return rows;
 	}
@@ -414,7 +419,7 @@ public class InnerDb implements DbContext {
 
 		if(StmtType.prepared.equals(sqlRequest.getStmtType())
         ||StmtType.callable.equals(sqlRequest.getStmtType())){
-      try(CallableStatement stmt = session.getConnection().prepareCall(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+      try(CallableStatement stmt = session.getConnection().prepareCall(sql)) {
 
 				stmt.setQueryTimeout(60);
         List<ParameterProto> paramList = sqlRequest.getParams().getParamList();
@@ -434,7 +439,7 @@ public class InnerDb implements DbContext {
 				throw e;
 			}
     }else{
-      try(Statement stmt = session.getConnection().createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)){
+      try(Statement stmt = session.getConnection().createStatement()){
 				stmt.setQueryTimeout(60);
         ResultSet rs = stmt.executeQuery(sql);
 
@@ -514,7 +519,7 @@ public class InnerDb implements DbContext {
         String sessionId = request.getSessionId();
         Session session = sessionMgr.getSession(sessionId)
             .orElseThrow(()->new DatabaseAlreadyClosedException(sessionId));
-				session.updateLifeCount();
+				session.heartBeat();
 				session.updateAppliedIndexToMax(termIndex.getIndex());
         applyLog4Conn(termIndex, session, connRequest, response);
       }
@@ -523,7 +528,7 @@ public class InnerDb implements DbContext {
 			String sessionId = request.getSessionId();
 			Session session = sessionMgr.getSession(sessionId)
 					.orElseThrow(() -> new DatabaseAlreadyClosedException(sessionId));
-			session.updateLifeCount();
+			session.heartBeat();
 			session.updateAppliedIndexToMax(termIndex.getIndex());
 			try {
 				if (session.isTransaction()) {
@@ -629,7 +634,7 @@ public class InnerDb implements DbContext {
 				|| StmtType.callable.equals(request.getStmtType())) {
 			String sql = request.getSql();
 			//LOG.info("execute sql:{}", sql);
-			net.sf.jsqlparser.statement.Statement statement = parseSql(sql);
+			SQLStatement statement = parseSql(sql);
 			if(isRollback(statement)){
 				session.rollback(termIndex.getIndex());
 			}else if(isCommit( statement)){
@@ -675,16 +680,16 @@ public class InnerDb implements DbContext {
 
 	}
 
-	private boolean isDdl(net.sf.jsqlparser.statement.Statement statement) {
-		return SQLStatementUtil.isDDL( statement);
+	private boolean isDdl(SQLStatement stmt) {
+		return SQLUtil2.getSqlType( stmt).isDDL();
 	}
 
-	private boolean isCommit(net.sf.jsqlparser.statement.Statement statement) {
-		return statement instanceof net.sf.jsqlparser.statement.Commit;
+	private boolean isCommit(SQLStatement stmt) {
+		return SQLUtil2.isCommit( stmt);
 	}
 
-	private boolean isRollback(net.sf.jsqlparser.statement.Statement statement) {
-		return statement instanceof net.sf.jsqlparser.statement.RollbackStatement;
+	private boolean isRollback(SQLStatement stmt) {
+		return SQLUtil2.isRollback( stmt);
 	}
 
 	private void setParams(PreparedStatement ps, Parameters paramList) throws SQLException {
@@ -695,12 +700,8 @@ public class InnerDb implements DbContext {
     }
   }
 
-	private net.sf.jsqlparser.statement.Statement parseSql(String sql) throws SQLException {
-		try {
-			return CustomSqlParser.parse(sql);
-		} catch (JSQLParserException e) {
-			throw new SQLException("sql parse error. sql="+sql, e);
-		}
+	private SQLStatement parseSql(String sql) throws SQLException {
+		return SqlParserWithLRUCache.parse(sql);
 	}
 
 
@@ -714,7 +715,7 @@ public class InnerDb implements DbContext {
       if (!sqlRequest.getBatchSqlList().isEmpty()) {
 				session.running("execute Batch sql");
         for (String sql : sqlRequest.getBatchSqlList()) {
-					net.sf.jsqlparser.statement.Statement statement = parseSql(sql);
+					SQLStatement statement = parseSql(sql);
 					if (isRollback(statement)
 							|| isCommit(statement)
 							|| isDdl(statement)) {
@@ -733,7 +734,7 @@ public class InnerDb implements DbContext {
 				String sql = sqlRequest.getSql();
 				//LOG.info("execute sql:{}", sql);
 				session.running(sqlRequest.getSql());
-				net.sf.jsqlparser.statement.Statement statement = parseSql(sql);
+				SQLStatement statement = parseSql(sql);
 				if(isRollback(statement)){
 					session.rollback(termIndex.getIndex());
 				}else if(isCommit( statement)){
@@ -741,7 +742,7 @@ public class InnerDb implements DbContext {
 				}else {
 					long updateCount = s.executeLargeUpdate(sqlRequest.getSql());
 					response.setUpdateCount(updateCount);
-					if(statement instanceof BeginStatement){
+					if(statement instanceof SQLBeginStatement){
 						session.beginTx();
 					}
 					if(isDdl(statement)){
@@ -786,7 +787,7 @@ public class InnerDb implements DbContext {
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		try(Connection connection = getConnection();
 				Statement stmt = connection.createStatement()){
-			stmt.setQueryTimeout(600);
+			stmt.setQueryTimeout(60);
 			//快照前让数据落盘  CHECKPOINT SYNC
 			stmt.executeUpdate("checkpoint sync");
 		}catch (SQLException e){
@@ -909,7 +910,7 @@ public class InnerDb implements DbContext {
 							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), this::getConnection);
 							session.setSessionData(sessionData);
 						}
-						session.updateLifeCount();
+						session.heartBeat();
 					} catch (SQLException e) {
 						LOG.warn("node {} newSession error.", context.getPeerId(), e);
 					}

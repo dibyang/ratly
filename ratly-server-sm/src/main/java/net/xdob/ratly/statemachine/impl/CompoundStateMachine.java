@@ -29,6 +29,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -45,7 +46,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   private MemoizedSupplier<ServerStateSupport> serverStateSupport;
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
   private RaftPeerId peerId;
-	private RaftPeerId leaderId = null;
+	private final AtomicReference<RaftPeerId> leaderId = new AtomicReference<>(RaftPeerId.EMPTY);
 	private RaftClient raftClient;
 
 	private volatile CompletableFuture<RaftPeerId> leaderChangedFuture = new CompletableFuture<>();
@@ -136,7 +137,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
   @Override
   public void changeToCandidate(RaftGroupMemberId groupMemberId) {
-		leaderId = null;
+		leaderId.set(RaftPeerId.EMPTY);
     LOG.info("changeToCandidate: groupMemberId={}", groupMemberId);
     for (LeaderChangedListener listener : leaderChangedListeners) {
       try {
@@ -150,7 +151,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
     LOG.info("leaderChanged: groupMemberId={}, newLeaderId={}", groupMemberId.getPeerId(), newLeaderId);
-		leaderId = newLeaderId;
+		leaderId.set(newLeaderId);
 		isLeader = groupMemberId.getPeerId().isOwner(newLeaderId);
     scheduler.submit(()->fireLeaderStateEvent(isLeader));
     leaderChangedFuture.complete(newLeaderId);
@@ -336,7 +337,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
 	@Override
 	public RaftPeerId getLeaderId() {
-		return this.leaderId;
+		return this.leaderId.get();
 	}
 
 	@Override

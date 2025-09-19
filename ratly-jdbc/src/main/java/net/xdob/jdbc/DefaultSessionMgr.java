@@ -52,12 +52,12 @@ public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
     }
   }
 
-	public void lifeCountSessions() {
+	public void incrementTime() {
 		if (disabled.get()||!leader.get()) {
 			return;
 		}
 		for (Session session : sessions.values()) {
-			session.incrementLifeCount();
+			session.incrementTime();
 		}
 	}
 
@@ -71,11 +71,12 @@ public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
 		}
 		if(leader.compareAndSet(false, true)){
 			for (Session session : sessions.values()) {
-				session.updateLifeCount();
+				session.heartBeat();
 			}
-		}else{
-			this.lifeCountSessions();
+			return;
 		}
+
+		this.incrementTime();
 
     if(expiredChecking.compareAndSet(false, true)) {
       try {
@@ -104,7 +105,7 @@ public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
 		this.disabled.set(disabled);
 		if(!this.disabled.get()){
 			for (Session session : sessions.values()) {
-				session.updateLifeCount();
+				session.heartBeat();
 			}
 		}
 	}

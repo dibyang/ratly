@@ -6,7 +6,6 @@ import net.xdob.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.util.function.CheckedConsumer;
-import net.xdob.ratly.util.function.CheckedRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +29,7 @@ public class Session  {
 
   private final Connection connection;
 
-	private final AtomicLong lifeCount = new AtomicLong(0);
+	private final AtomicLong sinceLastHeartbeat = new AtomicLong(0);
 	private final DbContext context;
 	private final RaftLogIndex appliedIndex;
   /**
@@ -97,16 +96,16 @@ public class Session  {
 	}
 
 
-	public long incrementLifeCount() {
-		return lifeCount.addAndGet(LIFE_TIME);
+	public long incrementTime() {
+		return sinceLastHeartbeat.addAndGet(LIFE_TIME);
 	}
 
-	public void updateLifeCount() {
-		lifeCount.set(0);
+	public void heartBeat() {
+		sinceLastHeartbeat.set(0);
 	}
 
 	public long elapsedHeartTimeMs() {
-		return lifeCount.get();
+		return sinceLastHeartbeat.get();
 	}
 
 	public Savepoint setSavepoint(String name) throws SQLException {

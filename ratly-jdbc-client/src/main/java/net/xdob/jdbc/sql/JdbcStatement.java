@@ -1,9 +1,7 @@
 package net.xdob.jdbc.sql;
 
-import net.sf.jsqlparser.JSQLParserException;
-import net.xdob.jdbc.util.CustomSqlParser;
-import net.xdob.jdbc.util.JSqlParserWithLRUCache;
-import net.xdob.jdbc.util.SQLStatementUtil;
+import com.alibaba.druid.sql.ast.SQLStatement;
+import net.xdob.jdbc.util.SQLUtil2;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.WrapReplyProto;
 import net.xdob.ratly.proto.sm.WrapRequestProto;
@@ -13,7 +11,6 @@ import net.xdob.ratly.util.Proto2Util;
 import org.h2.message.DbException;
 
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -277,12 +274,8 @@ public class JdbcStatement implements Statement {
   }
 
   protected boolean isModification(String sql) throws SQLException {
-		try{
-			net.sf.jsqlparser.statement.Statement statement = JSqlParserWithLRUCache.parse(sql);
-			return SQLStatementUtil.isModification(statement);
-		}catch (JSQLParserException e) {
-			throw new SQLException("sql parse error. sql="+sql, e);
-		}
+		SQLStatement statement = SQLUtil2.parse(sql);
+		return SQLUtil2.isModification(statement);
   }
 
   @Override

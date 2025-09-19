@@ -23,6 +23,8 @@ public final class RaftPeerId {
    */
   private static final String VIRTUAL_PREFIX = "vn_";
 
+	public static final RaftPeerId EMPTY = RaftPeerId.valueOf("");
+
   public static RaftPeerId valueOf(ByteString id) {
     final RaftPeerId cached = BYTE_STRING_MAP.get(id);
     if (cached != null) {
