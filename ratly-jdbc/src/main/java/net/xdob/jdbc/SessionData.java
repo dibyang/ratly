@@ -4,8 +4,6 @@ public class SessionData {
 	private String db;
 	private String sessionId;
 	private String user;
-	private boolean autoCommit;
-	private int transactionIsolation;
 	private long tx;
 
 	public String getDb() {
@@ -35,23 +33,6 @@ public class SessionData {
 		return this;
 	}
 
-	public boolean isAutoCommit() {
-		return autoCommit;
-	}
-
-	public SessionData setAutoCommit(boolean autoCommit) {
-		this.autoCommit = autoCommit;
-		return this;
-	}
-
-	public int getTransactionIsolation() {
-		return transactionIsolation;
-	}
-
-	public SessionData setTransactionIsolation(int transactionIsolation) {
-		this.transactionIsolation = transactionIsolation;
-		return this;
-	}
 
 	public long getTx() {
 		return tx;

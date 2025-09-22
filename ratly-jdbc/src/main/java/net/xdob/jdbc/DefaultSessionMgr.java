@@ -5,6 +5,7 @@ import net.xdob.jdbc.exception.SessionIdAlreadyExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
@@ -12,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
+public class DefaultSessionMgr implements SessionInnerMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
   public static final int SESSION_TIMEOUT = 8_000;
 
@@ -44,7 +45,7 @@ public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
       if (session != null) {
         throw new SessionIdAlreadyExistsException(sessionId);
       }
-      session = new Session(db, user, sessionId, connSupplier.getConnection(), context);
+      session = new Session(db, user, sessionId, connSupplier.getConnection(), this);
       sessions.put(session.getSessionId(), session);
       LOG.info("node {} new session={}", context.getPeerId(), sessionId);
 
@@ -179,4 +180,7 @@ public class DefaultSessionMgr implements SessionMgr, SessionInnerMgr{
   }
 
 
+	@Override
+	public void close() {
+	}
 }

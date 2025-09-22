@@ -1,10 +1,11 @@
 package net.xdob.jdbc;
 
+import java.io.Closeable;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-public interface SessionMgr {
+public interface SessionMgr extends AutoCloseable {
 
 	int getAvailableSessionCount();
   /**

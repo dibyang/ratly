@@ -27,7 +27,6 @@ import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.statemachine.SnapshotInfo;
 import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.util.*;
-import net.xdob.ratly.util.Timestamp;
 import org.h2.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class InnerDb implements DbContext {
+public class InnerDb implements DbContext, AutoCloseable {
   static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
 
   public static final String SESSIONS_KEY = "sessions";
@@ -56,7 +55,7 @@ public class InnerDb implements DbContext {
 
   private final HikariConfig dsConfig = new HikariConfig();
   private volatile HikariDataSource dataSource = null;
-  private final DefaultSessionMgr sessionMgr;
+  private DefaultSessionMgr sessionMgr;
 
   private final Path dbStore;
   private final DbInfo dbInfo;
@@ -555,10 +554,6 @@ public class InnerDb implements DbContext {
 		return context.getScheduler();
 	}
 
-	@Override
-	public SessionMgr getSessionMgr() {
-		return sessionMgr;
-	}
 
 	@Override
 	public void closeSession(String sessionId) {
@@ -587,11 +582,6 @@ public class InnerDb implements DbContext {
 		} catch (Exception e) {
 			LOG.warn("close session error", e);
 		}
-	}
-
-	@Override
-	public Timestamp getLastPauseTime() {
-		return context.getLastPauseTime();
 	}
 
 
@@ -922,7 +912,13 @@ public class InnerDb implements DbContext {
 
 
 	public void close() {
-    closeDs();
+		try {
+			closeDs();
+			sessionMgr.close();
+			sessionMgr = null;
+		} catch (Exception e) {
+			LOG.warn("{} close error", getName(), e);
+		}
 
   }
 

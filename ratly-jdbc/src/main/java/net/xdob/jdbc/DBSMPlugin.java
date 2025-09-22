@@ -190,12 +190,20 @@ public class DBSMPlugin implements SMPlugin {
         dbStates.forEach(dbState -> dbs.put(dbState.getName(), dbState));
       }
       for (DbState dbState : dbs.values()) {
-        InnerDb innerDb = dbMap.computeIfAbsent(dbState.getName(), n -> {
+        dbMap.computeIfAbsent(dbState.getName(), n -> {
           InnerDb innerDb2 = new InnerDb(dbCache, dbState.toDbInfo(), dbsContext);
           innerDb2.initialize();
           return innerDb2;
         });
       }
+			for (String name : dbMap.keySet()) {
+				if(!dbs.containsKey( name)){
+					InnerDb removed = dbMap.remove(name);
+					if(removed!=null){
+						removed.close();
+					}
+				}
+			}
     }
   }
 

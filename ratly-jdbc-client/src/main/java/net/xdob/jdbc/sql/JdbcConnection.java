@@ -43,6 +43,7 @@ public class JdbcConnection implements Connection {
 	public JdbcConnection(JdbcConnectionInfo ci) throws SQLException {
 		this.url = ci.getUrl();
     this.ci = ci;
+		scheduledService = Executors.newScheduledThreadPool(1);
     RaftProperties raftProperties = new RaftProperties();
     final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ci.getGroup()),
         ci.getPeers());
@@ -60,7 +61,7 @@ public class JdbcConnection implements Connection {
 			close();
 			throw e;
 		}
-		scheduledService = Executors.newScheduledThreadPool(1);
+
 		scheduledService.scheduleWithFixedDelay(this::sendHeartBeat, 200, 500, TimeUnit.MILLISECONDS);
 	}
 
@@ -274,7 +275,9 @@ public class JdbcConnection implements Connection {
 
   @Override
   public void close() throws SQLException {
-		scheduledService.shutdown();
+		if(scheduledService!=null){
+			scheduledService.shutdown();
+		}
 		sessionId.getAndUpdate(s->{
 			if(s!=null) {
 				try {

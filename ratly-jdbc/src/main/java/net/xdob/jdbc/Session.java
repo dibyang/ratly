@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Session  {
 	static final Logger LOG = LoggerFactory.getLogger(Session.class);
@@ -30,7 +31,7 @@ public class Session  {
   private final Connection connection;
 
 	private final AtomicLong sinceLastHeartbeat = new AtomicLong(0);
-	private final DbContext context;
+	private final AtomicReference<SessionInnerMgr> sessionMgrRef = new AtomicReference<>();
 	private final RaftLogIndex appliedIndex;
   /**
    * 是否处于事务中
@@ -42,11 +43,12 @@ public class Session  {
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
 
-  public Session(String db, String user, String sessionId, Connection connection, DbContext context) throws SQLException {
+  public Session(String db, String user, String sessionId, Connection connection, SessionInnerMgr sessionMgr) throws SQLException {
 		this.db = db;
 		this.user = user;
 		this.sessionId = sessionId;
 		this.connection = connection;
+		this.sessionMgrRef.set(sessionMgr);
 		try(Statement st = connection.createStatement();
 				ResultSet rs = st.executeQuery("select session_id();")){
 			if(rs.next()) {
@@ -55,7 +57,6 @@ public class Session  {
 				throw new SQLException("get session id error");
 			}
 		}
-		this.context = context;
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
 	}
 
@@ -232,42 +233,31 @@ public class Session  {
 		return appliedIndex.get();
 	}
 
-	Optional<SessionInnerMgr> getSessionInnerMgr() {
-		SessionInnerMgr sessionMgr = null;
-		if(context.getSessionMgr() instanceof SessionInnerMgr) {
-			sessionMgr = (SessionInnerMgr) context.getSessionMgr();
-		}
-		return Optional.ofNullable(sessionMgr);
-	}
 
   public void close() throws Exception {
     if (!connection.isClosed()) {
       connection.close();
       LOG.info("session connection close id={}", sessionId);
-			getSessionInnerMgr()
-					.ifPresent(mgr -> mgr.removeSession(this.sessionId));
+			sessionMgrRef.updateAndGet(m -> {
+				if(m!=null){
+					m.removeSession(sessionId);
+				}
+				return null;
+			});
     }
   }
 
 	public void setSessionData(SessionData sessionData) throws SQLException {
-		this.setAutoCommit(sessionData.isAutoCommit());
 		this.tx.set(sessionData.getTx());
-		this.setTransactionIsolation(sessionData.getTransactionIsolation());
 		this.sleep();
 	}
 
 	public SessionData toSessionData() {
-		try {
-			return new SessionData()
-					.setDb(this.db)
-					.setSessionId(this.sessionId)
-					.setTx(this.tx.get())
-					.setUser(this.user)
-					.setAutoCommit(this.getAutoCommit())
-					.setTransactionIsolation(this.getTransactionIsolation());
-		} catch (SQLException e) {
-			return null;
-		}
+		return new SessionData()
+				.setDb(this.db)
+				.setSessionId(this.sessionId)
+				.setTx(this.tx.get())
+				.setUser(this.user);
 	}
 
 
