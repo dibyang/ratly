@@ -13,6 +13,7 @@ import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.security.crypto.factory.PasswordEncoderFactories;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.RaftServer;
+import net.xdob.ratly.server.exception.SuccessApplied;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.storage.FileInfo;
@@ -212,8 +213,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
     WrapReplyProto.Builder response = WrapReplyProto.newBuilder();
     ReferenceCountedObject<LogEntryProto> logEntryRef = trx.getLogEntryRef();
-    try(AutoCloseableLock writeLock = writeLock()) {
-      LogEntryProto entry = logEntryRef.retain();
+		LogEntryProto entry = logEntryRef.retain();
+		try(AutoCloseableLock writeLock = writeLock()) {
       if(entry.getIndex()>getLastAppliedTermIndex().getIndex()){
         WrapRequestProto wrapMsgProto = WrapRequestProto.parseFrom(entry.getStateMachineLogEntry().getLogData());
         String pluginId = wrapMsgProto.getType();
@@ -230,6 +231,9 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     } catch (Exception e) {
 			response.setEx(Proto2Util.toThrowable2Proto(e));
       LOG.warn("", e);
+			if(e instanceof SuccessApplied){
+				updateLastAppliedTermIndex(entry.getTerm(), entry.getIndex());
+			}
     } finally {
       logEntryRef.release();
     }
