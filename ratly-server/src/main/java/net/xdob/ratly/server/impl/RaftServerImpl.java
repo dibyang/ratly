@@ -214,6 +214,8 @@ class RaftServerImpl implements Division,
   private final AtomicBoolean firstElectionSinceStartup = new AtomicBoolean(true);
   private final ThreadGroup threadGroup;
 
+	private final AtomicBoolean autoStart = new AtomicBoolean(true);
+
   private final AtomicBoolean stateStart = new AtomicBoolean(false);
   private final VNodeLease vnodeLease;
   private final String storageMount;
@@ -378,7 +380,7 @@ class RaftServerImpl implements Division,
 
   private void checkServerState(){
     if(!startComplete.get()) {
-      if (!vnodeLease.isValid()) {
+      if (!vnodeLease.isValid()&&autoStart.get()) {
         startSeverState();
       }
     }else{
@@ -387,6 +389,7 @@ class RaftServerImpl implements Division,
       if(!checkHealth){
         LOG.warn("Storage health check failed, will stop SeverState");
         stopSeverState();
+				autoStart.set(true);
       }
     }
   }
@@ -1383,6 +1386,21 @@ class RaftServerImpl implements Division,
     }
   }
 
+	CompletableFuture<RaftClientReply> serverAdminAsync(ServerAdminRequest request) throws IOException {
+		LOG.info("{}: serverAdminAsync {}", getMemberId(), request);
+		assertLifeCycleState(LifeCycle.States.RUNNING);
+		assertGroup(getMemberId(), request);
+		if(request.getStart()!=null){
+			startSeverState();
+		} else if (request.getStop() != null) {
+			stopSeverState();
+		}else if (request.getSetAutoSTart() != null) {
+			this.autoStart.set(request.getSetAutoSTart().isAutoStart());
+		}
+		return CompletableFuture.completedFuture(newSuccessReply(request, this.autoStart.get()?1:0));
+	}
+
+
   CompletableFuture<RaftClientReply> takeSnapshotAsync(SnapshotManagementRequest request) throws IOException {
     LOG.info("{}: takeSnapshotAsync {}", getMemberId(), request);
     assertLifeCycleState(LifeCycle.States.RUNNING);
@@ -1394,6 +1412,8 @@ class RaftServerImpl implements Division,
     final long lastSnapshotIndex = Optional.ofNullable(stateMachine.getLatestSnapshot())
         .map(SnapshotInfo::getIndex)
         .orElse(0L);
+		LOG.info("{}: takeSnapshotAsync lastSnapshotIndex={}, lastAppliedIndex={}, minGapValue={}",
+				getMemberId(),lastSnapshotIndex, state.getLastAppliedIndex(), minGapValue);
     if (state.getLastAppliedIndex() - lastSnapshotIndex < minGapValue) {
       return CompletableFuture.completedFuture(newSuccessReply(request, lastSnapshotIndex));
     }

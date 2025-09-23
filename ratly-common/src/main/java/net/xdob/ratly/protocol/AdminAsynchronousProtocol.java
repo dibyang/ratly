@@ -15,6 +15,8 @@ public interface AdminAsynchronousProtocol {
 
   CompletableFuture<RaftClientReply> snapshotManagementAsync(SnapshotManagementRequest request);
 
+	CompletableFuture<RaftClientReply> serverAdminAsync(ServerAdminRequest request);
+
   CompletableFuture<RaftClientReply> leaderElectionManagementAsync(LeaderElectionManagementRequest request);
 
   CompletableFuture<RaftClientReply> setConfigurationAsync(

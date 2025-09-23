@@ -2,6 +2,7 @@ package net.xdob.ratly.server.storage;
 
 import java.nio.file.Path;
 
+import com.google.common.base.Strings;
 import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.io.MD5Hash;
 
@@ -19,11 +20,11 @@ public class FileInfo {
     this.path = path;
     this.fileDigest = fileDigest;
     this.fileSize = path.toFile().length();
-    this.module = module;
+    this.module = Strings.nullToEmpty(module);
   }
 
   public FileInfo(Path path, Digest fileDigest) {
-    this(path, fileDigest, null);
+    this(path, fileDigest, "");
   }
 
   @Override
@@ -56,6 +57,6 @@ public class FileInfo {
    * @return 模块名
    */
   public String getModule() {
-    return module;
+    return Strings.nullToEmpty(module);
   }
 }

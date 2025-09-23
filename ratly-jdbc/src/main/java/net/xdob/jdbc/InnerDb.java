@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class InnerDb implements DbContext, AutoCloseable {
-  static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
+	static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
 
   public static final String SESSIONS_KEY = "sessions";
   public static final String SQL_EXT = "sql";
@@ -52,8 +52,9 @@ public class InnerDb implements DbContext, AutoCloseable {
   public static final String DB_EXT = "mv.db";
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
+	public static final String TRACE_DB_EXT = "trace.db";
 
-  private final HikariConfig dsConfig = new HikariConfig();
+	private final HikariConfig dsConfig = new HikariConfig();
   private volatile HikariDataSource dataSource = null;
   private DefaultSessionMgr sessionMgr;
 
@@ -126,10 +127,9 @@ public class InnerDb implements DbContext, AutoCloseable {
         dsConfig.setMinimumIdle(5);              // 最小空闲连接
         dsConfig.addDataSourceProperty("cachePrepStmts", "true"); //
         dsConfig.setRegisterMbeans(true);
+				deleteDbFile();
         openDs();
-
-        restoreFromSnapshot(context.getLatestSnapshot());
-      } catch (IOException e) {
+      } catch (Exception e) {
         initialized.set(false);
         LOG.warn("initialize failed "+ dbInfo.getName(), e);
       }
@@ -143,7 +143,25 @@ public class InnerDb implements DbContext, AutoCloseable {
     LOG.info("open db ds {} for {}", dataSource, getName());
   }
 
-  private void closeDs() {
+	private void deleteFile(File dbFile) {
+		deleteFile(dbFile, 3);
+	}
+
+	private void deleteFile(File dbFile, int tryCount) {
+		if(dbFile.exists()){
+			if(!dbFile.delete()){
+				if(tryCount>1){
+					deleteFile(dbFile, tryCount-1);
+				}else {
+					LOG.warn("delete file failed {}", dbFile);
+				}
+			}else{
+				LOG.info("delete file success {}", dbFile);
+			}
+		}
+	}
+
+	private void closeDs() {
     if(dataSource!=null){
       LOG.info("close db ds {} for {}", dataSource, getName());
       dataSource.close();
@@ -743,25 +761,7 @@ public class InnerDb implements DbContext, AutoCloseable {
     }
   }
 
-  private void takeSqlSnapshot(FileListStateMachineStorage storage, TermIndex last, FileInfo dbFileInfo, FileInfo sqlFileInfo){
-    File sqlFile = sqlFileInfo.getPath().toFile();
-    File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
-    Stopwatch stopwatch = Stopwatch.createStarted();
-    // 基于存储目录初始化
-    String url = "jdbc:h2:file:" + dbPath.toString()
-        + ";QUERY_TIMEOUT=600";
-    try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
-         Statement statement = connection.createStatement()) {
-      statement.setQueryTimeout(600);
-      statement.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
-    }catch (SQLException e){
-      LOG.warn("takeSqlSnapshot error", e);
-    }
-    Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sqlFile);
-    sqlFileInfo.setFileDigest(digest);
-		computeAndSaveDigestForFile(dbFileInfo);
-		LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
-  }
+
 
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
 		try {
@@ -770,6 +770,44 @@ public class InnerDb implements DbContext, AutoCloseable {
 		}finally {
 			sessionMgr.setDisabled(false);
 		}
+	}
+
+	public void finishSnapshot(FileListStateMachineStorage storage, TermIndex last, List<FileInfo> infos) throws IOException
+	{
+		String dbModule = getName() + "." + DB_EXT;
+		FileInfo dbFileInfo = infos.stream()
+				.filter(fileInfo -> dbModule.equals(fileInfo.getModule()))
+				.findFirst().orElse(null);
+		if(dbFileInfo!=null){
+			Stopwatch stopwatch = Stopwatch.createStarted();
+			//生成sql快照
+			String sqlModule = getName() + "." + SQL_EXT;
+			File sqlFile = storage.getSnapshotFile(sqlModule, last.getTerm(), last.getIndex());
+			FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null, sqlModule);
+			infos.add(sqlFileInfo);
+
+			File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
+
+			// 基于存储目录初始化
+			String url = "jdbc:h2:file:" + dbPath.toString()
+					+ ";QUERY_TIMEOUT=600";
+			try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
+					 Statement statement = connection.createStatement()) {
+				statement.setQueryTimeout(600);
+				statement.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
+			}catch (SQLException e){
+				LOG.warn("takeSqlSnapshot error", e);
+				throw DbErrorException.error(dbFileInfo.toString(), e);
+			}
+			Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sqlFile);
+			sqlFileInfo.setFileDigest(digest);
+			LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
+			stopwatch.reset().start();
+			computeAndSaveDigestForFile(dbFileInfo);
+			LOG.info("computeAndSaveDigestForFile for file {}, use time:{}", dbFileInfo.toString(), stopwatch);
+		}
+
+
 	}
 
 	private List<FileInfo> takeSnapshot2(FileListStateMachineStorage storage, TermIndex last) throws IOException {
@@ -784,29 +822,21 @@ public class InnerDb implements DbContext, AutoCloseable {
 			throw new IOException(e);
 		}
 
-		File dbFile = storage.getSnapshotFile(getName() + "." +DB_EXT, last.getTerm(), last.getIndex());
-		Path sourceDbFile = dbStore.resolve(getName()+ "." +DB_EXT);
+		String module = getName() + "." + DB_EXT;
+		File dbFile = storage.getSnapshotFile(module, last.getTerm(), last.getIndex());
+		Path sourceDbFile = dbStore.resolve(module);
+
 		if(!sourceDbFile.toFile().exists()){
-			throw new IOException(DbErrorException.notExists(sourceDbFile.toString()));
+			throw DbErrorException.notExists(sourceDbFile.toString());
 		}
 		if(sourceDbFile.toFile().length()<128){
-			throw new IOException(DbErrorException.error(sourceDbFile.toString()));
+			throw DbErrorException.error(sourceDbFile.toString());
 		}
 		Files.copy(sourceDbFile, dbFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-		FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null);
+		FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null, module);
 		infos.add(dbFileInfo);
-		context.getScheduler().submit(()->{
-			computeAndSaveDigestForFile(dbFileInfo);
-		});
 
-//    生成sql快照
-//		File sqlFile = storage.getSnapshotFile(getName() + "." +SQL_EXT, last.getTerm(), last.getIndex());
-//		FileInfo sqlFileInfo = new FileInfo(sqlFile.toPath(), null);
-//		infos.add(sqlFileInfo);
-//		context.getScheduler().submit(()->{
-//			takeSqlSnapshot(storage, last, dbFileInfo, sqlFileInfo);
-//		});
 		File sessionFile = storage.getSnapshotFile(getName() + "." +SESSIONS_JSON_EXT, last.getTerm(), last.getIndex());
 		List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
 				.map(Session::toSessionData)
@@ -846,6 +876,7 @@ public class InnerDb implements DbContext, AutoCloseable {
 		if(snapshot==null){
 			return;
 		}
+		deleteDbFile();
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		boolean restoreDb = false;
 		FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
@@ -908,6 +939,14 @@ public class InnerDb implements DbContext, AutoCloseable {
 			}
 		}
 		LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
+	}
+
+	private void deleteDbFile() {
+		String dbPath = dbStore.resolve(getName()).toString();
+		File dbFile = new File(dbPath + "." + DB_EXT);
+		deleteFile(dbFile);
+		File traceFile = new File(dbPath + "." + TRACE_DB_EXT);
+		deleteFile(traceFile);
 	}
 
 

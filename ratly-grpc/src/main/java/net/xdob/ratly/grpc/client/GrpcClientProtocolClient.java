@@ -186,6 +186,13 @@ public class GrpcClientProtocolClient implements Closeable {
         .snapshotManagement(request));
   }
 
+	RaftClientReplyProto serverAdmin(
+			ServerAdminRequestProto request) throws IOException {
+		return blockingCall(() -> adminBlockingStub
+				.withDeadlineAfter(requestTimeoutDuration.getDuration(), requestTimeoutDuration.getUnit())
+				.serverAdmin(request));
+	}
+
   RaftClientReplyProto leaderElectionManagement(
       LeaderElectionManagementRequestProto request) throws IOException {
     return blockingCall(() -> adminBlockingStub

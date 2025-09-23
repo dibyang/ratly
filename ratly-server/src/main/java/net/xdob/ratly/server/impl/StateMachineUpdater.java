@@ -6,6 +6,8 @@ import net.xdob.ratly.proto.raft.CommitInfoProto;
 import net.xdob.ratly.protocol.Message;
 import net.xdob.ratly.protocol.exceptions.StateMachineException;
 import net.xdob.ratly.server.config.RaftServerConfigKeys;
+import net.xdob.ratly.server.exception.MustStopNode;
+import net.xdob.ratly.server.exception.SnapshotException;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.raftlog.LogProtoUtils;
 import net.xdob.ratly.server.raftlog.RaftLog;
@@ -195,8 +197,10 @@ class StateMachineUpdater implements Runnable {
         } else {
           state = State.EXCEPTION;
           LOG.error(this + " caught a Throwable.", t);
-          server.stopSeverState();
-          //server.close();
+					if(t instanceof MustStopNode) {
+						server.stopSeverState();
+						//server.close();
+					}
         }
       }
     }
@@ -305,8 +309,8 @@ class StateMachineUpdater implements Runnable {
       }
       stateMachine.getStateMachineStorage().cleanupOldSnapshots(snapshotRetentionPolicy);
     } catch (IOException e) {
-      LOG.error(name + ": Failed to take snapshot", e);
-      return;
+      //LOG.error(name + ": Failed to take snapshot", e);
+			throw new SnapshotException(name + ": Failed to take snapshot", e);
     }
 
     if (i >= 0) {

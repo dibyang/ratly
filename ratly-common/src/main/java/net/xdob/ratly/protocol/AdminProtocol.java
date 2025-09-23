@@ -13,7 +13,7 @@ public interface AdminProtocol {
   RaftClientReply groupManagement(GroupManagementRequest request) throws IOException;
 
   RaftClientReply snapshotManagement(SnapshotManagementRequest request) throws IOException;
-
+	RaftClientReply serverAdmin(ServerAdminRequest request) throws IOException;
   default RaftClientReply leaderElectionManagement(LeaderElectionManagementRequest request) throws IOException {
     throw new UnsupportedOperationException(getClass() + " does not support this method yet.");
   }

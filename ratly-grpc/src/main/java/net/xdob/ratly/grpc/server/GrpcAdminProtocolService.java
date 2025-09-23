@@ -77,7 +77,14 @@ public class GrpcAdminProtocolService extends AdminProtocolServiceImplBase {
         ClientProtoUtils::toRaftClientReplyProto);
   }
 
-  @Override
+	@Override
+	public void serverAdmin(ServerAdminRequestProto proto, StreamObserver<RaftClientReplyProto> responseObserver) {
+		final ServerAdminRequest request = ClientProtoUtils.toServerAdminRequest(proto);
+		GrpcUtil.asyncCall(responseObserver, () -> protocol.serverAdminAsync(request),
+				ClientProtoUtils::toRaftClientReplyProto);
+	}
+
+	@Override
   public void leaderElectionManagement(LeaderElectionManagementRequestProto proto,
       StreamObserver<RaftClientReplyProto> responseObserver) {
     final LeaderElectionManagementRequest request = ClientProtoUtils.toLeaderElectionManagementRequest(proto);

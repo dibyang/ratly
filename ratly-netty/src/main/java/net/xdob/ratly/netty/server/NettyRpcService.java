@@ -200,6 +200,14 @@ public final class NettyRpcService extends RaftServerRpcWithProxy<NettyRpcProxy,
           return RaftNettyServerReplyProto.newBuilder()
               .setRaftClientReply(ClientProtoUtils.toRaftClientReplyProto(snapshotManagementReply))
               .build();
+				case SERVERADMINREQUEST:
+					final ServerAdminRequestProto serverAdminRequest = proto.getServerAdminRequest();
+					rpcRequest = serverAdminRequest.getRpcRequest();
+					final RaftClientReply serverAdminReply = server.serverAdmin(
+							ClientProtoUtils.toServerAdminRequest(serverAdminRequest));
+					return RaftNettyServerReplyProto.newBuilder()
+							.setRaftClientReply(ClientProtoUtils.toRaftClientReplyProto(serverAdminReply))
+							.build();
 
         case LEADERELECTIONMANAGEMENTREQUEST:
           final LeaderElectionManagementRequestProto leaderElectionManagementRequest =

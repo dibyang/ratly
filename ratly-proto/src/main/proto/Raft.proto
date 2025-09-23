@@ -836,6 +836,32 @@ message BeanTargetProto{
   string beanName = 2;
 }
 
+message ServerStartRequestProto {
+}
+
+message ServerStopRequestProto {
+}
+
+message ServerSetAutoStartRequestProto {
+  bool autoStart = 1;
+}
+
+message ServerGetAutoStartRequestProto {
+}
+
+// 用于管理 Raft 集群的节点服务。
+message ServerAdminRequestProto {
+  // 封装请求的元数据。包含关于请求的上下文和路由信息。
+  RaftRpcRequestProto rpcRequest = 1;
+  // 提供不同的快照操作选项。
+  oneof Op {
+    ServerStartRequestProto start = 2;
+    ServerStopRequestProto stop = 3;
+    ServerSetAutoStartRequestProto setAutoStart = 4;
+    ServerGetAutoStartRequestProto getAutoStart = 5;
+  }
+}
+
 // 用于请求指定的远程调用。
 message DRpcRequestProto {
   // 封装请求的元数据。

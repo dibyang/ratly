@@ -383,8 +383,14 @@ public class DBSMPlugin implements SMPlugin {
     return fileInfos;
   }
 
+	@Override
+	public void finishSnapshot(FileListStateMachineStorage storage, TermIndex last, List<FileInfo> files) throws IOException {
+		for (InnerDb innerDb : dbMap.values()) {
+			innerDb.finishSnapshot(storage, last, files);
+		}
+	}
 
-  @Override
+	@Override
   public void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException {
     if(snapshot==null){
       return;

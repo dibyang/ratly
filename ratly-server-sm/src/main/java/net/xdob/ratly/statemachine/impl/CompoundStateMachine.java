@@ -106,6 +106,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
     for (SMPlugin plugin : pluginMap.values()) {
       plugin.initialize(server, groupId, peerId, raftStorage);
     }
+		LOG.info("{} initialize", getPeerId());
+		restoreFromSnapshot(getLatestSnapshot());
   }
 
 	public RaftClient getRaftClient() {
@@ -114,6 +116,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 
 	@Override
   public void reinitialize() throws IOException {
+		LOG.info("{} reinitialize", getPeerId());
     restoreFromSnapshot(getLatestSnapshot());
     for (SMPlugin plugin : pluginMap.values()) {
       plugin.reinitialize();
@@ -249,6 +252,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       for (SMPlugin plugin : pluginMap.values()) {
         plugin.restoreFromSnapshot(snapshot);
       }
+			setLastAppliedTermIndex(snapshot.getTermIndex());
     }
   }
 
@@ -256,40 +260,50 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
   @Override
   public long takeSnapshot() throws IOException {
     TermIndex last = null;
-    try(AutoCloseableLock readLock = readLock()) {
-      List<FileInfo> infos = Lists.newArrayList();
-      last = this.getLastAppliedTermIndex();
-			if(last.getIndex()<=0){
-				return 0;
+		List<FileInfo> infos = Lists.newArrayList();
+		Map<String, List<FileInfo>> map = Maps.newHashMap();
+		try{
+			try(AutoCloseableLock readLock = readLock()) {
+				last = this.getLastAppliedTermIndex();
+				if(last.getIndex()<0){
+					return last.getIndex();
+				}
+				for (SMPlugin plugin : pluginMap.values()) {
+					LOG.info("takeSnapshot plugin {} index={}", plugin.getId(), last.getIndex());
+					List<FileInfo> fileInfos = plugin.takeSnapshot(storage, last);
+					map.put(plugin.getId(), fileInfos);
+				}
 			}
-      for (SMPlugin plugin : pluginMap.values()) {
-        LOG.info("plugin {} index={}", plugin.getId(), last.getIndex());
-
-        List<FileInfo> fileInfos = plugin.takeSnapshot(storage, last);
-        if(fileInfos!=null&&!fileInfos.isEmpty()){
-          infos.addAll(fileInfos);
-        }
-      }
-      if(!infos.isEmpty()) {
-        File sumFile = storage.getSnapshotSumFile(last.getTerm(), last.getIndex());
-        StringBuilder lines = new StringBuilder();
-        infos.forEach(info->{
-          lines.append(info.getPath().getFileName()).append("\n");
-        });
-        try (AtomicFileOutputStream afos = new AtomicFileOutputStream(sumFile)) {
-          afos.write(lines.toString().getBytes(StandardCharsets.UTF_8));
-        }
-        Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sumFile);
-        infos.add(new FileInfo(sumFile.toPath(), digest, FileListSnapshotInfo.SUM));
-        storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
-        return last.getIndex();
-      }
-    }catch (IOException e){
-      if(last.getIndex()>0){
-        storage.cleanupSnapshot(last.getTerm(), last.getIndex());
-      }
-      throw e;
-    }
+			for (SMPlugin plugin : pluginMap.values()) {
+				LOG.info("finishSnapshot plugin {} index={}", plugin.getId(), last.getIndex());
+				List<FileInfo> fileInfos = map.get(plugin.getId());
+				if(fileInfos!=null&&!fileInfos.isEmpty()) {
+					plugin.finishSnapshot(storage, last, fileInfos);
+					if (!fileInfos.isEmpty()) {
+						infos.addAll(fileInfos);
+					}
+				}
+			}
+			if(!infos.isEmpty()) {
+				File sumFile = storage.getSnapshotSumFile(last.getTerm(), last.getIndex());
+				StringBuilder lines = new StringBuilder();
+				infos.forEach(info->{
+					lines.append(info.getPath().getFileName()).append("\n");
+				});
+				try (AtomicFileOutputStream afos = new AtomicFileOutputStream(sumFile)) {
+					afos.write(lines.toString().getBytes(StandardCharsets.UTF_8));
+				}
+				Digest digest = MD5FileUtil.computeAndSaveDigestForFile(sumFile);
+				infos.add(new FileInfo(sumFile.toPath(), digest, FileListSnapshotInfo.SUM));
+				storage.updateLatestSnapshot(new FileListSnapshotInfo(infos, last));
+				return last.getIndex();
+			}
+		}catch (Exception e){
+			if(last.getIndex()>RaftLog.INVALID_LOG_INDEX){
+				storage.cleanupSnapshot(last.getTerm(), last.getIndex());
+			}
+			throw e;
+		}
     return super.takeSnapshot();
   }
 
@@ -305,19 +319,19 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 				.map(SMPlugin::getFirstTx)
 				.filter(e -> e > RaftLog.INVALID_LOG_INDEX)
 				.min(Long::compareTo)
-				.orElse(TermIndex.INITIAL_VALUE.getIndex());
+				.orElse(RaftLog.INVALID_LOG_INDEX);
 		List<Long> indexList = pluginMap.values().stream()
 				.flatMap(e -> e.getLastEndedTxIndexList().stream())
 				.filter(e -> e > RaftLog.INVALID_LOG_INDEX)
 				.sorted()
 				.collect(Collectors.toList());
-		long lastEndedTxIndex = 0;
+		long lastEndedTxIndex = RaftLog.INVALID_LOG_INDEX;
 		for (Long index : indexList) {
 			if(index<tx&&index>lastEndedTxIndex){
 				lastEndedTxIndex = index;
 			}
 		}
-    if(lastEndedTxIndex>TermIndex.INITIAL_VALUE.getIndex()){
+    if(lastEndedTxIndex>RaftLog.INVALID_LOG_INDEX){
       last = serverStateSupport.get().getTermIndex(lastEndedTxIndex);
     }
     return last;

@@ -58,6 +58,9 @@ service AdminProtocolService {
   // 管理快照操作。
   rpc snapshotManagement(raft.SnapshotManagementRequestProto)
       returns(raft.RaftClientReplyProto) {}
+  // 管理集群的节点服务。
+  rpc serverAdmin(raft.ServerAdminRequestProto)
+      returns(raft.RaftClientReplyProto) {}
   // 管理领导者选举的暂停和恢复。
   rpc leaderElectionManagement(raft.LeaderElectionManagementRequestProto)
       returns(raft.RaftClientReplyProto) {}

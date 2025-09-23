@@ -108,7 +108,11 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       final LeaderElectionManagementRequestProto proto = ClientProtoUtils.toLeaderElectionManagementRequestProto
           ((LeaderElectionManagementRequest) request);
       return ClientProtoUtils.toRaftClientReply(proxy.leaderElectionManagement(proto));
-    } else {
+    } else if (request instanceof ServerAdminRequest) {
+			final ServerAdminRequestProto proto = ClientProtoUtils.toServerAdminRequestProto
+					((ServerAdminRequest) request);
+			return ClientProtoUtils.toRaftClientReply(proxy.serverAdmin(proto));
+		} else {
       final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
       // TODO: timeout support
       // 设置超时，以避免永久阻塞

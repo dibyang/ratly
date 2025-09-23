@@ -43,6 +43,8 @@ message RaftNettyServerRequestProto {
     raft.SnapshotManagementRequestProto snapshotManagementRequest = 11;
     // 管理领导者选举（例如暂停或恢复选举）请求。
     raft.LeaderElectionManagementRequestProto leaderElectionManagementRequest = 12;
+    // 请求管理快照操作。
+    raft.ServerAdminRequestProto serverAdminRequest = 13;
     // DRpc请求。
     raft.DRpcRequestProto dRpcRequest = 20;
   }

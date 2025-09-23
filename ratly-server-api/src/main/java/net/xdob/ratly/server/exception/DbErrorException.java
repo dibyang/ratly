@@ -1,7 +1,9 @@
 package net.xdob.ratly.server.exception;
 
 
-public class DbErrorException extends Exception {
+import java.io.IOException;
+
+public class DbErrorException extends IOException {
 
 
 	public DbErrorException(String path) {

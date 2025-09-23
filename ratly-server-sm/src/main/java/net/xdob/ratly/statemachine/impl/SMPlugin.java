@@ -42,10 +42,20 @@ public interface SMPlugin extends Closeable {
 
   }
 
+	/**
+	 * 快照生成
+	 */
 
   default List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException{
     return Lists.newArrayList();
   }
+
+	/**
+	 * 此方法不再持有读锁
+	 * 完成快照的后继处理，比如数据校验
+	 */
+	default void finishSnapshot(FileListStateMachineStorage storage, TermIndex last, List<FileInfo>  files) throws IOException{
+	}
 
   default void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException{
 

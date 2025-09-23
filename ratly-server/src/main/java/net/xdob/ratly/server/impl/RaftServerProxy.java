@@ -42,7 +42,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +52,6 @@ import java.util.concurrent.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 class RaftServerProxy implements RaftServer {
@@ -575,7 +573,16 @@ class RaftServerProxy implements RaftServer {
                 .build());
   }
 
-  @Override
+	@Override
+	public RaftClientReply serverAdmin(ServerAdminRequest request) throws IOException {
+		return RaftServerImpl.waitForReply(getId(), request, serverAdminAsync(request),
+				e -> RaftClientReply.newBuilder()
+						.setRequest(request)
+						.setException(e)
+						.build());
+	}
+
+	@Override
   public CompletableFuture<RaftClientReply> snapshotManagementAsync(SnapshotManagementRequest request) {
     final RaftGroupId groupId = request.getRaftGroupId();
     if (groupId == null) {
@@ -590,7 +597,13 @@ class RaftServerProxy implements RaftServer {
           getId() + ": Request not supported " + request));
   }
 
-  private CompletableFuture<RaftClientReply> createAsync(SnapshotManagementRequest request) {
+	@Override
+	public CompletableFuture<RaftClientReply> serverAdminAsync(ServerAdminRequest request) {
+		return getImplFuture(request.getRaftGroupId())
+				.thenCompose(impl -> impl.executeSubmitServerRequestAsync(() -> impl.serverAdminAsync(request)));
+	}
+
+	private CompletableFuture<RaftClientReply> createAsync(SnapshotManagementRequest request) {
     return getImplFuture(request.getRaftGroupId())
         .thenCompose(impl -> impl.executeSubmitServerRequestAsync(() -> impl.takeSnapshotAsync(request)));
   }

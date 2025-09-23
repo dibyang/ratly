@@ -678,6 +678,53 @@ public interface ClientProtoUtils {
     return b.build();
   }
 
+	static ServerAdminRequest toServerAdminRequest(ServerAdminRequestProto p) {
+		final RaftRpcRequestProto m = p.getRpcRequest();
+		final ClientId clientId = ClientId.valueOf(m.getRequestorId());
+		final RaftPeerId serverId = RaftPeerId.valueOf(m.getReplyId());
+		switch(p.getOpCase()) {
+			case START:
+				return ServerAdminRequest.newStart(clientId, serverId,
+						ProtoUtils.toRaftGroupId(m.getRaftGroupId()), m.getCallId(), m.getTimeoutMs());
+			case STOP:
+				return ServerAdminRequest.newStop(clientId, serverId,
+						ProtoUtils.toRaftGroupId(m.getRaftGroupId()), m.getCallId(), m.getTimeoutMs());
+			case GETAUTOSTART:
+				return ServerAdminRequest.newGetAutoSTart(clientId, serverId,
+						ProtoUtils.toRaftGroupId(m.getRaftGroupId()), m.getCallId(), m.getTimeoutMs());
+			case SETAUTOSTART:
+				return ServerAdminRequest.newSetAutoSTart(clientId, serverId,
+						ProtoUtils.toRaftGroupId(m.getRaftGroupId()), m.getCallId(), p.getSetAutoStart().getAutoStart(),
+						m.getTimeoutMs());
+			default:
+				throw new IllegalArgumentException("Unexpected op " + p.getOpCase() + " in " + p);
+		}
+	}
+
+	static ServerAdminRequestProto toServerAdminRequestProto(
+			ServerAdminRequest request) {
+		final ServerAdminRequestProto.Builder b = ServerAdminRequestProto.newBuilder()
+				.setRpcRequest(toRaftRpcRequestProtoBuilder(request));
+		final ServerAdminRequest.Start start = request.getStart();
+		if (start != null) {
+			b.setStart(ServerStartRequestProto.newBuilder().build());
+		}
+		final ServerAdminRequest.Stop stop = request.getStop();
+		if (stop != null) {
+			b.setStop(ServerStopRequestProto.newBuilder().build());
+		}
+		final ServerAdminRequest.GetAutoSTart getAutoStart = request.getGetAutoSTart();
+		if (getAutoStart != null) {
+			b.setGetAutoStart(ServerGetAutoStartRequestProto.newBuilder().build());
+		}
+		final ServerAdminRequest.SetAutoSTart setAutoStart = request.getSetAutoSTart();
+		if (setAutoStart != null) {
+			b.setSetAutoStart(ServerSetAutoStartRequestProto.newBuilder().setAutoStart(setAutoStart.isAutoStart()).build());
+		}
+
+		return b.build();
+	}
+
   static LeaderElectionManagementRequest toLeaderElectionManagementRequest(LeaderElectionManagementRequestProto p) {
     final RaftRpcRequestProto m = p.getRpcRequest();
     final ClientId clientId = ClientId.valueOf(m.getRequestorId());
