@@ -527,7 +527,9 @@ public class InnerDb implements DbContext, AutoCloseable {
             }
           }
         }
-        Session session = sessionMgr.newSession(request.getDb(), user, sessionId, this::getConnection);
+
+
+				Session session = sessionMgr.newSession(request.getDb(), user, sessionId, MemoizedCheckedSupplier.valueOf(this::getConnection));
         response.setSessionId(session.getSessionId());
       }else if(connRequest.getType()==ConnRequestType.closeSession){
         String sessionId = request.getSessionId();
@@ -928,14 +930,16 @@ public class InnerDb implements DbContext, AutoCloseable {
 					try {
 						Session session = sessionMgr.getSession(sessionData.getSessionId()).orElse(null);
 						if(session==null) {
-							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), this::getConnection);
+							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), MemoizedCheckedSupplier.valueOf(this::getConnection));
 							session.setSessionData(sessionData);
 						}
 						session.heartBeat();
+						LOG.info("{} restore session {}", getName(), sessionData.getSessionId());
 					} catch (SQLException e) {
 						LOG.warn("node {} newSession error.", context.getPeerId(), e);
 					}
 				}
+
 			}
 		}
 		LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);

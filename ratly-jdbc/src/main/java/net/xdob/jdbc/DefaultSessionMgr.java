@@ -2,10 +2,11 @@ package net.xdob.jdbc;
 
 import com.google.common.collect.Maps;
 import net.xdob.jdbc.exception.SessionIdAlreadyExistsException;
+import net.xdob.ratly.util.MemoizedCheckedSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
@@ -35,17 +36,26 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 
 	@Override
 	public int getAvailableSessionCount() {
-		return maxSize - sessions.size();
+		int count = getActiveCount();
+		return maxSize - count;
+	}
+
+
+	public int getActiveCount() {
+		return (int)sessions.values().stream()
+				.filter(Session::isActive)
+				.count();
 	}
 
 	@Override
-  public Session newSession(String db, String user, String sessionId, ConnSupplier connSupplier) throws SQLException {
+  public Session newSession(String db, String user, String sessionId, MemoizedCheckedSupplier<Connection, SQLException> connSupplier) throws SQLException {
     synchronized (sessions) {
       Session session = getSession(sessionId).orElse(null);
       if (session != null) {
         throw new SessionIdAlreadyExistsException(sessionId);
       }
-      session = new Session(db, user, sessionId, connSupplier.getConnection(), this);
+
+			session = new Session(db, user, sessionId,  connSupplier, this);
       sessions.put(session.getSessionId(), session);
       LOG.info("node {} new session={}", context.getPeerId(), sessionId);
 
@@ -129,8 +139,7 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 
 	@Override
   public Optional<Session> getSession(String sessionId) {
-    Optional<Session> session = Optional.ofNullable(sessionId == null ? null : sessions.get(sessionId));
-    return session;
+		return Optional.ofNullable(sessionId == null ? null : sessions.get(sessionId));
   }
 
   @Override

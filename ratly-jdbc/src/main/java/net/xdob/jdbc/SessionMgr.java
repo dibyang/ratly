@@ -1,17 +1,26 @@
 package net.xdob.jdbc;
 
-import java.io.Closeable;
+import net.xdob.ratly.util.MemoizedCheckedSupplier;
+
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
 public interface SessionMgr extends AutoCloseable {
 
+	/**
+	 * 获取正在使用的session数量(活动的)
+	 */
+	int getActiveCount();
+	/**
+	 * 获取可用的session数量
+	 */
 	int getAvailableSessionCount();
   /**
    * 新建托管的session
    */
-  Session newSession(String db, String user, String sessionId, ConnSupplier connSupplier) throws SQLException;
+  Session newSession(String db, String user, String sessionId, MemoizedCheckedSupplier<Connection, SQLException> connSupplier) throws SQLException;
 
 
   Optional<Session> getSession(String id);

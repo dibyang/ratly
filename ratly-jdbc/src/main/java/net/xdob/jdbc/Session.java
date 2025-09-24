@@ -5,6 +5,7 @@ import net.xdob.jdbc.sql.SerialRow;
 import net.xdob.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
+import net.xdob.ratly.util.MemoizedCheckedSupplier;
 import net.xdob.ratly.util.function.CheckedConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,9 +26,8 @@ public class Session  {
 	private final String db;
   private final String user;
   private final String sessionId;
-	private final String innerId;
 
-  private final Connection connection;
+  private final MemoizedCheckedSupplier<Connection, SQLException> connSupplier;
 
 	private final AtomicLong sinceLastHeartbeat = new AtomicLong(0);
 	private final AtomicReference<SessionInnerMgr> sessionMgrRef = new AtomicReference<>();
@@ -42,22 +41,23 @@ public class Session  {
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
 	private String sql = "";
+	private boolean autoCommit = true;
+	private int transactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
 
-  public Session(String db, String user, String sessionId, Connection connection, SessionInnerMgr sessionMgr) throws SQLException {
+  public Session(String db, String user, String sessionId, MemoizedCheckedSupplier<Connection, SQLException> connSupplier, SessionInnerMgr sessionMgr) throws SQLException {
 		this.db = db;
 		this.user = user;
 		this.sessionId = sessionId;
-		this.connection = connection;
+		this.connSupplier = connSupplier;
 		this.sessionMgrRef.set(sessionMgr);
-		try(Statement st = connection.createStatement();
-				ResultSet rs = st.executeQuery("select session_id();")){
-			if(rs.next()) {
-				innerId = rs.getString(1);
-			}else {
-				throw new SQLException("get session id error");
-			}
-		}
+
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
+		autoCommit = true;
+		transactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
+	}
+
+	Connection getConnection() throws SQLException {
+		return connSupplier.get();
 	}
 
 	public boolean updateAppliedIndexToMax(long newIndex) {
@@ -110,43 +110,34 @@ public class Session  {
 	}
 
 	public Savepoint setSavepoint(String name) throws SQLException {
-    checkClosed();
-    return connection.setSavepoint(name);
+		return getConnection().setSavepoint(name);
   }
 
 	public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-		checkClosed();
-		connection.releaseSavepoint(savepoint);
+		getConnection().releaseSavepoint(savepoint);
 	}
 
 	public void rollback(Savepoint savepoint) throws SQLException {
-		checkClosed();
-		connection.rollback(savepoint);
+		getConnection().rollback(savepoint);
 	}
 
-	public Connection getConnection() {
-		return connection;
-	}
+
 
 	public boolean isTransaction() {
 		return transaction.get();
 	}
 
 
-  private void checkClosed() throws SQLException {
-    if(connection.isClosed()){
-      throw new SQLException("connection is closed");
-    }
-  }
-
   public void setAutoCommit(boolean autoCommit) throws SQLException {
-    checkClosed();
-		boolean needCommit = !autoCommit && connection.getAutoCommit();
+
+		this.autoCommit = autoCommit;
+		Connection connection = getConnection();
+		boolean needCommit = !connection.getAutoCommit() && autoCommit;
     connection.setAutoCommit(autoCommit);
 		if (needCommit) {
 			commit(appliedIndex.get());
 		}
-		if (!connection.getAutoCommit()) {
+		if (!autoCommit) {
 			beginTx();
 		}
 	}
@@ -160,28 +151,27 @@ public class Session  {
 	}
 
 	public boolean getAutoCommit() throws SQLException {
-    checkClosed();
-    return connection.getAutoCommit();
+    return autoCommit;
   }
 
 	public int getTransactionIsolation() throws SQLException {
-		checkClosed();
-		return connection.getTransactionIsolation();
+		return transactionIsolation;
 	}
 
 	public void setTransactionIsolation(int level) throws SQLException {
-    checkClosed();
 		if(Connection.TRANSACTION_SERIALIZABLE == level) {
-			connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+			transactionIsolation = Connection.TRANSACTION_SERIALIZABLE;
 		}else if(Connection.TRANSACTION_REPEATABLE_READ == level) {
-			connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+			transactionIsolation = Connection.TRANSACTION_REPEATABLE_READ;
 		}else if(Connection.TRANSACTION_READ_COMMITTED == level) {
-			connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+			transactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
 		}else if(Connection.TRANSACTION_READ_UNCOMMITTED == level) {
-			connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+			transactionIsolation = Connection.TRANSACTION_READ_UNCOMMITTED;
 		}else if(Connection.TRANSACTION_NONE == level) {
-			connection.setTransactionIsolation(Connection.TRANSACTION_NONE);
+			transactionIsolation = Connection.TRANSACTION_NONE;
 		}
+		Connection connection = getConnection();
+		connection.setTransactionIsolation(transactionIsolation);
   }
 
 	public String getTransactionIsolationName() throws SQLException {
@@ -192,12 +182,16 @@ public class Session  {
 		this.tx.compareAndSet(0, index);
 	}
 
+	public boolean isActive() {
+		return connSupplier.isInitialized();
+	}
 
   public void commit(long index) throws SQLException {
 		endTx(index,  Connection::commit);
 	}
 
 	private void endTx(long index, CheckedConsumer<Connection,SQLException> consumer) throws SQLException {
+		Connection connection = getConnection();
 		if(transaction.compareAndSet(true, false)){
 			consumer.accept(connection);
 			updateAppliedIndexToMax(index);
@@ -235,16 +229,17 @@ public class Session  {
 
 
   public void close() throws Exception {
-    if (!connection.isClosed()) {
-      connection.close();
+    if (connSupplier.isInitialized() && !connSupplier.get().isClosed()) {
+			connSupplier.get().close();
+			connSupplier.release();
       LOG.info("session connection close id={}", sessionId);
-			sessionMgrRef.updateAndGet(m -> {
-				if(m!=null){
-					m.removeSession(sessionId);
-				}
-				return null;
-			});
     }
+		sessionMgrRef.updateAndGet(m -> {
+			if(m!=null){
+				m.removeSession(sessionId);
+			}
+			return null;
+		});
   }
 
 	public void setSessionData(SessionData sessionData) throws SQLException {
@@ -266,8 +261,8 @@ public class Session  {
 			Map<String, Object> map = new HashMap<>();
 			map.put("db", this.db);
 			map.put("sessionId", this.sessionId);
-			map.put("innerId", this.innerId);
 			map.put("user", this.user);
+			map.put("active", this.isActive());
 			map.put("autoCommit", this.getAutoCommit());
 			map.put("tx", this.getTx());
 			map.put("transactionIsolation", getTransactionIsolationName());
@@ -288,8 +283,8 @@ public class Session  {
 		return new SerialRow(11)
 				.setValue(index++, this.db)
 				.setValue(index++, this.sessionId)
-				.setValue(index++, this.innerId)
 				.setValue(index++, this.user)
+				.setValue(index++, this.isActive())
 				.setValue(index++, this.getAutoCommit())
 				.setValue(index++, this.getTx())
 				.setValue(index++, getTransactionIsolationName())
@@ -306,8 +301,8 @@ public class Session  {
 		SerialResultSetMetaData metaData = new SerialResultSetMetaData();
 		metaData.addColumn("db", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("session_id", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
-		metaData.addColumn("inner_id", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("user", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
+		metaData.addColumn("active", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("auto_commit", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("tx", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("transaction_isolation", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
