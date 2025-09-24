@@ -166,7 +166,7 @@ public class RMapSMPlugin implements SMPlugin {
       out.write(bytes);
     }
     final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
-    final FileInfo info = new FileInfo(snapshotFile.toPath(), digest);
+    final FileInfo info = new FileInfo(snapshotFile.toPath(), digest, "");
     return Arrays.asList(info);
   }
 

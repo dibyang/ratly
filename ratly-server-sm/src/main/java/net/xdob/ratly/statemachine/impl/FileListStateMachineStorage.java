@@ -3,6 +3,7 @@ package net.xdob.ratly.statemachine.impl;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.io.MD5Hash;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.server.storage.FileInfo;
 import net.xdob.ratly.server.storage.RaftStorage;
@@ -287,12 +288,23 @@ public class FileListStateMachineStorage implements StateMachineStorage {
   public FileListSnapshotInfo getLatestSnapshot() {
     final FileListSnapshotInfo s = latestSnapshot.get();
     if (s != null) {
-      return s;
+			loadFileDigest(s);
+			return s;
     }
     return loadLatestSnapshot();
   }
 
-  /**
+	private static void loadFileDigest(FileListSnapshotInfo s) {
+		for (FileInfo file : s.getFiles()) {
+			try {
+				final Digest modDigest = MD5FileUtil.readStoredDigestForFile(file.getPath().toFile());
+				file.setFileDigest(modDigest);
+			} catch (IOException ignore) {
+			}
+		}
+	}
+
+	/**
    * 加载最新的快照。如果目录为空或加载失败，返回 null。
    */
   public FileListSnapshotInfo loadLatestSnapshot() {

@@ -23,9 +23,9 @@ public class FileInfo {
     this.module = Strings.nullToEmpty(module);
   }
 
-  public FileInfo(Path path, Digest fileDigest) {
-    this(path, fileDigest, "");
-  }
+//  public FileInfo(Path path, Digest fileDigest) {
+//    this(path, fileDigest, "");
+//  }
 
   @Override
   public String toString() {

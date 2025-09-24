@@ -104,7 +104,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
           if (matcher.matches()) {
             final long term = Long.parseLong(matcher.group(1));
             final long index = Long.parseLong(matcher.group(2));
-            final FileInfo fileInfo = new FileInfo(path, null); //No FileDigest here.
+            final FileInfo fileInfo = new FileInfo(path, null, ""); //No FileDigest here.
             infos.add(new SingleFileSnapshotInfo(fileInfo, term, index));
           }
         }
@@ -235,7 +235,7 @@ public class SimpleStateMachineStorage implements StateMachineStorage {
     // read digest
     final Path path = latest.getFile().getPath();
     final Digest digest = MD5FileUtil.readStoredDigestForFile(path.toFile());
-    final FileInfo info = new FileInfo(path, digest);
+    final FileInfo info = new FileInfo(path, digest, "");
     return new SingleFileSnapshotInfo(info, latest.getTerm(), latest.getIndex());
   }
 

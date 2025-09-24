@@ -254,7 +254,8 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
       }
 			setLastAppliedTermIndex(snapshot.getTermIndex());
     }
-  }
+		LOG.info("restore success from snapshot {} ",snapshot.getTermIndex());
+	}
 
 
   @Override

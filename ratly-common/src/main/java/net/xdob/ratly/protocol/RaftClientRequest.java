@@ -100,7 +100,7 @@ public class RaftClientRequest extends RaftClientMessage {
       return DATA_STREAM_DEFAULT;
     }
 
-		public static Type valueOf(AdminRequestTypeProto write) {
+		public static Type valueOf(AdminRequestTypeProto admin) {
 			return ADMIN_DEFAULT;
 		}
 
