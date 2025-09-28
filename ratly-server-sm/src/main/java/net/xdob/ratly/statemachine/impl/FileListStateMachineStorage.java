@@ -156,21 +156,28 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     if (numSnapshotsRetained <= 0) {
       return;
     }
-    //获取所有的快照文件信息。
-    final List<FileListSnapshotInfo> allSnapshotFiles = getFileListSnapshotInfos(stateMachineDir.toPath());
+
+
+		//获取所有的快照文件信息。
+    final List<FileListSnapshotInfo> allSnapshots = getFileListSnapshotInfos(stateMachineDir.toPath());
     //按照 index 排序，保留最新的快照，删除旧的快照。
-    if (allSnapshotFiles.size() > numSnapshotsRetained) {
-      allSnapshotFiles.sort(Comparator.comparing(FileListSnapshotInfo::getIndex).reversed());
-      allSnapshotFiles.subList(numSnapshotsRetained, allSnapshotFiles.size())
-          .stream()
-          .map(FileListSnapshotInfo::getFiles)
-          .forEach(e->e.stream()
-              .map(FileInfo::getPath)
-              .forEach(snapshotPath -> {
-                LOG.info("Deleting old snapshot at {}", snapshotPath.toAbsolutePath());
-                FileUtils.deletePathQuietly(snapshotPath);
-              })
-          );
+    if (allSnapshots.size() > numSnapshotsRetained) {
+      allSnapshots.sort(Comparator.comparing(FileListSnapshotInfo::getIndex).reversed());
+			//数据完整（校验成功）的快照数量
+			int validSnapshotCount = 0;
+			for (FileListSnapshotInfo snapshot : allSnapshots) {
+				if(validSnapshotCount >= numSnapshotsRetained){
+					snapshot.getFiles()
+							.forEach(fileInfo -> {
+								LOG.info("Deleting old snapshot file at {}", fileInfo.getPath().toAbsolutePath());
+								FileUtils.deletePathQuietly(fileInfo.getPath());
+							});
+				}else{
+					if(validSnapshotFiles(snapshot)){
+						validSnapshotCount++;
+					}
+				}
+			}
 
       // 删除没有对应快照文件的 Digest 文件。
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(stateMachineDir.toPath(),
@@ -253,8 +260,9 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 
   /**
    * 查找目录下最新的快照文件，并返回对应的 SingleFileSnapshotInfo 对象。
+	 * maxIndex用于递归查找可用的快照
    */
-  static FileListSnapshotInfo findLatestSnapshot(Path dir) throws IOException {
+  static FileListSnapshotInfo findLatestSnapshot(Path dir, long maxIndex) throws IOException {
     final Iterator<FileListSnapshotInfo> i = getFileListSnapshotInfos(dir).iterator();
     if (!i.hasNext()) {
       return null;
@@ -263,7 +271,8 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     FileListSnapshotInfo latest = i.next();
     while (i.hasNext()) {
       final FileListSnapshotInfo info = i.next();
-      if (info.getIndex() > latest.getIndex()) {
+      if ((maxIndex<0||info.getIndex()<maxIndex)
+					&&(info.getIndex() > latest.getIndex())) {
         latest = info;
       }
     }
@@ -289,12 +298,31 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     final FileListSnapshotInfo s = latestSnapshot.get();
     if (s != null) {
 			loadFileDigest(s);
-			return s;
+			if(validSnapshotFiles(s)) {
+				return s;
+			}
     }
     return loadLatestSnapshot();
   }
 
-	private static void loadFileDigest(FileListSnapshotInfo s) {
+	private boolean validSnapshotFiles(FileListSnapshotInfo s) {
+		for (FileInfo file : s.getFiles()) {
+			try {
+				final Digest digest = MD5FileUtil.computeDigestForFile(file.getPath().toFile());
+				file.setFileDigest(digest);
+				if(!digest.equals(file.getFileDigest())){
+					LOG.info("Digest mismatch for file {}", file.getPath());
+					return false;
+				}
+			} catch (IOException e) {
+				LOG.info("Digest valid failed for file {}", file.getPath(), e);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void loadFileDigest(FileListSnapshotInfo s) {
 		for (FileInfo file : s.getFiles()) {
 			try {
 				final Digest modDigest = MD5FileUtil.readStoredDigestForFile(file.getPath().toFile());
@@ -313,8 +341,18 @@ public class FileListStateMachineStorage implements StateMachineStorage {
       return null;
     }
     try {
-      FileListSnapshotInfo latestSnapshot = findLatestSnapshot(dir.toPath());
-      return updateLatestSnapshot(latestSnapshot);
+			//获取最新可用快照，已经读取了校验码的
+			long maxIndex = -1;
+      FileListSnapshotInfo latestSnapshot = findLatestSnapshot(dir.toPath(), maxIndex);
+			while(latestSnapshot!=null) {
+				if (validSnapshotFiles(latestSnapshot)) {
+					return updateLatestSnapshot(latestSnapshot);
+				}else{
+					maxIndex = latestSnapshot.getIndex();
+					latestSnapshot = findLatestSnapshot(dir.toPath(), maxIndex);
+				}
+			}
+			return null;
     } catch (IOException ignored) {
       return null;
     }

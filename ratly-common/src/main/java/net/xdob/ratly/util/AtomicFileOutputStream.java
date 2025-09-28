@@ -80,9 +80,9 @@ public class AtomicFileOutputStream extends FilterOutputStream {
    * in writing.
    */
   public void abort() {
-    if (isClosed.get()) {
-      return;
-    }
+		if (!isClosed.compareAndSet(false, true)) {
+			return;
+		}
     try {
       super.close();
     } catch (IOException ioe) {
