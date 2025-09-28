@@ -51,13 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
@@ -711,9 +705,12 @@ class LeaderStateImpl implements LeaderState {
   private void stepDown(long term, StepDownReason reason) {
     try {
       lease.getAndSetEnabled(false);
-      server.changeToFollowerAndPersistMetadata(term, false, reason).join();
+			CompletableFuture<Void> future = server.changeToFollowerAndPersistMetadata(term, false, reason);
+			//避免永久阻塞
+			future.get(2, TimeUnit.SECONDS);
       pendingStepDown.complete(server::newSuccessReply);
-    } catch(IOException e) {
+    } catch(IOException
+						|ExecutionException | InterruptedException | TimeoutException e) {
       final String s = this + ": Failed to persist metadata for term " + term;
       LOG.warn(s, e);
       // the failure should happen while changing the state to follower
@@ -722,7 +719,7 @@ class LeaderStateImpl implements LeaderState {
         throw new IllegalStateException(s + " and running == true", e);
       }
     }
-  }
+	}
 
   CompletableFuture<RaftClientReply> submitStepDownRequestAsync(TransferLeadershipRequest request) {
     return pendingStepDown.submitAsync(request);

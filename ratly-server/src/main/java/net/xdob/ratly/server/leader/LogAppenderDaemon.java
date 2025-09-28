@@ -73,10 +73,13 @@ class LogAppenderDaemon {
       lifeCycle.transitionIfValid(EXCEPTION);
     } finally {
       final State finalState = lifeCycle.transitionAndGet(TRANSITION_FINALLY);
-      if (finalState == EXCEPTION) {
-        logAppender.restart();
-      }
-      closeFuture.complete(finalState);
+      try {
+				if (finalState == EXCEPTION) {
+					logAppender.restart();
+				}
+			}finally {
+				closeFuture.complete(finalState);
+			}
     }
   }
 

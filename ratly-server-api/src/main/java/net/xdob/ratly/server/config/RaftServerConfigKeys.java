@@ -694,7 +694,7 @@ RaftServerConfigKeys {
     }
 
     String SERVER_SIZE_KEY = PREFIX + ".server.size";
-    int SERVER_SIZE_DEFAULT = 0;
+    int SERVER_SIZE_DEFAULT = 20;
 
     static int serverSize(RaftProperties properties) {
       return ConfUtils.getInt(properties::getInt, SERVER_SIZE_KEY, SERVER_SIZE_DEFAULT, getDefaultLog(),
@@ -717,7 +717,7 @@ RaftServerConfigKeys {
     }
 
     String CLIENT_SIZE_KEY = PREFIX + ".client.size";
-    int CLIENT_SIZE_DEFAULT = 0;
+    int CLIENT_SIZE_DEFAULT = 20;
 
     static int clientSize(RaftProperties properties) {
       return ConfUtils.getInt(properties::getInt, CLIENT_SIZE_KEY, CLIENT_SIZE_DEFAULT, getDefaultLog(),

@@ -638,8 +638,10 @@ class RaftServerImpl implements Division,
             });
         state.setLeader(null, reason);
       } else if (old == RaftPeerRole.CANDIDATE) {
+				//暂时没有发现问题
         future = role.shutdownLeaderElection();
       } else if (old == RaftPeerRole.FOLLOWER) {
+				//排查发现不会出现完成不了的情况
         future = role.shutdownFollowerState();
       }
 
