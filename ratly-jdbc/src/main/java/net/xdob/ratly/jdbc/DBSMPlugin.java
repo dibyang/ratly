@@ -6,12 +6,11 @@ import com.google.common.collect.Maps;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
 import net.xdob.ratly.jdbc.exception.NoDatabaseException;
+import net.xdob.ratly.jdbc.sql.JdbcConnection;
 import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.proto.sm.*;
-import net.xdob.ratly.protocol.RaftGroupId;
-import net.xdob.ratly.protocol.RaftPeerId;
-import net.xdob.ratly.protocol.Value;
+import net.xdob.ratly.protocol.*;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.RaftServer;
 import net.xdob.ratly.server.protocol.TermIndex;
@@ -24,10 +23,10 @@ import net.xdob.ratly.statemachine.impl.FileListStateMachineStorage;
 import net.xdob.ratly.statemachine.impl.SMPlugin;
 import net.xdob.ratly.statemachine.impl.SMPluginContext;
 import net.xdob.ratly.util.*;
-import net.xdob.ratly.util.Timestamp;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
@@ -35,7 +34,7 @@ import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-public class DBSMPlugin implements SMPlugin {
+public class DBSMPlugin implements SMPlugin, DbsContext {
 
 
   public static final String DB = "db";
@@ -43,8 +42,8 @@ public class DBSMPlugin implements SMPlugin {
   public static final String DBS_JSON = DBS + ".json";
 	public static final String SHOW_SESSION = "show session";
 	public static final String KILL_SESSION = "kill session";
-	public static final String SHOW_SNAPSHOT_INDEX = "show snapshot index";
-
+	public static final String SESSIONS = "sessions";
+	public static final String SESSIONS_MODULE = SESSIONS + ".json";
 
 	private Path dbStore;
   private Path dbCache;
@@ -54,13 +53,12 @@ public class DBSMPlugin implements SMPlugin {
 
   private final Map<String, DbDef> dbDefs = Maps.newConcurrentMap();;
   private final RsaHelper rsaHelper = new RsaHelper();
-	private PauseLastTime pauseLastTime;
 
-  private DbsContext dbsContext;
   private boolean dynamicCreate = false;
+	private DefaultSessionMgr sessionMgr;
 
 
-  public DBSMPlugin() {
+	public DBSMPlugin() {
   }
 
   @Override
@@ -79,76 +77,109 @@ public class DBSMPlugin implements SMPlugin {
   @Override
   public void setSMPluginContext(SMPluginContext context) {
     this.context = context;
-		this.pauseLastTime = new GCLastTime();
-    this.dbsContext = new DbsContext() {
-			@Override
-			public String getLeaderId() {
-				return Optional.ofNullable(context.getLeaderId())
-						.map(RaftPeerId::getId)
-						.orElse("");
-			}
-
-			@Override
-      public String getPeerId() {
-        return Optional.ofNullable(context.getPeerId())
-            .map(RaftPeerId::getId)
-            .orElse("");
-      }
-
-      @Override
-      public ScheduledExecutorService getScheduler() {
-        return context.getScheduler();
-      }
-
-      @Override
-      public SnapshotInfo getLatestSnapshot() {
-        return context.getLatestSnapshot();
-      }
-
-      @Override
-      public PasswordEncoder getPasswordEncoder() {
-        return context.getPasswordEncoder();
-      }
-
-      @Override
-      public RsaHelper getRsaHelper() {
-        return rsaHelper;
-      }
-
-
-      @Override
-      public void updateDbs() {
-        saveDbs();
-      }
-
-
-      @Override
-      public void stopServerState() {
-        context.stopServerState();
-      }
-
-      @Override
-      public TermIndex getLastAppliedTermIndex() {
-        return context.getLastAppliedTermIndex();
-      }
-
-			@Override
-			public RaftClient getRaftClient() {
-				return context.getRaftClient();
-			}
-
-			@Override
-			public Timestamp getLastPauseTime() {
-				return pauseLastTime.getLastPauseTime();
-			}
-		};
   }
 
-  @Override
-  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
-		this.pauseLastTime.start();
+	@Override
+	public String getLeaderId() {
+		return Optional.ofNullable(context.getLeaderId())
+				.map(RaftPeerId::getId)
+				.orElse("");
+	}
 
-    /**
+	@Override
+	public String getPeerId() {
+		return Optional.ofNullable(context.getPeerId())
+				.map(RaftPeerId::getId)
+				.orElse("");
+	}
+
+	@Override
+	public ScheduledExecutorService getScheduler() {
+		return context.getScheduler();
+	}
+
+	@Override
+	public SnapshotInfo getLatestSnapshot() {
+		return context.getLatestSnapshot();
+	}
+
+	@Override
+	public PasswordEncoder getPasswordEncoder() {
+		return context.getPasswordEncoder();
+	}
+
+	@Override
+	public RsaHelper getRsaHelper() {
+		return rsaHelper;
+	}
+
+
+	@Override
+	public void updateDbs() {
+		saveDbs();
+	}
+
+
+	@Override
+	public void stopServerState() {
+		context.stopServerState();
+	}
+
+	@Override
+	public TermIndex getLastAppliedTermIndex() {
+		return context.getLastAppliedTermIndex();
+	}
+
+	@Override
+	public RaftClient getRaftClient() {
+		return context.getRaftClient();
+	}
+
+	@Override
+	public void closeSession(String db, String sessionId) {
+		if(!context.getPeerId().equals(context.getLeaderId())){
+			return;
+		}
+		try {
+			ConnRequestProto.Builder connReqBuilder = ConnRequestProto.newBuilder()
+					.setType(ConnRequestType.closeSession);
+			JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
+					.setDb(db)
+					.setSessionId(sessionId)
+					.setConnRequest(connReqBuilder.build())
+					.build();
+			WrapRequestProto wrap = WrapRequestProto.newBuilder()
+					.setType(JdbcConnection.DB)
+					.setJdbcRequest(requestProto)
+					.build();
+			RaftClientReply reply = context.getRaftClient().io()
+					.send(Message.valueOf(wrap));
+			WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
+			JdbcResponseProto response = replyProto.getJdbcResponse();
+			if(response.hasEx()){
+				throw Proto2Util.toSQLException(response.getEx());
+			}
+		} catch (Exception e) {
+			LOG.warn("close session error", e);
+		}
+	}
+
+	@Override
+	public SessionMgr getSessionMgr() {
+		return sessionMgr;
+	}
+
+	@Override
+	public int getMaxConnSize(String db) {
+		return Optional.ofNullable(dbMap.get(db))
+				.map(InnerDb::getMaxPoolSize).orElse(64);
+	}
+
+	@Override
+  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
+
+		sessionMgr = new DefaultSessionMgr(this);
+		/**
      * 初始化数据库
      */
     this.dbStore = Paths.get(raftStorage.getStorageDir().getRoot().getPath(), "db");
@@ -174,7 +205,7 @@ public class DBSMPlugin implements SMPlugin {
       DbInfo dbInfo = new DbInfo().setName(dbDef.getDb());
       String encode = context.getPasswordEncoder().encode(dbDef.getPassword());
       dbInfo.addUser(dbDef.getUser(), encode);
-      InnerDb innerDb = new InnerDb(dbCache, dbInfo, dbsContext);
+      InnerDb innerDb = new InnerDb(dbCache, dbInfo, this);
       innerDb.initialize();
       return innerDb;
     });
@@ -191,7 +222,7 @@ public class DBSMPlugin implements SMPlugin {
       }
       for (DbState dbState : dbs.values()) {
         dbMap.computeIfAbsent(dbState.getName(), n -> {
-          InnerDb innerDb2 = new InnerDb(dbCache, dbState.toDbInfo(), dbsContext);
+          InnerDb innerDb2 = new InnerDb(dbCache, dbState.toDbInfo(), this);
           innerDb2.initialize();
           return innerDb2;
         });
@@ -224,14 +255,8 @@ public class DBSMPlugin implements SMPlugin {
         .map(InnerDb::getDbInfo)
         .collect(Collectors.toList());
     n3Map.put(DBS, dbStateList);
-    try(BufferedWriter out = new BufferedWriter(
-        new OutputStreamWriter(new AtomicFileOutputStream(dbsFile), StandardCharsets.UTF_8))){
-      String json = Jsons.i.toJson(n3Map);
-      out.write(json);
-    }catch (IOException e) {
-      LOG.warn("", e);
-    }
-  }
+		saveN3Map(dbsFile, n3Map);
+	}
 
 	@Override
 	public void admin(WrapRequestProto request, WrapReplyProto.Builder reply) {
@@ -239,17 +264,11 @@ public class DBSMPlugin implements SMPlugin {
 			JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
 			JdbcRequestProto jdbcRequest = request.getJdbcRequest();
 			if(jdbcRequest.hasHeartbeat()) {
-				String db = jdbcRequest.getDb();
-				InnerDb innerDb = dbMap.get(db);
 				try {
-					if (innerDb != null) {
-						String sessionId = jdbcRequest.getSessionId();
-						response.setDb(jdbcRequest.getDb())
-								.setSessionId(sessionId);
-						innerDb.heart(sessionId);
-					} else {
-						throw new NoDatabaseException(db);
-					}
+					String sessionId = jdbcRequest.getSessionId();
+					response.setDb(jdbcRequest.getDb())
+							.setSessionId(sessionId);
+					this.heart(sessionId);
 				} catch (SQLException e) {
 					LOG.warn("", e);
 					response.setEx(Proto2Util.toThrowable2Proto(e));
@@ -259,19 +278,11 @@ public class DBSMPlugin implements SMPlugin {
 				try {
 					if (admin.getCmd().equalsIgnoreCase(SHOW_SESSION)) {
 						List<Map<String, Object>> list = new ArrayList<>();
-						for (InnerDb db : dbMap.values()) {
-							db.showSessions(list);
-						}
+						this.showSessions(list);
 						response.setValue(Value.toValueProto( list));
 					} else if (admin.getCmd().equalsIgnoreCase(KILL_SESSION)) {
-						boolean killed = false;
 						String sessionId = admin.getArg0();
-						for (InnerDb db : dbMap.values()) {
-							killed = db.killSession(sessionId);
-							if(killed){
-								break;
-							}
-						}
+						boolean killed = this.killSession(sessionId);
 						response.setUpdateCount(killed?1:0);
 					}
 				} catch (SQLException e) {
@@ -301,6 +312,27 @@ public class DBSMPlugin implements SMPlugin {
 				}
 			}
 			reply.setJdbcResponse(response);
+		}
+	}
+
+	public void heart(String sessionId) throws SQLException {
+
+		sessionMgr.getSession(sessionId)
+				.ifPresent(Session::heartBeat);
+	}
+
+	public boolean killSession(String sessionId) throws SQLException {
+		Session session = sessionMgr.getSession(sessionId).orElse(null);
+		if(session!=null) {
+			this.closeSession(session.getDb(), sessionId);
+			return true;
+		}
+		return false;
+	}
+
+	public void showSessions(List<Map<String, Object>> list) throws SQLException {
+		for (Session session : sessionMgr.getAllSessions()) {
+			list.add(session.toMap());
 		}
 	}
 
@@ -370,18 +402,40 @@ public class DBSMPlugin implements SMPlugin {
 
     final File snapshotFile =  storage.getSnapshotFile(DBS_JSON, last.getTerm(), last.getIndex());
     saveDbsToFile(snapshotFile);
-    final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(snapshotFile);
-    final FileInfo info = new FileInfo(snapshotFile.toPath(),  digest, DBS_JSON);
-    fileInfos.add(info);
+    fileInfos.add(getFileInfo(snapshotFile, DBS_JSON));
     for (InnerDb innerDb : dbMap.values()) {
       List<FileInfo> infos = innerDb.takeSnapshot(storage, last);
       if(!infos.isEmpty()){
         fileInfos.addAll(infos);
       }
     }
+		File sessionFile = storage.getSnapshotFile(SESSIONS_MODULE, last.getTerm(), last.getIndex());
+		List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
+				.map(Session::toSessionData)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+		N3Map n3Map = new N3Map();
+		n3Map.put(SESSIONS, sessionDataList);
+		saveN3Map(sessionFile, n3Map);
+		fileInfos.add(getFileInfo(sessionFile, SESSIONS_MODULE));
     LOG.info("Taking a DBS snapshot use time: {}", stopwatch);
     return fileInfos;
   }
+
+	private static void saveN3Map(File file, N3Map n3Map) {
+		try(BufferedWriter out = new BufferedWriter(
+				new OutputStreamWriter(new AtomicFileOutputStream(file), StandardCharsets.UTF_8))){
+			String json = Jsons.i.toJson(n3Map);
+			out.write(json);
+		}catch (IOException e) {
+			LOG.warn("save file fail, file={}", file, e);
+		}
+	}
+
+	private FileInfo getFileInfo(File file, String module) {
+		final Digest digest = MD5FileUtil.computeAndSaveDigestForFile(file);
+		return new FileInfo(file.toPath(), digest, module);
+	}
 
 	@Override
 	public void finishSnapshot(FileListStateMachineStorage storage, TermIndex last, List<FileInfo> files) throws IOException {
@@ -401,16 +455,51 @@ public class DBSMPlugin implements SMPlugin {
       final File snapshotFile = fileInfo.getPath().toFile();
       final Digest digest = MD5FileUtil.computeDigestForFile(snapshotFile);
       if (digest.equals(fileInfo.getFileDigest())) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
         if(snapshotFile.exists()){
           loadDbs(snapshotFile);
         }
-        for (InnerDb innerDb : dbMap.values()) {
-          innerDb.restoreFromSnapshot(snapshot);
-        }
-        LOG.info("restore DBS snapshot use time: {}", stopwatch);
       }
     }
+		Stopwatch stopwatch = Stopwatch.createStarted();
+		for (InnerDb innerDb : dbMap.values()) {
+			innerDb.restoreFromSnapshot(snapshot);
+		}
+
+		FileInfo sessionfileInfo = snapshot.getFiles(SESSIONS_MODULE).stream().findFirst().orElse(null);
+		if(sessionfileInfo!=null) {
+			final File sessionFile = sessionfileInfo.getPath().toFile();
+			final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
+			if (digest.equals(sessionfileInfo.getFileDigest())) {
+				byte[] bytes = Files.readAllBytes(sessionFile.toPath());
+				N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
+				List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS);
+				for (SessionData sessionData : sessions) {
+					try {
+						String db = sessionData.getDb();
+						Session session = sessionMgr.getSession(sessionData.getSessionId()).orElse(null);
+						if(session==null) {
+
+							session = sessionMgr.newSession(db, sessionData.getUser(), sessionData.getSessionId(),
+									MemoizedCheckedSupplier.valueOf(()->{
+										InnerDb innerDb = dbMap.get(db);
+										if(innerDb==null){
+											throw new NoDatabaseException(db);
+										}
+										return innerDb.getConnection();
+									}));
+							session.setSessionData(sessionData);
+						}
+						session.heartBeat();
+						LOG.info("{} restore session {}", db, sessionData.getSessionId());
+					} catch (SQLException e) {
+						LOG.warn("node {} newSession error.", context.getPeerId(), e);
+					}
+				}
+
+			}
+		}
+		LOG.info("restore DBS snapshot use time: {}", stopwatch);
+
   }
 
 
@@ -420,7 +509,6 @@ public class DBSMPlugin implements SMPlugin {
       innerDb.close();
     }
     dbMap.clear();
-		this.pauseLastTime.stop();
   }
 
 	@Override

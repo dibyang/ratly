@@ -16,18 +16,16 @@ import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionInnerMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
-  public static final int SESSION_TIMEOUT = 5_000;
+  public static final int SESSION_TIMEOUT = 4_000;
 
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
-  private final DbContext context;
+  private final DbsContext context;
   private final AtomicBoolean expiredChecking = new AtomicBoolean();
   private final AtomicBoolean leader = new AtomicBoolean();
 	private final AtomicBoolean disabled = new AtomicBoolean();
-	private int maxSize;
 
-	public DefaultSessionMgr(DbContext context, int maxSize) {
+	public DefaultSessionMgr(DbsContext context) {
 		this.context = context;
-		this.maxSize = maxSize;
 		context.getScheduler()
 				.scheduleWithFixedDelay(this::checkExpiredSessions,
 						0, Session.LIFE_TIME, TimeUnit.MILLISECONDS);
@@ -35,15 +33,15 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 
 
 	@Override
-	public int getAvailableSessionCount() {
-		int count = getActiveCount();
-		return maxSize - count;
+	public int getAvailableSessionCount(String db) {
+		int count = getActiveCount(db);
+		return context.getMaxConnSize(db) - count;
 	}
 
 
-	public int getActiveCount() {
+	public int getActiveCount(String db) {
 		return (int)sessions.values().stream()
-				.filter(Session::isActive)
+				.filter(e->e.getDb().equals(db)&&e.isActive())
 				.count();
 	}
 
@@ -87,7 +85,7 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 				expiredSessions.forEach(s -> {
 					if(s.getElapsedHeartTimeMs() > SESSION_TIMEOUT) {
 						LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.getElapsedHeartTimeMs());
-						context.closeSession(s.getSessionId());
+						context.closeSession(s.getDb(), s.getSessionId());
 					}
 				});
       } finally {
@@ -137,8 +135,15 @@ public class DefaultSessionMgr implements SessionInnerMgr{
     return new ArrayList<>(sessions.values());
   }
 
+	@Override
+	public List<Session> getAllSessions(String db) {
+		return getAllSessions().stream()
+				.filter(e->e.getDb().equals(db))
+				.collect(Collectors.toList());
+	}
 
-  public Session removeSession(String sessionId) {
+
+	public Session removeSession(String sessionId) {
     if (sessionId != null) {
       synchronized (sessions) {
         return sessions.remove(sessionId);

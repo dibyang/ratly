@@ -186,6 +186,10 @@ public class Session  {
 		return connSupplier.isInitialized();
 	}
 
+	public void inactive(){
+		connSupplier.release();
+	}
+
   public void commit(long index) throws SQLException {
 		endTx(index,  Connection::commit);
 	}

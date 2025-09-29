@@ -12,11 +12,11 @@ public interface SessionMgr extends AutoCloseable {
 	/**
 	 * 获取正在使用的session数量(活动的)
 	 */
-	int getActiveCount();
+	int getActiveCount(String db);
 	/**
 	 * 获取可用的session数量
 	 */
-	int getAvailableSessionCount();
+	int getAvailableSessionCount(String db);
   /**
    * 新建托管的session
    */
@@ -25,6 +25,7 @@ public interface SessionMgr extends AutoCloseable {
 
   Optional<Session> getSession(String id);
   List<Session> getAllSessions();
+	List<Session> getAllSessions(String db);
   boolean closeSession(String sessionId, long index);
   void clearSessions();
   void checkExpiredSessions();

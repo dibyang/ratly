@@ -16,12 +16,7 @@ import net.xdob.ratly.jdbc.sql.*;
 import net.xdob.ratly.jdbc.util.SQLUtil2;
 import net.xdob.ratly.jdbc.util.SqlParserWithLRUCache;
 import net.xdob.ratly.proto.jdbc.ResultSetProto;
-import net.xdob.ratly.proto.sm.WrapReplyProto;
-import net.xdob.ratly.proto.sm.WrapRequestProto;
-import net.xdob.ratly.protocol.Message;
-import net.xdob.ratly.protocol.RaftClientReply;
 import net.xdob.ratly.protocol.Value;
-import net.xdob.ratly.json.Jsons;
 import net.xdob.ratly.proto.jdbc.*;
 import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.server.exception.DbErrorException;
@@ -38,20 +33,18 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-public class InnerDb implements DbContext, AutoCloseable {
+public class InnerDb implements AutoCloseable {
 	static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
 
-  public static final String SESSIONS_KEY = "sessions";
+//  public static final String SESSIONS_KEY = "sessions";
+//	public static final String SESSIONS_JSON_EXT = "sessions.json";
   public static final String SQL_EXT = "sql";
-  public static final String SESSIONS_JSON_EXT = "sessions.json";
   public static final String DB_EXT = "mv.db";
   public static final String INNER_USER = "remote";
   public static final String INNER_PASSWORD = "hhrhl2016";
@@ -59,12 +52,12 @@ public class InnerDb implements DbContext, AutoCloseable {
 
 	private final HikariConfig dsConfig = new HikariConfig();
   private volatile HikariDataSource dataSource = null;
-  private DefaultSessionMgr sessionMgr;
+
 
   private final Path dbStore;
   private final DbInfo dbInfo;
 
-  private final DbsContext context;
+  private DbsContext context;
 
   private final AtomicBoolean initialized = new AtomicBoolean(false);
 
@@ -76,27 +69,30 @@ public class InnerDb implements DbContext, AutoCloseable {
     this.dbStore = dbStore;
     this.dbInfo = dbInfo;
     this.context = context;
-    sessionMgr = new DefaultSessionMgr(this, maxPoolSize);
 
   }
 
-  public DbInfo getDbInfo() {
+	public int getMaxPoolSize() {
+		return maxPoolSize;
+	}
+
+	public InnerDb setMaxPoolSize(int maxPoolSize) {
+		this.maxPoolSize = maxPoolSize;
+		if(isInitialized()){
+			closeDs();
+			openDs();
+		}
+		return this;
+	}
+
+	public DbInfo getDbInfo() {
     return dbInfo;
   }
 
-	@Override
-	public String getLeaderId() {
-		return context.getLeaderId();
-	}
 
 	public String getName(){
     return dbInfo.getName();
   }
-
-	@Override
-	public String getPeerId() {
-		return context.getPeerId();
-	}
 
 	public boolean isInitialized() {
     return initialized.get();
@@ -114,7 +110,7 @@ public class InnerDb implements DbContext, AutoCloseable {
         LOG.info("initialize db dbPath={}", dbPath);
         // 基于存储目录初始化
         String url = "jdbc:h2:file:" + dbPath
-            + ";AUTO_SERVER=TRUE";
+            + ";AUTO_SERVER=TRUE;LOCK_TIMEOUT=6000";
             //+ ";TRACE_LEVEL_FILE=3;QUERY_TIMEOUT=600";     // 查询超时设置为 10 分钟（单位：秒）
 
 
@@ -169,39 +165,28 @@ public class InnerDb implements DbContext, AutoCloseable {
       LOG.info("close db ds {} for {}", dataSource, getName());
       dataSource.close();
       dataSource = null;
-    }
+			List<Session> sessions = context.getSessionMgr()
+					.getAllSessions(getName());
+			for (Session session : sessions) {
+				session.inactive();
+			}
+		}
   }
 
 	/**
 	 * 获取插件内最早事务的开始索引
 	 */
 	public long getFirstTx(){
-		return sessionMgr.getFirstTx();
+		return context.getSessionMgr().getFirstTx();
 	}
 
 	/**
 	 * 获取插件已结束事务的索引
 	 */
 	public List<Long> getLastEndedTxIndexList(){
-		return sessionMgr.getLastEndedTxIndexList();
+		return context.getSessionMgr().getLastEndedTxIndexList();
 	}
 
-	public void showSessions(List<Map<String, Object>> list) throws SQLException {
-		for (Session session : sessionMgr.getAllSessions()) {
-			list.add(session.toMap());
-		}
-	}
-
-	public boolean killSession(String sessionId) throws SQLException {
-		 this.closeSession(sessionId);
-		 return true;
-	}
-
-	public void heart(String sessionId) throws SQLException {
-
-		sessionMgr.getSession(sessionId)
-				.ifPresent(Session::heartBeat);
-	}
 
 	public void preSession(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
 		OpenSessionProto openSession = request.getOpenSession();
@@ -221,7 +206,7 @@ public class InnerDb implements DbContext, AutoCloseable {
 				}
 			}
 		}
-		int availableSessionCount = sessionMgr.getAvailableSessionCount();
+		int availableSessionCount = context.getSessionMgr().getAvailableSessionCount(getName());
 		if(availableSessionCount <10){
 			throw new TooManySessionException();
 		}
@@ -234,7 +219,7 @@ public class InnerDb implements DbContext, AutoCloseable {
     String sessionId = request.getSessionId();
 		response.setDb(request.getDb())
 				.setSessionId(sessionId);
-    Session session = sessionMgr.getSession(sessionId).orElse(null);
+    Session session = context.getSessionMgr().getSession(sessionId).orElse(null);
 			if(session==null){
 				Printer4Proto.printJson(request, m->{
 					LOG.info("session sessionId={} not found, request={} ", sessionId, m);
@@ -293,7 +278,7 @@ public class InnerDb implements DbContext, AutoCloseable {
 					SQLStatement statement = parseSql(sql);
 					if(statement instanceof SQLShowSessionStatement){
 						SerialResultSet resultSet = new SerialResultSet(Session.buildSessionResultSetMetaData());
-						for (Session s : sessionMgr.getAllSessions()) {
+						for (Session s : context.getSessionMgr().getAllSessions()) {
 							resultSet.addRows(s.toSerialRow());
 						}
 						response.setResultSet(resultSet.toProto());
@@ -532,14 +517,14 @@ public class InnerDb implements DbContext, AutoCloseable {
         }
 
 
-				Session session = sessionMgr.newSession(request.getDb(), user, sessionId, MemoizedCheckedSupplier.valueOf(this::getConnection));
+				Session session = context.getSessionMgr().newSession(request.getDb(), user, sessionId, MemoizedCheckedSupplier.valueOf(this::getConnection));
         response.setSessionId(session.getSessionId());
       }else if(connRequest.getType()==ConnRequestType.closeSession){
         String sessionId = request.getSessionId();
-        sessionMgr.closeSession(sessionId, termIndex.getIndex());
+				context.getSessionMgr().closeSession(sessionId, termIndex.getIndex());
       }else{
         String sessionId = request.getSessionId();
-        Session session = sessionMgr.getSession(sessionId)
+        Session session = context.getSessionMgr().getSession(sessionId)
             .orElseThrow(()->new DatabaseAlreadyClosedException(sessionId));
 				session.heartBeat();
 				session.updateAppliedIndexToMax(termIndex.getIndex());
@@ -548,7 +533,7 @@ public class InnerDb implements DbContext, AutoCloseable {
     }else if(request.hasSqlRequest()) {
 			SqlRequestProto sqlRequest = request.getSqlRequest();
 			String sessionId = request.getSessionId();
-			Session session = sessionMgr.getSession(sessionId)
+			Session session = context.getSessionMgr().getSession(sessionId)
 					.orElseThrow(() -> new DatabaseAlreadyClosedException(sessionId));
 			session.heartBeat();
 			session.updateAppliedIndexToMax(termIndex.getIndex());
@@ -566,46 +551,10 @@ public class InnerDb implements DbContext, AutoCloseable {
 
   }
 
-  private Connection getConnection() throws SQLException {
+  Connection getConnection() throws SQLException {
     LOG.info("get connection from {}", dataSource);
     return dataSource.getConnection();
   }
-
-
-	@Override
-	public ScheduledExecutorService getScheduler() {
-		return context.getScheduler();
-	}
-
-
-	@Override
-	public void closeSession(String sessionId) {
-		if(!context.getPeerId().equals(context.getLeaderId())){
-			return;
-		}
-		try {
-			ConnRequestProto.Builder connReqBuilder = ConnRequestProto.newBuilder()
-					.setType(ConnRequestType.closeSession);
-			JdbcRequestProto requestProto = JdbcRequestProto.newBuilder()
-					.setDb(getName())
-					.setSessionId(sessionId)
-					.setConnRequest(connReqBuilder.build())
-					.build();
-			WrapRequestProto wrap = WrapRequestProto.newBuilder()
-					.setType(JdbcConnection.DB)
-					.setJdbcRequest(requestProto)
-					.build();
-			RaftClientReply reply = context.getRaftClient().io()
-					.send(Message.valueOf(wrap));
-			WrapReplyProto replyProto = WrapReplyProto.parseFrom(reply.getMessage().getContent());
-			JdbcResponseProto response = replyProto.getJdbcResponse();
-			if(response.hasEx()){
-				throw Proto2Util.toSQLException(response.getEx());
-			}
-		} catch (Exception e) {
-			LOG.warn("close session error", e);
-		}
-	}
 
 
   private void applyLog4Conn(TermIndex termIndex, Session session, ConnRequestProto connRequest, JdbcResponseProto.Builder response) throws SQLException {
@@ -770,10 +719,10 @@ public class InnerDb implements DbContext, AutoCloseable {
 
   public List<FileInfo> takeSnapshot(FileListStateMachineStorage storage, TermIndex last) throws IOException {
 		try {
-			sessionMgr.setDisabled(true);
+			context.getSessionMgr().setDisabled(true);
 			return takeSnapshot2(storage, last);
 		}finally {
-			sessionMgr.setDisabled(false);
+			context.getSessionMgr().setDisabled(false);
 		}
 	}
 
@@ -842,17 +791,6 @@ public class InnerDb implements DbContext, AutoCloseable {
 		FileInfo dbFileInfo = new FileInfo(dbFile.toPath(), null, module);
 		infos.add(dbFileInfo);
 
-		String db_session = getName() + "." + SESSIONS_JSON_EXT;
-		File sessionFile = storage.getSnapshotFile(db_session, last.getTerm(), last.getIndex());
-		List<SessionData> sessionDataList = sessionMgr.getAllSessions().stream()
-				.map(Session::toSessionData)
-				.filter(Objects::nonNull)
-				.collect(Collectors.toList());
-		N3Map n3Map = new N3Map();
-		n3Map.put(SESSIONS_KEY, sessionDataList);
-		String json = Jsons.i.toJson(n3Map);
-		Files.write(sessionFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
-		infos.add(getFileInfo(sessionFile, db_session));
 		LOG.info("{} Taking a DB snapshot, use time:{}", getName(), stopwatch);
 		return infos;
 	}
@@ -871,10 +809,10 @@ public class InnerDb implements DbContext, AutoCloseable {
 
   public void restoreFromSnapshot(SnapshotInfo snapshot) throws IOException {
 		try {
-			sessionMgr.setDisabled(true);
+			context.getSessionMgr().setDisabled(true);
 			restoreFromSnapshot2(snapshot);
 		} finally {
-			sessionMgr.setDisabled(false);
+			context.getSessionMgr().setDisabled(false);
 		}
 	}
 
@@ -922,30 +860,30 @@ public class InnerDb implements DbContext, AutoCloseable {
 				}
 			}
 		}
-		FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
-		if(sessionfileInfo!=null) {
-			final File sessionFile = sessionfileInfo.getPath().toFile();
-			final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
-			if (digest.equals(sessionfileInfo.getFileDigest())) {
-				byte[] bytes = Files.readAllBytes(sessionFile.toPath());
-				N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
-				List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS_KEY);
-				for (SessionData sessionData : sessions) {
-					try {
-						Session session = sessionMgr.getSession(sessionData.getSessionId()).orElse(null);
-						if(session==null) {
-							session = sessionMgr.newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), MemoizedCheckedSupplier.valueOf(this::getConnection));
-							session.setSessionData(sessionData);
-						}
-						session.heartBeat();
-						LOG.info("{} restore session {}", getName(), sessionData.getSessionId());
-					} catch (SQLException e) {
-						LOG.warn("node {} newSession error.", context.getPeerId(), e);
-					}
-				}
-
-			}
-		}
+//		FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
+//		if(sessionfileInfo!=null) {
+//			final File sessionFile = sessionfileInfo.getPath().toFile();
+//			final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
+//			if (digest.equals(sessionfileInfo.getFileDigest())) {
+//				byte[] bytes = Files.readAllBytes(sessionFile.toPath());
+//				N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
+//				List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS_KEY);
+//				for (SessionData sessionData : sessions) {
+//					try {
+//						Session session = context.getSessionMgr().getSession(sessionData.getSessionId()).orElse(null);
+//						if(session==null) {
+//							session = context.getSessionMgr().newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), MemoizedCheckedSupplier.valueOf(this::getConnection));
+//							session.setSessionData(sessionData);
+//						}
+//						session.heartBeat();
+//						LOG.info("{} restore session {}", getName(), sessionData.getSessionId());
+//					} catch (SQLException e) {
+//						LOG.warn("node {} newSession error.", context.getPeerId(), e);
+//					}
+//				}
+//
+//			}
+//		}
 		LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
 	}
 
@@ -961,8 +899,7 @@ public class InnerDb implements DbContext, AutoCloseable {
 	public void close() {
 		try {
 			closeDs();
-			sessionMgr.close();
-			sessionMgr = null;
+			context = null;
 		} catch (Exception e) {
 			LOG.warn("{} close error", getName(), e);
 		}

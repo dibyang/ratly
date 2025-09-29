@@ -24,5 +24,7 @@ public interface DbsContext {
    */
   TermIndex getLastAppliedTermIndex();
 	RaftClient getRaftClient();
-	Timestamp getLastPauseTime();
+	void closeSession(String db, String sessionId);
+	SessionMgr getSessionMgr();
+	int getMaxConnSize(String db);
 }
