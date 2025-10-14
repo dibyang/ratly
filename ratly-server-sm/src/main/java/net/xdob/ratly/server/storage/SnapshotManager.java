@@ -132,76 +132,86 @@ public class SnapshotManager {
    */
   public void installSnapshot(InstallSnapshotRequestProto request, StateMachine stateMachine) throws IOException {
     final InstallSnapshotRequestProto.SnapshotChunkProto snapshotChunkRequest = request.getSnapshotChunk();
-    final long lastIncludedIndex = snapshotChunkRequest.getTermIndex().getIndex();
 
     // create a unique temporary directory
     final File tmpDir =  new File(this.snapshotTmpDir.get(), "snapshot-" + snapshotChunkRequest.getRequestId());
     FileUtils.createDirectories(tmpDir);
-    tmpDir.deleteOnExit();
+		try {
+			installSnapshot(request, stateMachine, tmpDir);
+		} finally {
+			if(tmpDir.exists()){
+				FileUtils.deleteFully(tmpDir);
+			}
+		}
+	}
 
-    LOG.info("Installing snapshot:{}, to tmp dir:{}",
-        toInstallSnapshotRequestString(request), tmpDir);
+	private void installSnapshot(InstallSnapshotRequestProto request, StateMachine stateMachine, File tmpDir) throws IOException {
+		final InstallSnapshotRequestProto.SnapshotChunkProto snapshotChunkRequest = request.getSnapshotChunk();
+		final long lastIncludedIndex = snapshotChunkRequest.getTermIndex().getIndex();
 
-    // TODO: Make sure that subsequent requests for the same installSnapshot are coming in order,
-    // and are not lost when whole request cycle is done. Check requestId and requestIndex here
-    for (FileChunkProto chunk : snapshotChunkRequest.getFileChunksList()) {
-      SnapshotInfo pi = stateMachine.getLatestSnapshot();
-      if (pi != null && pi.getTermIndex().getIndex() >= lastIncludedIndex) {
-        throw new IOException("There exists snapshot file "
-            + pi.getFiles() + " in " + selfId
-            + " with endIndex >= lastIncludedIndex " + lastIncludedIndex);
-      }
+		LOG.info("Installing snapshot:{}, to tmp dir:{}",
+				toInstallSnapshotRequestString(request), tmpDir);
 
-      final File tmpSnapshotFile = new File(tmpDir, getRelativePath.apply(chunk));
-      FileUtils.createDirectoriesDeleteExistingNonDirectory(tmpSnapshotFile.getParentFile());
+		// TODO: Make sure that subsequent requests for the same installSnapshot are coming in order,
+		// and are not lost when whole request cycle is done. Check requestId and requestIndex here
+		for (FileChunkProto chunk : snapshotChunkRequest.getFileChunksList()) {
+			SnapshotInfo pi = stateMachine.getLatestSnapshot();
+			if (pi != null && pi.getTermIndex().getIndex() >= lastIncludedIndex) {
+				throw new IOException("There exists snapshot file "
+						+ pi.getFiles() + " in " + selfId
+						+ " with endIndex >= lastIncludedIndex " + lastIncludedIndex);
+			}
 
-      try (FileChannel out = open(chunk, tmpSnapshotFile)) {
-        final ByteBuffer data = chunk.getData().asReadOnlyByteBuffer();
-        digester.update(data.duplicate());
+			final File tmpSnapshotFile = new File(tmpDir, getRelativePath.apply(chunk));
+			FileUtils.createDirectoriesDeleteExistingNonDirectory(tmpSnapshotFile.getParentFile());
 
-        int written = 0;
-        for(; data.remaining() > 0; ) {
-          written += out.write(data);
-        }
-        Preconditions.assertSame(chunk.getData().size(), written, "written");
-      }
+			try (FileChannel out = open(chunk, tmpSnapshotFile)) {
+				final ByteBuffer data = chunk.getData().asReadOnlyByteBuffer();
+				digester.update(data.duplicate());
 
-      // rename the temp snapshot file if this is the last chunk. also verify
-      // the md5 digest and create the md5 meta-file.
-      if (chunk.getDone()) {
-        final MD5Hash expectedDigest =
-            new MD5Hash(chunk.getFileDigest().toByteArray());
-        // calculate the checksum of the snapshot file and compare it with the
-        // file digest in the request
-        final MD5Hash digest = new MD5Hash(digester.digest());
-        if (!digest.equals(expectedDigest)) {
-          LOG.warn("The snapshot md5 digest {} does not match expected {}",
-              digest, expectedDigest);
-          // rename the temp snapshot file to .corrupt
-          String renameMessage;
-          try {
-            final File corruptedFile = FileUtils.move(tmpSnapshotFile, CORRUPT + StringUtils.currentDateTime());
-            renameMessage = "Renamed temporary snapshot file " + tmpSnapshotFile + " to " + corruptedFile;
-          } catch (IOException e) {
-            renameMessage = "Tried but failed to rename temporary snapshot file " + tmpSnapshotFile
-                + " to a " + CORRUPT + " file";
-            LOG.warn(renameMessage, e);
-            renameMessage += ": " + e;
-          }
-          throw new CorruptedFileException(tmpSnapshotFile,
-              "MD5 mismatch for snapshot-" + lastIncludedIndex + " installation.  " + renameMessage);
-        } else {
-          MD5FileUtil.saveDigestFile(tmpSnapshotFile, digest);
-        }
-      }
-    }
+				int written = 0;
+				for(; data.remaining() > 0; ) {
+					written += out.write(data);
+				}
+				Preconditions.assertSame(chunk.getData().size(), written, "written");
+			}
 
-    if (snapshotChunkRequest.getDone()) {
-      rename(tmpDir, snapshotDir.get());
-    }
-  }
+			// rename the temp snapshot file if this is the last chunk. also verify
+			// the md5 digest and create the md5 meta-file.
+			if (chunk.getDone()) {
+				final MD5Hash expectedDigest =
+						new MD5Hash(chunk.getFileDigest().toByteArray());
+				// calculate the checksum of the snapshot file and compare it with the
+				// file digest in the request
+				final MD5Hash digest = new MD5Hash(digester.digest());
+				if (!digest.equals(expectedDigest)) {
+					LOG.warn("The snapshot md5 digest {} does not match expected {}",
+							digest, expectedDigest);
+					// rename the temp snapshot file to .corrupt
+					String renameMessage;
+					try {
+						final File corruptedFile = FileUtils.move(tmpSnapshotFile, CORRUPT + StringUtils.currentDateTime());
+						renameMessage = "Renamed temporary snapshot file " + tmpSnapshotFile + " to " + corruptedFile;
+					} catch (IOException e) {
+						renameMessage = "Tried but failed to rename temporary snapshot file " + tmpSnapshotFile
+								+ " to a " + CORRUPT + " file";
+						LOG.warn(renameMessage, e);
+						renameMessage += ": " + e;
+					}
+					throw new CorruptedFileException(tmpSnapshotFile,
+							"MD5 mismatch for snapshot-" + lastIncludedIndex + " installation.  " + renameMessage);
+				} else {
+					MD5FileUtil.saveDigestFile(tmpSnapshotFile, digest);
+				}
+			}
+		}
 
-   /**
+		if (snapshotChunkRequest.getDone()) {
+			rename(tmpDir, snapshotDir.get());
+		}
+	}
+
+	/**
     * 该方法负责将临时目录重命名为正式的状态机目录。具体步骤如下：
     * <p>
     *    1.重命名现有状态机目录：如果状态机目录已存在，先将其重命名为 .tmp 后缀的目录。

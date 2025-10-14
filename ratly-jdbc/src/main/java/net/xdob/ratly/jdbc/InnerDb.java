@@ -9,12 +9,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.xdob.ratly.jdbc.exception.AuthorizationFailedException;
 import net.xdob.ratly.jdbc.exception.TooManySessionException;
 import net.xdob.ratly.jdbc.sql.*;
-import net.xdob.ratly.jdbc.util.*;
 import net.xdob.ratly.io.Digest;
-import net.xdob.ratly.jdbc.exception.DatabaseAlreadyClosedException;
-import net.xdob.ratly.jdbc.sql.*;
+import net.xdob.ratly.jdbc.exception.SessionAlreadyClosedException;
 import net.xdob.ratly.jdbc.util.SQLUtil2;
-import net.xdob.ratly.jdbc.util.SqlParserWithLRUCache;
 import net.xdob.ratly.proto.jdbc.ResultSetProto;
 import net.xdob.ratly.protocol.Value;
 import net.xdob.ratly.proto.jdbc.*;
@@ -37,7 +34,6 @@ import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 public class InnerDb implements AutoCloseable {
 	static final Logger LOG = LoggerFactory.getLogger(InnerDb.class);
@@ -224,7 +220,7 @@ public class InnerDb implements AutoCloseable {
 				Printer4Proto.printJson(request, m->{
 					LOG.info("session sessionId={} not found, request={} ", sessionId, m);
 				});
-				throw new DatabaseAlreadyClosedException(sessionId);
+				throw new SessionAlreadyClosedException(sessionId, "query");
 			}else {
 				session.heartBeat();
 				query(request, session, response);
@@ -525,7 +521,7 @@ public class InnerDb implements AutoCloseable {
       }else{
         String sessionId = request.getSessionId();
         Session session = context.getSessionMgr().getSession(sessionId)
-            .orElseThrow(()->new DatabaseAlreadyClosedException(sessionId));
+            .orElseThrow(()->new SessionAlreadyClosedException(sessionId, "conn"));
 				session.heartBeat();
 				session.updateAppliedIndexToMax(termIndex.getIndex());
         applyLog4Conn(termIndex, session, connRequest, response);
@@ -534,7 +530,7 @@ public class InnerDb implements AutoCloseable {
 			SqlRequestProto sqlRequest = request.getSqlRequest();
 			String sessionId = request.getSessionId();
 			Session session = context.getSessionMgr().getSession(sessionId)
-					.orElseThrow(() -> new DatabaseAlreadyClosedException(sessionId));
+					.orElseThrow(() -> new SessionAlreadyClosedException(sessionId, "sql"));
 			session.heartBeat();
 			session.updateAppliedIndexToMax(termIndex.getIndex());
 			try {
@@ -663,7 +659,7 @@ public class InnerDb implements AutoCloseable {
   }
 
 	private SQLStatement parseSql(String sql) throws SQLException {
-		return SqlParserWithLRUCache.parse(sql);
+		return SQLUtil2.parse(sql);
 	}
 
 
@@ -746,9 +742,11 @@ public class InnerDb implements AutoCloseable {
 			String url = "jdbc:h2:file:" + dbPath.toString()
 					+ ";QUERY_TIMEOUT=600";
 			try (Connection connection = DriverManager.getConnection(url, INNER_USER, INNER_PASSWORD);
-					 Statement statement = connection.createStatement()) {
-				statement.setQueryTimeout(600);
-				statement.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
+					 Statement stmt = connection.createStatement()) {
+				stmt.setQueryTimeout(600);
+				stmt.execute("SCRIPT DROP TO '" + sqlFile.toString() + "'");
+				//关闭前让数据落盘  CHECKPOINT SYNC
+				stmt.executeUpdate("checkpoint sync");
 			}catch (SQLException e){
 				LOG.warn("takeSqlSnapshot error", e);
 				throw DbErrorException.error(dbFileInfo.toString(), e);
@@ -757,6 +755,8 @@ public class InnerDb implements AutoCloseable {
 			sqlFileInfo.setFileDigest(digest);
 			LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
 			stopwatch.reset().start();
+//			infos.removeIf(fileInfo -> fileInfo.equals(dbFileInfo));
+//			dbFileInfo.getPath().toFile().delete();
 			computeAndSaveDigestForFile(dbFileInfo);
 			LOG.info("computeAndSaveDigestForFile for file {}, use time:{}", dbFileInfo.toString(), stopwatch);
 		}
@@ -856,34 +856,10 @@ public class InnerDb implements AutoCloseable {
 						throw new IOException(e);
 					}
 				}else {
-					LOG.warn("DB sql snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
+					LOG.warn("DB sql snapshot digest mismatch, expected {}, actual {}", sqlfileInfo.getFileDigest(), digest);
 				}
 			}
 		}
-//		FileInfo sessionfileInfo = snapshot.getFiles(getName() + "." + SESSIONS_JSON_EXT).stream().findFirst().orElse(null);
-//		if(sessionfileInfo!=null) {
-//			final File sessionFile = sessionfileInfo.getPath().toFile();
-//			final Digest digest = MD5FileUtil.computeDigestForFile(sessionFile);
-//			if (digest.equals(sessionfileInfo.getFileDigest())) {
-//				byte[] bytes = Files.readAllBytes(sessionFile.toPath());
-//				N3Map n3Map = Jsons.i.fromJson(new String(bytes, StandardCharsets.UTF_8), N3Map.class);
-//				List<SessionData> sessions = n3Map.getValues(SessionData.class, SESSIONS_KEY);
-//				for (SessionData sessionData : sessions) {
-//					try {
-//						Session session = context.getSessionMgr().getSession(sessionData.getSessionId()).orElse(null);
-//						if(session==null) {
-//							session = context.getSessionMgr().newSession(dbInfo.getName(), sessionData.getUser(), sessionData.getSessionId(), MemoizedCheckedSupplier.valueOf(this::getConnection));
-//							session.setSessionData(sessionData);
-//						}
-//						session.heartBeat();
-//						LOG.info("{} restore session {}", getName(), sessionData.getSessionId());
-//					} catch (SQLException e) {
-//						LOG.warn("node {} newSession error.", context.getPeerId(), e);
-//					}
-//				}
-//
-//			}
-//		}
 		LOG.info("{} restore DB snapshot use time: {}", getName(), stopwatch);
 	}
 

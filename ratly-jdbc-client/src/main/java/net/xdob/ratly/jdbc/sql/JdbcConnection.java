@@ -1,6 +1,6 @@
 package net.xdob.ratly.jdbc.sql;
 
-import net.xdob.ratly.jdbc.exception.DatabaseAlreadyClosedException;
+import net.xdob.ratly.jdbc.exception.SessionAlreadyClosedException;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.conf.Parameters;
 import net.xdob.ratly.conf.RaftProperties;
@@ -92,7 +92,7 @@ public class JdbcConnection implements Connection {
 				}
 			} catch (Exception e) {
 				LOG.warn("send heartbeat error", e);
-				if((e instanceof DatabaseAlreadyClosedException)
+				if((e instanceof SessionAlreadyClosedException)
 				||(e instanceof IOException)) {
 					try {
 						close();

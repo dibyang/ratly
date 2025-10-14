@@ -1,7 +1,10 @@
 package net.xdob.ratly.server.storage;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.lang.management.ManagementFactory;
+import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import net.xdob.ratly.proto.raft.LogEntryProto;
@@ -15,15 +18,14 @@ import net.xdob.ratly.util.FileUtils;
 import net.xdob.ratly.util.JavaUtils;
 import net.xdob.ratly.util.SizeInBytes;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Optional;
 
 /** The storage of a {@link RaftServer}. */
 public class RaftStorageImpl implements RaftStorage {
+	private static final String CHECK_NAME = ".check";
+	private static final String JVM_NAME = ManagementFactory.getRuntimeMXBean().getName();
 
-  private final RaftStorageDirectoryImpl storageDir;
+	private final RaftStorageDirectoryImpl storageDir;
   private final StartupOption startupOption;
   private final CorruptionPolicy logCorruptionPolicy;
   private volatile StorageState state = StorageState.UNINITIALIZED;
@@ -77,9 +79,9 @@ public class RaftStorageImpl implements RaftStorage {
   @Override
   public boolean checkHealth() {
     if(executor==null) {
-      return storageDir.checkHealth();
+      return checkStorageHealth();
     }else{
-      Future<Boolean> future = executor.submit(storageDir::checkHealth);
+      Future<Boolean> future = executor.submit(this::checkStorageHealth);
       boolean health = false;
 			try {
         health = future.get(2, TimeUnit.SECONDS);
@@ -90,7 +92,40 @@ public class RaftStorageImpl implements RaftStorage {
 		}
   }
 
-  static void unlockOnFailure(RaftStorageDirectoryImpl dir) {
+	private boolean checkStorageHealth() {
+		if(!checkCacheDirHealth()){
+			LOG.warn("Cache dir health check failed");
+			return false;
+		}
+		if(!storageDir.checkHealth()){
+			LOG.warn("Storage dir health check failed");
+			return false;
+		}
+		return true;
+	}
+
+	boolean checkCacheDirHealth() {
+		File checkFile = getCacheDirCheckFile();
+		try(RandomAccessFile file = new RandomAccessFile(checkFile, "rws")) {
+			FileLock fileLock = file.getChannel().tryLock();
+			if(fileLock!=null) {
+				file.write(JVM_NAME.getBytes(StandardCharsets.UTF_8));
+				fileLock.close();
+				return true;
+			}
+		}  catch (Exception e) {
+			LOG.warn("checkHealth {} failed.", this.getDirCache(), e);
+		}
+		return false;
+	}
+
+	File getCacheDirCheckFile() {
+		return Paths.get(dirCache.toString(),
+				this.storageDir.getRoot().getName(),
+				peerId + CHECK_NAME).toFile();
+	}
+
+	static void unlockOnFailure(RaftStorageDirectoryImpl dir) {
     try {
       dir.unlock();
     } catch (Throwable t) {

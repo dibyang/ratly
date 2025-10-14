@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+@Deprecated
 public interface SqlParserWithLRUCache {
 	// 使用LinkedHashMap实现LRU缓存
 	class LRUCache<K, V> extends LinkedHashMap<K, V> {

@@ -478,7 +478,7 @@ message RaftClientRequestProto {
     DataStreamRequestTypeProto dataStream = 8;
     // 表示转发请求。请求可能会被转发到其他节点进行处理。
     ForwardRequestTypeProto forward = 9;
-    // 添加扩展心跳请求
+    // 添加扩展请求
     AdminRequestTypeProto admin = 10;
   }
 }

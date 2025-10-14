@@ -395,6 +395,7 @@ class RaftServerImpl implements Division,
   }
 
   protected void checkStorageMount() throws IOException {
+		//虚拟节点检查挂载点
     if(storageMount!=null&&!storageMount.isEmpty()){
       boolean find = false;
       Path path = Paths.get("/proc/mounts");
@@ -421,7 +422,8 @@ class RaftServerImpl implements Division,
       if(stateStart.compareAndSet(false,true)){
         try {
           LOG.info("try start SeverState");
-          checkStorageMount();
+					//虚拟节点检查挂载点
+					checkStorageMount();
           state.initialize(stateMachine);
           state.start();
           CodeInjectionForTesting.execute(START_COMPLETE, getId(), null, role);
@@ -1163,14 +1165,26 @@ class RaftServerImpl implements Division,
   }
 
 	private CompletableFuture<RaftClientReply> adminAsync(RaftClientRequest request) {
-		final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);
+		final CompletableFuture<RaftClientReply> reply = checkLeader(request);
 		if (reply != null) {
 			return reply;
 		}
 		return adminStateMachine(request);
 	}
 
-  private CompletableFuture<RaftClientReply> readAsync(RaftClientRequest request) {
+	/**
+	 * 检测当前节点是否是Leader状态
+	 */
+	private CompletableFuture<RaftClientReply> checkLeader(RaftClientRequest request) {
+		if (!getInfo().isLeader()) {
+			NotLeaderException exception = generateNotLeaderException();
+			final RaftClientReply reply2 = newExceptionReply(request, exception);
+			return RetryCacheImpl.failWithReply(reply2, null);
+		}
+		return null;
+	}
+
+	private CompletableFuture<RaftClientReply> readAsync(RaftClientRequest request) {
     if (request.getType().getRead().getPreferNonLinearizable()
         || readOption == RaftServerConfigKeys.Read.Option.DEFAULT) {
       final CompletableFuture<RaftClientReply> reply = checkLeaderState(request);

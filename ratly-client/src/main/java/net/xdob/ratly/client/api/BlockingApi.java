@@ -82,7 +82,7 @@ public interface BlockingApi {
    */
   RaftClientReply watch(long index, ReplicationLevel replication) throws IOException;
 
-	/** The same as sendHeart(message, null). */
+	/** The same as sendAdmin(message, null). */
 	default RaftClientReply sendAdmin(Message message) throws IOException {
 		return sendAdmin(message, null);
 	}

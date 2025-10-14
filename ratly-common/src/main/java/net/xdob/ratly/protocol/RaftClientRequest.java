@@ -264,7 +264,7 @@ public class RaftClientRequest extends RaftClientMessage {
         case MESSAGESTREAM:
           return toString(getMessageStream());
 				case ADMIN:
-          return "Heart";
+          return "Admin";
         case READ:
           final ReadRequestTypeProto read = getRead();
           return read.getReadAfterWriteConsistent()? "RaW"

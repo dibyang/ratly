@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.nio.file.Files.newDirectoryStream;
 
@@ -39,7 +40,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
    * 该字段用于管理存储的独占锁，确保只有一个进程能够访问存储目录。
    * lock 使用 FileLock 对象来管理存储目录的访问权限。
    */
-  private FileLock lock;
+  private final AtomicReference<FileLock> lockRef = new AtomicReference<>(null);
   /**
    * 用于设置 Raft 存储目录所需的最小空闲空间。
    */
@@ -51,7 +52,6 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
    */
   RaftStorageDirectoryImpl(File dir, SizeInBytes freeSpaceMin) {
     this.root = dir;
-    this.lock = null;
     this.freeSpaceMin = freeSpaceMin;
   }
 
@@ -154,7 +154,7 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
       return StorageState.NON_EXISTENT;
     }
     //有锁的就不再获取文件锁
-    if (toLock&&lock==null) {
+    if (toLock&&lockRef.get()==null) {
       this.lock(); // lock storage if it exists
     }
 
@@ -223,8 +223,12 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
     // Don't overwrite lock until success - this way if we accidentally
     // call lock twice, the internal state won't be cleared by the second
     // (failed) lock attempt
-    lock = newLock;
-  }
+		FileLock oldLock = lockRef.getAndSet(newLock);
+		if(oldLock!=null){
+			oldLock.release();
+			oldLock.channel().close();
+		}
+	}
 
   /**
    * Attempts to acquire an exclusive lock on the storage.
@@ -276,12 +280,12 @@ class RaftStorageDirectoryImpl implements RaftStorageDirectory {
    * 释放存储目录的锁，确保其他进程可以访问存储目录。
    */
   void unlock() throws IOException {
-    if (this.lock == null) {
+		FileLock oldLock = lockRef.getAndSet(null);
+		if (oldLock == null) {
       return;
     }
-    this.lock.release();
-    lock.channel().close();
-    lock = null;
+		oldLock.release();
+		oldLock.channel().close();
   }
 
   @Override

@@ -421,9 +421,9 @@ class ServerState implements ServerStateSupport {
 
   void close() {
     try {
-      if (stateMachineUpdater.isInitialized()) {
-        getStateMachineUpdater().stopAndJoin();
-        stateMachineUpdater.release();
+			StateMachineUpdater smUpdater = stateMachineUpdater.release().orElse(null);
+			if (smUpdater!=null) {
+				smUpdater.stopAndJoin();
       }
     } catch (Throwable e) {
       if (e instanceof InterruptedException) {
@@ -433,18 +433,18 @@ class ServerState implements ServerStateSupport {
     }
 
     try {
-      if (log.isInitialized()) {
-        getLog().close();
-        log.release();
+			RaftLog raftLog = log.release().orElse(null);
+			if (raftLog!=null) {
+				raftLog.close();
       }
     } catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to close raft log " + getLog(), e);
     }
 
     try {
-      if (raftStorage.isInitialized()) {
-        getStorage().close();
-        raftStorage.release();
+			RaftStorageImpl storage = raftStorage.release().orElse(null);
+			if (storage!=null) {
+				storage.close();
       }
     } catch (Throwable e) {
       LOG.warn(getMemberId() + ": Failed to close raft storage " + getStorage(), e);

@@ -12,7 +12,8 @@ public enum SqlType {
 	 * 获取SQL语句的是否是修改语句
 	 */
 	public boolean isModification() {
-		return this == DML || this == DDL || this == DCL;
+		return this == DML || this == DDL
+				|| this == DCL || this == TCL;
 	}
 	/**
 	 * 判断是否为DML语句

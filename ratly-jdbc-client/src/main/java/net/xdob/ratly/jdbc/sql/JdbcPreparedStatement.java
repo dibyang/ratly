@@ -194,10 +194,10 @@ public class JdbcPreparedStatement extends JdbcStatement implements PreparedStat
 
   @Override
   public boolean execute() throws SQLException {
-    if(!isModification(sql)){
-      resultSet = this.executeQuery();
+    if(isModification(sql)){
+			updateCount = this.executeUpdate();
     }else {
-      updateCount = this.executeUpdate();
+			resultSet = this.executeQuery();
     }
     return true;
   }

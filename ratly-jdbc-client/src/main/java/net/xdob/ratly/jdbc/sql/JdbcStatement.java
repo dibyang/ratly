@@ -280,12 +280,12 @@ public class JdbcStatement implements Statement {
 
   @Override
   public boolean execute(String sql) throws SQLException {
-		if(!isModification(sql)){
-			resultSet = executeQuery(sql);
-			return true;
-		}else{
+		if(isModification(sql)){
 			updateCount = this.executeLargeUpdate(sql);
 			return false;
+		}else{
+			resultSet = executeQuery(sql);
+			return true;
 		}
   }
 

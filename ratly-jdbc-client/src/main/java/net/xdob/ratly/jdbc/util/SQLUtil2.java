@@ -5,11 +5,13 @@ import com.alibaba.druid.sql.ast.SQLStatement;
 import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.alibaba.druid.util.JdbcConstants;
+import com.google.common.base.Stopwatch;
 import net.xdob.ratly.jdbc.exception.SQLParserException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
 
 
 public interface SQLUtil2 {
@@ -99,9 +101,18 @@ public interface SQLUtil2 {
 	}
 
 	public static void main(String[] args) throws SQLException {
-		//String sql = "create table store_node_config_info (id varchar(36) not null, client_ip varchar(255), client_status integer, connect_ip varchar(255), first_one boolean, fs varchar(255), full_format boolean, index integer, ips varchar(255), mds boolean, need_format boolean, nic_info clob, start_client_result clob, start_result clob, status integer, template_name varchar(255), template_type varchar(255), total_disk_num integer, use_template_id varchar(255), primary key (id))";
-		String sql = "show session";
-		SQLStatement stmt = SQLUtil2.parse(sql);
-		System.out.println("stmt = " + stmt.getClass());
+
+		Stopwatch started = Stopwatch.createStarted();
+		int count = 10000;
+		for (int i = 0; i < count; i++) {
+			String sql = "create table store_node_config_info (id varchar(36) not null, client_ip varchar(255), client_status integer, connect_ip varchar(255), first_one boolean, fs varchar(255), full_format boolean, index integer, ips varchar(255), mds boolean, need_format boolean, nic_info clob, start_client_result clob, start_result clob, status integer, template_name varchar(255), template_type varchar(255), total_disk_num integer, use_template_id varchar(255), primary key (id))";
+			//String sql = "show session";
+
+			SQLStatement stmt = SQLUtil2.parse(sql);
+			System.out.println("stmt.isModification() = " + SQLUtil2.isModification(stmt));
+		}
+		System.out.println("parse "+count+" sql cost time = " + started
+				+ " time/per=" +(started.elapsed(TimeUnit.MILLISECONDS)*1.0)/count + "ms");
+
 	}
 }
