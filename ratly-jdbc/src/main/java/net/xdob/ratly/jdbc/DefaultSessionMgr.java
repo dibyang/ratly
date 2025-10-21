@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 public class DefaultSessionMgr implements SessionInnerMgr{
 	static final Logger LOG = LoggerFactory.getLogger(DefaultSessionMgr.class);
-  public static final int SESSION_TIMEOUT = 4_000;
+  public static final int SESSION_TIMEOUT = 8_000;
 
   private final ConcurrentMap<String, Session> sessions = Maps.newConcurrentMap();
   private final DbsContext context;
@@ -111,7 +111,7 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 
 	@Override
 	public List<Long> getLastEndedTxIndexList() {
-		return sessions.values().stream().map(Session::getAppliedIndex)
+		return sessions.values().stream().map(Session::getEndTx)
 				.filter(e->e>0)
 				.collect(Collectors.toList());
 	}
@@ -132,7 +132,11 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 
   @Override
   public List<Session> getAllSessions() {
-    return new ArrayList<>(sessions.values());
+    return new ArrayList<>(sessions.values())
+				.stream()
+				.sorted(Comparator.comparing(Session::getDb)
+						.thenComparing(Comparator.comparing(Session::getSessionId)))
+				.collect(Collectors.toList());
   }
 
 	@Override

@@ -24,6 +24,7 @@ public interface StateMachineStorage {
   SnapshotInfo getLatestSnapshot();
 
 
+
   /**
    * 格式化存储，通常用于清空或重置存储的状态。这个方法可能会在初始化时或需要清理存储时调用。
    */

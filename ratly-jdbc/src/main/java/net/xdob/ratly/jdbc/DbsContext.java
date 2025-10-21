@@ -13,7 +13,6 @@ public interface DbsContext {
 	String getLeaderId();
   String getPeerId();
   ScheduledExecutorService getScheduler();
-  SnapshotInfo getLatestSnapshot();
   PasswordEncoder getPasswordEncoder();
   RsaHelper getRsaHelper();
   void updateDbs();

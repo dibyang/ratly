@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -31,9 +32,10 @@ public class AtomicFileOutputStream extends FilterOutputStream {
   static final Logger LOG = LoggerFactory.getLogger(AtomicFileOutputStream.class);
 
   public static final String TMP_EXTENSION = ".tmp";
+	static final AtomicLong index = new AtomicLong();
 
   public static File getTemporaryFile(File outFile) {
-    return new File(outFile.getParentFile(), outFile.getName() + TMP_EXTENSION);
+    return new File(outFile.getParentFile(), outFile.getName() + "." + index.incrementAndGet() +TMP_EXTENSION);
   }
 
   private final File outFile;

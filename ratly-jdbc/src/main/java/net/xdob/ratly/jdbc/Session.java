@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -23,6 +22,7 @@ public class Session  {
 	 * 生命周期计数时间(单位是毫秒)
 	 */
 	public static final int LIFE_TIME = 100;
+	public static final int NO_TX = -1;
 	private final String db;
   private final String user;
   private final String sessionId;
@@ -31,12 +31,12 @@ public class Session  {
 
 	private final AtomicLong sinceLastHeartbeat = new AtomicLong(0);
 	private final AtomicReference<SessionInnerMgr> sessionMgrRef = new AtomicReference<>();
+	//已应用索引未必是事务已提交
 	private final RaftLogIndex appliedIndex;
-  /**
-   * 是否处于事务中
-   */
-  private final AtomicBoolean transaction = new AtomicBoolean(false);
-	private final AtomicLong tx = new AtomicLong(0);
+	//已提交事务索引
+	private final RaftLogIndex endTx;
+
+	private final AtomicLong tx = new AtomicLong(-1);
   private State state = State.SLEEP;
 	private Long startTime = System.currentTimeMillis();
 	private Long sleepSince = System.currentTimeMillis();
@@ -52,6 +52,8 @@ public class Session  {
 		this.sessionMgrRef.set(sessionMgr);
 
 		appliedIndex = new RaftLogIndex(db+"_session_AppliedIndex", RaftLog.INVALID_LOG_INDEX);
+		endTx = new RaftLogIndex(db+"_session_EndTxIndex", RaftLog.INVALID_LOG_INDEX);
+
 		autoCommit = true;
 		transactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
 	}
@@ -60,10 +62,6 @@ public class Session  {
 		return connSupplier.get();
 	}
 
-	public boolean updateAppliedIndexToMax(long newIndex) {
-		return appliedIndex.updateToMax(newIndex,
-				message -> LOG.debug("updateAppliedIndex {}", message));
-	}
 
 	public State getState() {
 		return state;
@@ -121,10 +119,8 @@ public class Session  {
 		getConnection().rollback(savepoint);
 	}
 
-
-
 	public boolean isTransaction() {
-		return transaction.get();
+		return tx.get()>=0;
 	}
 
 
@@ -145,9 +141,7 @@ public class Session  {
 
 
 	public void beginTx() {
-		if(transaction.compareAndSet(false, true)){
-			tx.set(0);
-		}
+		tx.compareAndSet(NO_TX,0);
 	}
 
 	public boolean getAutoCommit() throws SQLException {
@@ -196,12 +190,14 @@ public class Session  {
 
 	private void endTx(long index, CheckedConsumer<Connection,SQLException> consumer) throws SQLException {
 		Connection connection = getConnection();
-		if(transaction.compareAndSet(true, false)){
-			consumer.accept(connection);
-			updateAppliedIndexToMax(index);
-			tx.set(0);
+		long oldTx = tx.getAndUpdate(x -> NO_TX);
+		if(oldTx>NO_TX){
+			if(oldTx>0){
+				consumer.accept(connection);
+			}
+			updateEndTxToMax(index);
 		}
-		if (!connection.getAutoCommit()) {
+		if (!getAutoCommit()) {
 			beginTx();
 		}
 	}
@@ -227,10 +223,27 @@ public class Session  {
 		return tx.get();
 	}
 
+	public long getEndTx() {
+		return endTx.get();
+	}
+
+	public boolean updateEndTxToMax(long newIndex) {
+		return endTx.updateToMax(newIndex,
+				message -> LOG.debug("updateEndTxToMax {}", message));
+	}
+
 	public long getAppliedIndex() {
 		return appliedIndex.get();
 	}
 
+	public boolean updateAppliedIndexToMax(long newIndex) {
+		boolean updated = appliedIndex.updateToMax(newIndex,
+				message -> LOG.debug("updateAppliedIndex {}", message));
+		if(updated&&tx.get()<0){
+			updateEndTxToMax(newIndex);
+		}
+		return updated;
+	}
 
   public void close() throws Exception {
     if (connSupplier.isInitialized() && !connSupplier.get().isClosed()) {
@@ -269,6 +282,8 @@ public class Session  {
 			map.put("active", this.isActive());
 			map.put("autoCommit", this.getAutoCommit());
 			map.put("tx", this.getTx());
+			map.put("applied", this.getAppliedIndex());
+			map.put("endTx", this.getEndTx());
 			map.put("transactionIsolation", getTransactionIsolationName());
 			map.put("state", this.state);
 			map.put("lastHeart", this.getElapsedHeartTimeMs());
@@ -291,6 +306,8 @@ public class Session  {
 				.setValue(index++, this.isActive())
 				.setValue(index++, this.getAutoCommit())
 				.setValue(index++, this.getTx())
+				.setValue(index++, this.getAppliedIndex())
+				.setValue(index++, this.getEndTx())
 				.setValue(index++, getTransactionIsolationName())
 				.setValue(index++, this.state.name())
 				.setValue(index++, this.getElapsedHeartTimeMs())
@@ -309,6 +326,8 @@ public class Session  {
 		metaData.addColumn("active", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("auto_commit", JDBCType.BOOLEAN.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("tx", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);
+		metaData.addColumn("applied", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);
+		metaData.addColumn("endTx", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("transaction_isolation", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("state", JDBCType.VARCHAR.getVendorTypeNumber(), 0, 0);
 		metaData.addColumn("last_heart", JDBCType.INTEGER.getVendorTypeNumber(), 0, 0);

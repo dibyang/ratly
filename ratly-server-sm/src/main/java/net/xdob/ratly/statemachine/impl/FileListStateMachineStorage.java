@@ -173,7 +173,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 								FileUtils.deletePathQuietly(fileInfo.getPath());
 							});
 				}else{
-					if(validSnapshotFiles(snapshot)){
+					if(snapshot.validate()){
 						validSnapshotCount++;
 					}
 				}
@@ -298,35 +298,21 @@ public class FileListStateMachineStorage implements StateMachineStorage {
     final FileListSnapshotInfo s = latestSnapshot.get();
     if (s != null) {
 			loadFileDigest(s);
-			if(validSnapshotFiles(s)) {
+			if(s.validate()) {
 				return s;
 			}
     }
     return loadLatestSnapshot();
   }
 
-	private boolean validSnapshotFiles(FileListSnapshotInfo s) {
-		for (FileInfo file : s.getFiles()) {
-			try {
-				final Digest digest = MD5FileUtil.computeDigestForFile(file.getPath().toFile());
-				file.setFileDigest(digest);
-				if(!digest.equals(file.getFileDigest())){
-					LOG.info("Digest mismatch for file {}", file.getPath());
-					return false;
-				}
-			} catch (IOException e) {
-				LOG.info("Digest valid failed for file {}", file.getPath(), e);
-				return false;
-			}
-		}
-		return true;
-	}
 
 	private void loadFileDigest(FileListSnapshotInfo s) {
 		for (FileInfo file : s.getFiles()) {
 			try {
-				final Digest modDigest = MD5FileUtil.readStoredDigestForFile(file.getPath().toFile());
-				file.setFileDigest(modDigest);
+				if(file.getFileDigest()==null) {
+					final Digest modDigest = MD5FileUtil.readStoredDigestForFile(file.getPath().toFile());
+					file.setFileDigest(modDigest);
+				}
 			} catch (IOException ignore) {
 			}
 		}
@@ -345,7 +331,7 @@ public class FileListStateMachineStorage implements StateMachineStorage {
 			long maxIndex = -1;
       FileListSnapshotInfo latestSnapshot = findLatestSnapshot(dir.toPath(), maxIndex);
 			while(latestSnapshot!=null) {
-				if (validSnapshotFiles(latestSnapshot)) {
+				if (latestSnapshot.validate()) {
 					return updateLatestSnapshot(latestSnapshot);
 				}else{
 					maxIndex = latestSnapshot.getIndex();

@@ -16,6 +16,7 @@ import net.xdob.ratly.util.LifeCycle;
 import net.xdob.ratly.util.MemoizedSupplier;
 import net.xdob.ratly.util.Preconditions;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.SortedMap;
@@ -176,14 +177,16 @@ public class BaseStateMachine implements StateMachine, DataApi,
         return null;
       }
 
-      @Override
+			@Override
       public void format() throws IOException {
       }
 
       @Override
       public void cleanupOldSnapshots(SnapshotRetentionPolicy snapshotRetentionPolicy) {
       }
-    };
+
+
+		};
   }
 
   @Override

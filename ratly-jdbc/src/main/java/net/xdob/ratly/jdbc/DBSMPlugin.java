@@ -99,11 +99,6 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 	}
 
 	@Override
-	public SnapshotInfo getLatestSnapshot() {
-		return context.getLatestSnapshot();
-	}
-
-	@Override
 	public PasswordEncoder getPasswordEncoder() {
 		return context.getPasswordEncoder();
 	}
@@ -513,18 +508,14 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 
 	@Override
 	public List<Long> getLastEndedTxIndexList() {
-		return dbMap.values().stream()
-				.flatMap(e -> e.getLastEndedTxIndexList().stream())
+		return sessionMgr.getLastEndedTxIndexList()
+				.stream()
 				.filter(e->e>0)
 				.collect(Collectors.toList());
 	}
 
 	@Override
 	public long getFirstTx() {
-		return dbMap.values().stream()
-				.map(InnerDb::getFirstTx)
-				.filter(e-> e > RaftLog.INVALID_LOG_INDEX)
-				.min(Long::compareTo)
-				.orElse(RaftLog.INVALID_LOG_INDEX);
+		return sessionMgr.getFirstTx();
 	}
 }

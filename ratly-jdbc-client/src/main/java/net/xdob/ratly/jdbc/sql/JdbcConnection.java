@@ -50,9 +50,9 @@ public class JdbcConnection implements Connection {
     RaftClient.Builder builder =
         RaftClient.newBuilder().setProperties(raftProperties);
     builder.setRaftGroup(raftGroup);
-    RetryPolicy retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(10,
-        TimeDuration.valueOf(100, TimeUnit.MILLISECONDS));
-    builder.setRetryPolicy(retryPolicy);
+//    RetryPolicy retryPolicy = RetryPolicies.retryUpToMaximumCountWithFixedSleep(3,
+//        TimeDuration.valueOf(50, TimeUnit.MILLISECONDS));
+    builder.setRetryPolicy(RetryPolicies.noRetry());
 		builder.setParameters(new Parameters());
 		try {
 			client = builder.build();

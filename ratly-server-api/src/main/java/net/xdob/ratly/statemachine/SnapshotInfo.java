@@ -49,4 +49,11 @@ public interface SnapshotInfo {
   List<FileInfo> getFiles();
 
   List<FileInfo> getFiles(String module);
+
+	default boolean validate(){
+		return true;
+	}
+	default void invalid(){
+
+	}
 }

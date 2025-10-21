@@ -169,20 +169,6 @@ public class InnerDb implements AutoCloseable {
 		}
   }
 
-	/**
-	 * 获取插件内最早事务的开始索引
-	 */
-	public long getFirstTx(){
-		return context.getSessionMgr().getFirstTx();
-	}
-
-	/**
-	 * 获取插件已结束事务的索引
-	 */
-	public List<Long> getLastEndedTxIndexList(){
-		return context.getSessionMgr().getLastEndedTxIndexList();
-	}
-
 
 	public void preSession(JdbcRequestProto request, JdbcResponseProto.Builder response) throws SQLException {
 		OpenSessionProto openSession = request.getOpenSession();
@@ -737,6 +723,7 @@ public class InnerDb implements AutoCloseable {
 			infos.add(sqlFileInfo);
 
 			File dbPath = storage.getSnapshotFile(getName(), last.getTerm(), last.getIndex());
+			dbPath = dbStore.resolve(dbPath.getName()).toFile();
 
 			// 基于存储目录初始化
 			String url = "jdbc:h2:file:" + dbPath.toString()
@@ -755,9 +742,9 @@ public class InnerDb implements AutoCloseable {
 			sqlFileInfo.setFileDigest(digest);
 			LOG.info("takeSqlSnapshot to file {}, use time:{}", sqlFile.toString(), stopwatch);
 			stopwatch.reset().start();
-//			infos.removeIf(fileInfo -> fileInfo.equals(dbFileInfo));
-//			dbFileInfo.getPath().toFile().delete();
-			computeAndSaveDigestForFile(dbFileInfo);
+			infos.removeIf(fileInfo -> fileInfo.equals(dbFileInfo));
+			dbFileInfo.getPath().toFile().delete();
+			//computeAndSaveDigestForFile(dbFileInfo);
 			LOG.info("computeAndSaveDigestForFile for file {}, use time:{}", dbFileInfo.toString(), stopwatch);
 		}
 
@@ -777,8 +764,9 @@ public class InnerDb implements AutoCloseable {
 		}
 
 		String module = getName() + "." + DB_EXT;
-		File dbFile = storage.getSnapshotFile(module, last.getTerm(), last.getIndex());
 		Path sourceDbFile = dbStore.resolve(module);
+		File dbFile = storage.getSnapshotFile(module, last.getTerm(), last.getIndex());
+    dbFile = dbStore.resolve(dbFile.getName()).toFile();
 
 		if(!sourceDbFile.toFile().exists()){
 			throw DbErrorException.notExists(sourceDbFile.toString());
@@ -823,23 +811,23 @@ public class InnerDb implements AutoCloseable {
 		deleteDbFile();
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		boolean restoreDb = false;
-		FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
-		if(dbfileInfo!=null) {
-			final File dbFile = dbfileInfo.getPath().toFile();
-			final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
-			if (digest.equals(dbfileInfo.getFileDigest())) {
-				LOG.info("restore DB file snapshot from {}", dbFile.getPath());
-				try {
-					closeDs();
-					Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
-				}finally {
-					openDs();
-				}
-				restoreDb = true;
-			}else{
-				LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
-			}
-		}
+//		FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
+//		if(dbfileInfo!=null) {
+//			final File dbFile = dbfileInfo.getPath().toFile();
+//			final Digest digest = MD5FileUtil.computeDigestForFile(dbFile);
+//			if (digest.equals(dbfileInfo.getFileDigest())) {
+//				LOG.info("restore DB file snapshot from {}", dbFile.getPath());
+//				try {
+//					closeDs();
+//					Files.copy(dbFile.toPath(), dbStore.resolve(getName() + "." + DB_EXT), StandardCopyOption.REPLACE_EXISTING);
+//				}finally {
+//					openDs();
+//				}
+//				restoreDb = true;
+//			}else{
+//				LOG.warn("DB file snapshot digest mismatch, expected {}, actual {}", dbfileInfo.getFileDigest(), digest);
+//			}
+//		}
 
 		if(!restoreDb){
 			FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
