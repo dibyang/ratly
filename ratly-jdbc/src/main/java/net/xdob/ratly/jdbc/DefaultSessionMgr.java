@@ -1,7 +1,6 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Maps;
-import net.xdob.ratly.jdbc.exception.SessionIdAlreadyExistsException;
 import net.xdob.ratly.util.MemoizedCheckedSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,14 +48,11 @@ public class DefaultSessionMgr implements SessionInnerMgr{
   public Session newSession(String db, String user, String sessionId, MemoizedCheckedSupplier<Connection, SQLException> connSupplier) throws SQLException {
     synchronized (sessions) {
       Session session = getSession(sessionId).orElse(null);
-      if (session != null) {
-        throw new SessionIdAlreadyExistsException(sessionId);
-      }
-
-			session = new Session(db, user, sessionId,  connSupplier, this);
-      sessions.put(session.getSessionId(), session);
-      LOG.info("node {} new session={}", context.getPeerId(), sessionId);
-
+      if (session == null) {
+				session = new Session(db, user, sessionId, connSupplier, this);
+				sessions.put(session.getSessionId(), session);
+				LOG.info("node {} new session={}", context.getPeerId(), sessionId);
+			}
       return session;
     }
   }

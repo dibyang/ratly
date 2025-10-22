@@ -46,6 +46,9 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 	public static final String SESSIONS = "sessions";
 	public static final String SESSIONS_MODULE = SESSIONS + ".json";
 	public static final int MAX_DB_NUM = 6;
+	public static final String DROP_DB = "drop db";
+	public static final String CREATE_DB = "create db";
+	public static final String SHOW_DATABASES = "show databases";
 
 	private Path dbStore;
   private Path dbCache;
@@ -56,7 +59,6 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
   private final Map<String, DbDef> dbDefs = Maps.newConcurrentMap();;
   private final RsaHelper rsaHelper = new RsaHelper();
 
-  private boolean dynamicCreate = false;
 	private DefaultSessionMgr sessionMgr;
 
 
@@ -66,14 +68,6 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
   @Override
   public String getId() {
     return DB;
-  }
-
-  public boolean isDynamicCreate() {
-    return dynamicCreate;
-  }
-
-  public void setDynamicCreate(boolean dynamicCreate) {
-    this.dynamicCreate = dynamicCreate;
   }
 
   @Override
@@ -281,6 +275,10 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 						String sessionId = admin.getArg0();
 						boolean killed = this.killSession(sessionId);
 						response.setUpdateCount(killed?1:0);
+					}else if (admin.getCmd().equalsIgnoreCase(SHOW_DATABASES)) {
+						List<String> list = new ArrayList<>();
+						list.addAll(dbMap.keySet());
+						response.setValue(Value.toValueProto( list));
 					}
 				} catch (SQLException e) {
 					LOG.warn("", e);
@@ -290,14 +288,6 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 				String db = jdbcRequest.getDb();
 				InnerDb innerDb = dbMap.get(db);
 				try {
-					if(innerDb==null&&dynamicCreate){
-						OpenSessionProto openSession = jdbcRequest.getOpenSession();
-						String user = openSession.getUser();
-						String password = rsaHelper.decrypt(openSession.getPassword());
-						this.addDbIfAbsent(db, user, password);
-						addDbIfAbsent(dbDefs.get(db));
-						innerDb = dbMap.get(db);
-					}
 					if (innerDb != null) {
 						innerDb.preSession(jdbcRequest, response);
 					} else {
@@ -312,8 +302,33 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 		}
 	}
 
-	public void heart(String sessionId) throws SQLException {
+	public boolean createDb(String db, String user, String password) throws SQLException {
+		if(dbMap.size()< MAX_DB_NUM) {
+			this.addDbIfAbsent(db, user, password);
+			addDbIfAbsent(dbDefs.get(db));
+			saveDbs();
+			return true;
+		}else{
+			return false;
+		}
+	}
 
+	public boolean dropDb(String name) throws SQLException {
+		InnerDb innerDb = dbMap.remove(name);
+		if(innerDb!=null) {
+			List<Session> sessions = sessionMgr.getAllSessions(name);
+			for (Session session : sessions) {
+				this.closeSession(session.getDb(), session.getSessionId());
+			}
+			innerDb.close();
+			saveDbs();
+			innerDb.drop();
+			return true;
+		}
+		return false;
+	}
+
+	public void heart(String sessionId) throws SQLException {
 		sessionMgr.getSession(sessionId)
 				.ifPresent(Session::heartBeat);
 	}
@@ -360,34 +375,40 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 
     JdbcResponseProto.Builder response = JdbcResponseProto.newBuilder();
     JdbcRequestProto jdbcRequest = request.getJdbcRequest();
-    String db = jdbcRequest.getDb();
-    InnerDb innerDb = dbMap.get(db);
-    try {
-			if(innerDb==null&&dynamicCreate
-					&&jdbcRequest.hasConnRequest()
-					&&jdbcRequest.getConnRequest().getType()==ConnRequestType.openSession){
-				if(dbMap.size()< MAX_DB_NUM) {
+		if(jdbcRequest.hasAdmin()){
+			AdminProto admin = jdbcRequest.getAdmin();
+			try {
+				if (admin.getCmd().equalsIgnoreCase(CREATE_DB)) {
+					String name = admin.getArg0();
 					OpenSessionProto openSession = jdbcRequest.getOpenSession();
 					String user = openSession.getUser();
 					String password = rsaHelper.decrypt(openSession.getPassword());
-					this.addDbIfAbsent(db, user, password);
-					addDbIfAbsent(dbDefs.get(db));
-					saveDbs();
-					innerDb = dbMap.get(db);
-				}else{
-					throw new MaxDatabaseExceededException(dbMap.size(), MAX_DB_NUM);
+					boolean created = this.createDb(name, user, password);
+					response.setUpdateCount(created?1:0);
+				}else if (admin.getCmd().equalsIgnoreCase(DROP_DB)) {
+					String name = admin.getArg0();
+					boolean dropped = this.dropDb(name);
+					response.setUpdateCount(dropped?1:0);
 				}
+			} catch (SQLException e) {
+				LOG.warn("", e);
+				response.setEx(Proto2Util.toThrowable2Proto(e));
 			}
-      if(innerDb!=null){
-        innerDb.applyTransaction(termIndex, jdbcRequest, response);
-      } else{
-        throw new NoDatabaseException(db);
-      }
-    } catch (SQLException e) {
-      LOG.warn("", e);
-      response.setEx(Proto2Util.toThrowable2Proto(e));
-    }
-    reply.setJdbcResponse(response);
+		}else {
+			String db = jdbcRequest.getDb();
+			InnerDb innerDb = dbMap.get(db);
+			try {
+				if (innerDb != null) {
+					innerDb.applyTransaction(termIndex, jdbcRequest, response);
+				} else {
+					throw new NoDatabaseException(db);
+				}
+			} catch (SQLException e) {
+				LOG.warn("", e);
+				response.setEx(Proto2Util.toThrowable2Proto(e));
+			}
+		}
+		reply.setJdbcResponse(response);
   }
 
   public DBSMPlugin addDbIfAbsent(String db, String user, String password){

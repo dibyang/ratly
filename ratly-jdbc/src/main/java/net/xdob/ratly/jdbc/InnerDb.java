@@ -131,6 +131,10 @@ public class InnerDb implements AutoCloseable {
     }
   }
 
+	public void drop(){
+		deleteDbFile();
+	}
+
   private void openDs() {
     if(dataSource == null){
       dataSource = new HikariDataSource(dsConfig);
@@ -808,9 +812,10 @@ public class InnerDb implements AutoCloseable {
 		if(snapshot==null){
 			return;
 		}
-		deleteDbFile();
+
 		Stopwatch stopwatch = Stopwatch.createStarted();
 		boolean restoreDb = false;
+//		deleteDbFile();
 //		FileInfo dbfileInfo = snapshot.getFiles(getName() + "." + DB_EXT).stream().findFirst().orElse(null);
 //		if(dbfileInfo!=null) {
 //			final File dbFile = dbfileInfo.getPath().toFile();
@@ -830,6 +835,9 @@ public class InnerDb implements AutoCloseable {
 //		}
 
 		if(!restoreDb){
+			closeDs();
+			deleteDbFile();
+			openDs();
 			FileInfo sqlfileInfo = snapshot.getFiles(getName() + "." + SQL_EXT).stream().findFirst().orElse(null);
 			if(sqlfileInfo!=null) {
 				final File sqlFile = sqlfileInfo.getPath().toFile();

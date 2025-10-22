@@ -15,12 +15,4 @@ public class JdbcStateMachine extends CompoundStateMachine {
     return this;
   }
 
-  /**
-   * 是否允许动态创建数据库
-   */
-  public JdbcStateMachine setDynamicCreate(boolean dynamicCreate){
-    getSMPlugin(DBSMPlugin.class)
-        .ifPresent(e->e.setDynamicCreate(dynamicCreate));
-    return this;
-  }
 }

@@ -7,5 +7,8 @@ import java.util.Map;
 
 public interface JdbcAdminApi {
   List<Map<String, Object>> showSession() throws SQLException;
+	List<String> showDatabases() throws SQLException;
   boolean killSession(String sessionId) throws SQLException;
+	boolean createDatabase(String db, String user, String password) throws SQLException;
+	boolean dropDatabase(String db) throws SQLException;
 }

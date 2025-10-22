@@ -6,9 +6,9 @@ import java.sql.SQLNonTransientException;
 
 public class SessionAlreadyClosedException extends SQLNonTransientException
 		implements SuccessApplied {
-
+	private static final String SQL_STATE = "08003";
 	public SessionAlreadyClosedException(String sessionId, String reason) {
-		super("Session is already closed, Session not find:" + sessionId
-				+ ". reason:"+reason, "08003");
+		super("session " + sessionId + " is already closed,"
+				+ "reason:" + reason, SQL_STATE);
 	}
 }

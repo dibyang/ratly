@@ -9,7 +9,7 @@ public class MaxDatabaseExceededException extends SQLNonTransientException {
 
 	public MaxDatabaseExceededException(int currentCount, int maxAllowed) {
 		super(
-				String.format("Maximum database count exceeded: current %d, maximum allowed %d", currentCount, maxAllowed),
+				String.format("maximum database count exceeded: current %d, maximum allowed %d", currentCount, maxAllowed),
 				SQL_STATE
 		);
 		this.currentCount = currentCount;

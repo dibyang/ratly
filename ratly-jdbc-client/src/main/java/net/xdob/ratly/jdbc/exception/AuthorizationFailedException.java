@@ -6,7 +6,8 @@ import java.sql.SQLInvalidAuthorizationSpecException;
 
 public class AuthorizationFailedException extends SQLInvalidAuthorizationSpecException
 		implements SuccessApplied {
+	private static final String SQL_STATE = "08004";
 	public AuthorizationFailedException() {
-		super("User authentication failed", "08004");
+		super("user authentication failed", SQL_STATE);
 	}
 }
