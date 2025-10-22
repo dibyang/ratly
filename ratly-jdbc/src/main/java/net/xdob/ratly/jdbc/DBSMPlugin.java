@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import net.xdob.ratly.client.RaftClient;
 import net.xdob.ratly.io.Digest;
+import net.xdob.ratly.jdbc.exception.MaxDatabaseExceededException;
 import net.xdob.ratly.jdbc.exception.NoDatabaseException;
 import net.xdob.ratly.jdbc.sql.JdbcConnection;
 import net.xdob.ratly.json.Jsons;
@@ -44,6 +45,7 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 	public static final String KILL_SESSION = "kill session";
 	public static final String SESSIONS = "sessions";
 	public static final String SESSIONS_MODULE = SESSIONS + ".json";
+	public static final int MAX_DB_NUM = 6;
 
 	private Path dbStore;
   private Path dbCache;
@@ -360,18 +362,22 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
     JdbcRequestProto jdbcRequest = request.getJdbcRequest();
     String db = jdbcRequest.getDb();
     InnerDb innerDb = dbMap.get(db);
-    if(innerDb==null&&dynamicCreate
-        &&jdbcRequest.hasConnRequest()
-        &&jdbcRequest.getConnRequest().getType()==ConnRequestType.openSession){
-      OpenSessionProto openSession = jdbcRequest.getOpenSession();
-      String user = openSession.getUser();
-      String password = rsaHelper.decrypt(openSession.getPassword());
-      this.addDbIfAbsent(db, user, password);
-      addDbIfAbsent(dbDefs.get(db));
-      saveDbs();
-      innerDb = dbMap.get(db);
-    }
     try {
+			if(innerDb==null&&dynamicCreate
+					&&jdbcRequest.hasConnRequest()
+					&&jdbcRequest.getConnRequest().getType()==ConnRequestType.openSession){
+				if(dbMap.size()< MAX_DB_NUM) {
+					OpenSessionProto openSession = jdbcRequest.getOpenSession();
+					String user = openSession.getUser();
+					String password = rsaHelper.decrypt(openSession.getPassword());
+					this.addDbIfAbsent(db, user, password);
+					addDbIfAbsent(dbDefs.get(db));
+					saveDbs();
+					innerDb = dbMap.get(db);
+				}else{
+					throw new MaxDatabaseExceededException(dbMap.size(), MAX_DB_NUM);
+				}
+			}
       if(innerDb!=null){
         innerDb.applyTransaction(termIndex, jdbcRequest, response);
       } else{
