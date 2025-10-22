@@ -242,7 +242,22 @@ public final class SegmentedRaftLog extends RaftLogBase {
         boolean keepEntryInCache = (paths.size() - i++) <= cache.getMaxCachedSegments();
         try(UncheckedAutoCloseable ignored = getRaftLogMetrics().startLoadSegmentTimer()) {
           cache.loadSegment(pi, keepEntryInCache, logConsumer);
-        }
+        }catch (IllegalStateException ex){
+					if(ex.getMessage().startsWith("Found a gap between logs:")){
+						//发现日志缺失，但是该日志小于最新快照索引，则删除该日志段
+						if (!cache.isEmpty() && cache.getEndIndex() < lastIndexInSnapshot) {
+							LOG.warn("Found a gap between logs, " +
+											"End log index {} is smaller than last index in snapshot {}",
+									cache.getEndIndex(), lastIndexInSnapshot);
+							purgeImpl(lastIndexInSnapshot).whenComplete((purged, e) -> updatePurgeIndex(purged));
+							cache.close();
+						}else{
+							throw ex;
+						}
+					}else{
+						throw ex;
+					}
+				}
       }
 
       // 如果最大索引小于快照中的最后一个索引，我们将不会加载日志，以避免日志段之间出现空洞。
