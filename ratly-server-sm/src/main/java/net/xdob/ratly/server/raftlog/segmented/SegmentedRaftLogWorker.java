@@ -284,15 +284,22 @@ class SegmentedRaftLogWorker {
   private void run() {
     // if and when a log task encounters an exception
     RaftLogIOException logIOException = null;
-
-    CodeInjectionForTesting.execute(RUN_WORKER, server == null ? null : server.getId(), null, queue);
+		Timestamp logIOExTimestamp = null;
+		//IO 异常重试时间
+		int logIOExRetryMs = 15 * 1000;
+		CodeInjectionForTesting.execute(RUN_WORKER, server == null ? null : server.getId(), null, queue);
     while (running) {
       try {
         Task task = queue.poll(ONE_SECOND);
         if (task != null) {
           task.stopTimerOnDequeue();
           try {
-            if (logIOException != null) {
+						//IO 异常超时可以重试了
+						if (logIOExTimestamp != null&&logIOExTimestamp.elapsedTimeMs() < logIOExRetryMs) {
+							logIOException = null;
+							logIOExTimestamp = null;
+						}
+						if (logIOException != null) {
               throw logIOException;
             } else {
               try (UncheckedAutoCloseable ignored = raftLogMetrics.startTaskExecutionTimer(task.getClass())) {
@@ -310,6 +317,7 @@ class SegmentedRaftLogWorker {
                 logIOException = new RaftLogIOException("Log already failed"
                     + " at index " + task.getEndIndex()
                     + " for task " + task, e);
+								logIOExTimestamp = Timestamp.currentTime();
               }
               continue;
             }
