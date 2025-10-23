@@ -265,7 +265,7 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 		Map<String, List<FileInfo>> map = Maps.newHashMap();
 		try{
 			try(AutoCloseableLock readLock = readLock()) {
-				last = this.getLastAppliedTermIndex();
+				last = this.getLastTxAppliedTermIndex();
 				if(last.getIndex()<0){
 					return last.getIndex();
 				}
@@ -326,11 +326,13 @@ public class CompoundStateMachine extends BaseStateMachine implements SMPluginCo
 				.filter(e -> e > RaftLog.INVALID_LOG_INDEX)
 				.sorted()
 				.collect(Collectors.toList());
-		long lastEndedTxIndex = RaftLog.INVALID_LOG_INDEX;
-		for (Long index : indexList) {
-			if(index<tx&&index>lastEndedTxIndex){
-				lastEndedTxIndex = index;
-			}
+
+		long lastEndedTxIndex = indexList.stream()
+				.max(Long::compareTo)
+				.orElse(RaftLog.INVALID_LOG_INDEX);
+		//有未完成的事务,并且后面有已提交事务
+		if(tx>0&&lastEndedTxIndex>tx){
+			lastEndedTxIndex = RaftLog.INVALID_LOG_INDEX;
 		}
     if(lastEndedTxIndex>RaftLog.INVALID_LOG_INDEX){
       last = serverStateSupport.get().getTermIndex(lastEndedTxIndex);
