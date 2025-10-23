@@ -5,6 +5,7 @@ import net.xdob.ratly.security.crypto.password.PasswordEncoder;
 import net.xdob.ratly.security.RsaHelper;
 import net.xdob.ratly.server.protocol.TermIndex;
 import net.xdob.ratly.statemachine.SnapshotInfo;
+import net.xdob.ratly.util.PauseLastTime;
 import net.xdob.ratly.util.Timestamp;
 
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,4 +27,5 @@ public interface DbsContext {
 	void closeSession(String db, String sessionId);
 	SessionMgr getSessionMgr();
 	int getMaxConnSize(String db);
+	PauseLastTime getPauseLastTime();
 }

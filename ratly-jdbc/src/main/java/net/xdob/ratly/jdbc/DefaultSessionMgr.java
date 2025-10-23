@@ -1,7 +1,10 @@
 package net.xdob.ratly.jdbc;
 
 import com.google.common.collect.Maps;
+import net.xdob.ratly.util.GCLastTime;
 import net.xdob.ratly.util.MemoizedCheckedSupplier;
+import net.xdob.ratly.util.PauseLastTime;
+import net.xdob.ratly.util.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,12 +25,14 @@ public class DefaultSessionMgr implements SessionInnerMgr{
   private final AtomicBoolean expiredChecking = new AtomicBoolean();
   private final AtomicBoolean leader = new AtomicBoolean();
 	private final AtomicBoolean disabled = new AtomicBoolean();
+	private volatile Timestamp lastCheckTime = Timestamp.currentTime();
+
 
 	public DefaultSessionMgr(DbsContext context) {
 		this.context = context;
 		context.getScheduler()
 				.scheduleWithFixedDelay(this::checkExpiredSessions,
-						0, Session.LIFE_TIME, TimeUnit.MILLISECONDS);
+						0, 1000, TimeUnit.MILLISECONDS);
 	}
 
 
@@ -72,15 +77,21 @@ public class DefaultSessionMgr implements SessionInnerMgr{
 			}
 			return;
 		}
-
-    if(expiredChecking.compareAndSet(false, true)) {
+		Timestamp lastPauseTime = context.getPauseLastTime().getLastPauseTime();
+		if(lastPauseTime.getNanos()>lastCheckTime.getNanos()){
+			for (Session session : sessions.values()) {
+				session.heartBeat();
+			}
+		}
+		if(expiredChecking.compareAndSet(false, true)) {
+			lastCheckTime = Timestamp.currentTime();
       try {
 				List<Session> expiredSessions = sessions.values().stream()
 						.filter(s -> s.elapsedHeartTimeMs() > SESSION_TIMEOUT)
 						.collect(Collectors.toList());
 				expiredSessions.forEach(s -> {
-					if(s.getElapsedHeartTimeMs() > SESSION_TIMEOUT) {
-						LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.getElapsedHeartTimeMs());
+					if(s.elapsedHeartTimeMs() > SESSION_TIMEOUT) {
+						LOG.info("session close id={}, elapsedHeartTimeMs={}", s.getSessionId(), s.elapsedHeartTimeMs());
 						context.closeSession(s.getDb(), s.getSessionId());
 					}
 				});

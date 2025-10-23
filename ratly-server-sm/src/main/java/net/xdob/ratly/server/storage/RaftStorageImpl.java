@@ -41,7 +41,6 @@ public class RaftStorageImpl implements RaftStorage {
     this.startupOption = option;
     this.dirCache = dirCache;
     this.peerId = peerId;
-
   }
 
   public File getDirCache() {

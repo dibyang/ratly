@@ -54,8 +54,7 @@ public class GCLastTime implements PauseLastTime {
 				NotificationEmitter emitter = (NotificationEmitter) gcBean;
 				emitter.removeNotificationListener(notificationListener);
 			}
-		} catch (ListenerNotFoundException e) {
-			throw new RuntimeException(e);
+		} catch (ListenerNotFoundException ignore) {
 		}
 	}
 }

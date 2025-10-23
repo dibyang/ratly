@@ -60,9 +60,10 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
   private final RsaHelper rsaHelper = new RsaHelper();
 
 	private DefaultSessionMgr sessionMgr;
-
+  private PauseLastTime pauseLastTime;
 
 	public DBSMPlugin() {
+
   }
 
   @Override
@@ -73,6 +74,7 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
   @Override
   public void setSMPluginContext(SMPluginContext context) {
     this.context = context;
+		this.pauseLastTime = new GCLastTime();
   }
 
 	@Override
@@ -167,8 +169,13 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
 	}
 
 	@Override
-  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
+	public PauseLastTime getPauseLastTime() {
+		return this.pauseLastTime;
+	}
 
+	@Override
+  public void initialize(RaftServer server, RaftGroupId groupId, RaftPeerId peerId, RaftStorage raftStorage) throws IOException {
+		this.pauseLastTime.stop();
 		sessionMgr = new DefaultSessionMgr(this);
 		/**
      * 初始化数据库
@@ -531,6 +538,7 @@ public class DBSMPlugin implements SMPlugin, DbsContext {
       innerDb.close();
     }
     dbMap.clear();
+		this.pauseLastTime.stop();
   }
 
 	@Override

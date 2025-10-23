@@ -6,6 +6,7 @@ import net.xdob.ratly.jdbc.sql.TransactionIsolation;
 import net.xdob.ratly.server.raftlog.RaftLog;
 import net.xdob.ratly.server.raftlog.RaftLogIndex;
 import net.xdob.ratly.util.MemoizedCheckedSupplier;
+import net.xdob.ratly.util.Timestamp;
 import net.xdob.ratly.util.function.CheckedConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,10 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class Session  {
 	static final Logger LOG = LoggerFactory.getLogger(Session.class);
-	/**
-	 * 生命周期计数时间(单位是毫秒)
-	 */
-	public static final int LIFE_TIME = 100;
+
 	public static final int NO_TX = -1;
 	private final String db;
   private final String user;
@@ -29,7 +27,7 @@ public class Session  {
 
   private final MemoizedCheckedSupplier<Connection, SQLException> connSupplier;
 
-	private final AtomicLong sinceLastHeartbeat = new AtomicLong(0);
+	private volatile Timestamp sinceLastHeartbeat = Timestamp.currentTime();
 	private final AtomicReference<SessionInnerMgr> sessionMgrRef = new AtomicReference<>();
 	//已应用索引未必是事务已提交
 	private final RaftLogIndex appliedIndex;
@@ -96,16 +94,16 @@ public class Session  {
 
 
 	public long elapsedHeartTimeMs() {
-		return sinceLastHeartbeat.addAndGet(LIFE_TIME);
+		return sinceLastHeartbeat.elapsedTimeMs();
 	}
 
 	public void heartBeat() {
-		sinceLastHeartbeat.set(0);
+		sinceLastHeartbeat = Timestamp.currentTime();
 	}
 
-	public long getElapsedHeartTimeMs() {
-		return sinceLastHeartbeat.get();
-	}
+//	public long getElapsedHeartTimeMs() {
+//		return sinceLastHeartbeat.elapsedTimeMs();
+//	}
 
 	public Savepoint setSavepoint(String name) throws SQLException {
 		return getConnection().setSavepoint(name);
@@ -286,7 +284,7 @@ public class Session  {
 			map.put("endTx", this.getEndTx());
 			map.put("transactionIsolation", getTransactionIsolationName());
 			map.put("state", this.state);
-			map.put("lastHeart", this.getElapsedHeartTimeMs());
+			map.put("lastHeart", this.elapsedHeartTimeMs());
 			map.put("startTime", new java.sql.Timestamp(this.startTime));
 			map.put("sleepSince", this.sleepSince == null ? null : new java.sql.Timestamp(this.sleepSince));
 			map.put("sql", this.sql);
@@ -310,7 +308,7 @@ public class Session  {
 				.setValue(index++, this.getEndTx())
 				.setValue(index++, getTransactionIsolationName())
 				.setValue(index++, this.state.name())
-				.setValue(index++, this.getElapsedHeartTimeMs())
+				.setValue(index++, this.elapsedHeartTimeMs())
 				.setValue(index++, new java.sql.Timestamp(this.startTime))
 				.setValue(index++, this.sleepSince == null ?
 						null : new java.sql.Timestamp(this.sleepSince))
