@@ -22,8 +22,8 @@ public class JdbcConnectionInfo {
 
   /**
    * jdbc:ratly:{host}/{database}?port={port}
-   * ex: jdbc:ratly:13.13.163.1$n1@13.13.14.163,n2@13.13.14.164/b_db?port=7800
-   *     jdbc:ratly:single$n1@127.0.0.1/b_db?port=7800
+   * ex: jdbc:ratly:group2$n1@13.13.14.163,n2@13.13.14.164/b_db?port=7800
+   *     jdbc:ratly:group1$n1@13.13.14.162/b_db?port=7800
    * @param url
    * @param info
    */

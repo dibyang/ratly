@@ -156,10 +156,11 @@ public interface LogAppender {
    * 返回值：需要安装的快照信息或 null。
    */
   default SnapshotInfo shouldInstallSnapshot() {
-    // we should install snapshot if the follower needs to catch up and:
-    // 1. there is no local log entry but there is snapshot
-    // 2. or the follower's next index is smaller than the log start index
-    // 3. or the follower is bootstrapping and has not installed any snapshot yet
+
+		// 当从节点需要追赶上进度时，若满足以下任一条件则应安装快照：
+		// 1. 本地不存在日志条目但存在快照
+		// 2. 从节点的下一索引值小于日志起始索引
+		// 3. 从节点正在启动且尚未安装任何快照
     final FollowerInfo follower = getFollower();
     final boolean isFollowerBootstrapping = getLeaderState().isFollowerBootstrapping(follower);
     final SnapshotInfo snapshot = getServer().getStateMachine().getLatestSnapshot();
@@ -189,12 +190,13 @@ public interface LogAppender {
    */
   void run() throws InterruptedException, IOException;
 
-  /**
-   * Get the {@link AwaitForSignal} for events, which can be:
-   * (1) new log entries available,
-   * (2) log indices changed, or
-   * (3) a snapshot installation completed.
-   */
+
+	/**
+	 * 获取用于等待事件信号的{@link AwaitForSignal}，这些事件可能包括：
+	 * (1) 有新的日志条目可用
+	 * (2) 日志索引发生变更
+	 * (3) 快照安装完成
+	 */
   AwaitForSignal getEventAwaitForSignal();
 
   /**
